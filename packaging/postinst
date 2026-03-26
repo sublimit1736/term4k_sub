@@ -1,0 +1,24 @@
+#!/bin/sh
+# term4k runtime post-install script.
+# Executed by package manager after files are installed.
+# Creates writable runtime directories that are not shipped directly in package payload.
+
+set -e
+
+# ── /var/lib/term4k/ ──────────────────────────────────────────────────────────
+# Writable data directory for records.db, proof.db, and key.bin.
+# Owned by root with 0755 permissions.
+if [ ! -d /var/lib/term4k ]; then
+    install -d -m 0755 -o root -g root /var/lib/term4k
+fi
+
+# ── /etc/term4k/ ───────────────────────────────────────────────────────────────
+# Application config directory for system-level custom config.
+# Locale files are read-only assets under /usr/share/term4k/i18n/ and are not stored here.
+if [ ! -d /etc/term4k ]; then
+    install -d -m 0755 -o root -g root /etc/term4k
+fi
+
+#DEBHELPER#
+
+exit 0
