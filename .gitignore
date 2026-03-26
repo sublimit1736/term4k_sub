@@ -184,3 +184,31 @@ CMakeUserPresets.json
 
 # 构建目录（CMake 生成的所有内容）
 build/
+
+# term4k build/package artifacts
+cmake-build-debug/
+cmake-build-release/
+*.deb
+*.rpm
+*.tar.gz
+
+# Test/coverage/profiling outputs
+coverage/
+*.gcno
+*.gcda
+*.gcov
+*.profraw
+*.profdata
+
+# Generic logs/runtime leftovers
+*.log
+*.pid
+core
+core.*
+
+# Common editor/system junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
