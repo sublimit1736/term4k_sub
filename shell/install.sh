@@ -119,7 +119,7 @@ detect_pkg_manager() {
 }
 
 local_mode=0
-if [ -f "$SCRIPT_DIR/CMakeLists.txt" ]; then
+if [ -f "$SCRIPT_DIR/../CMakeLists.txt" ]; then
     local_mode=1
 fi
 
@@ -133,7 +133,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 if [ "$local_mode" -eq 1 ]; then
-    ROOT_DIR="$SCRIPT_DIR"
+    ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 else
     need_cmd tar
     if [ -z "$SOURCE_URL" ]; then
