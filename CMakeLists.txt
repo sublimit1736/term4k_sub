@@ -43,22 +43,22 @@ if (TERM4K_BUILD_TESTS)
 
     add_executable(term4k_tests
             includes/catch_amalgamated.cpp
-            test/test_main.cpp
-            test/unit/utils/PrefixTrieTests.cpp
-            test/unit/utils/ErrorNotifierTests.cpp
-            test/unit/utils/LiteDBUtilsTests.cpp
-            test/unit/utils/AppDirsTests.cpp
-            test/unit/config/RuntimeConfigsTests.cpp
-            test/unit/services/I18nTests.cpp
-            test/unit/services/ChartIOTests.cpp
-            test/unit/services/ChartCatalogServiceTests.cpp
-            test/unit/services/SongPlayerTests.cpp
-            test/unit/services/UserServiceTests.cpp
-            test/unit/services/AutheticatedUserServiceTests.cpp
-            test/unit/instances/ChartListInstanceTests.cpp
-            test/unit/instances/UserLoginInstanceTests.cpp
-            test/unit/instances/UserStatInstanceTests.cpp
-            test/unit/instances/AdminStatInstanceTests.cpp
+            src/test/test_main.cpp
+            src/test/unit/utils/PrefixTrieTests.cpp
+            src/test/unit/utils/ErrorNotifierTests.cpp
+            src/test/unit/utils/LiteDBUtilsTests.cpp
+            src/test/unit/utils/AppDirsTests.cpp
+            src/test/unit/config/RuntimeConfigsTests.cpp
+            src/test/unit/services/I18nTests.cpp
+            src/test/unit/services/ChartIOTests.cpp
+            src/test/unit/services/ChartCatalogServiceTests.cpp
+            src/test/unit/services/SongPlayerTests.cpp
+            src/test/unit/services/UserServiceTests.cpp
+            src/test/unit/services/AuthenticatedUserServiceTests.cpp
+            src/test/unit/instances/ChartListInstanceTests.cpp
+            src/test/unit/instances/UserLoginInstanceTests.cpp
+            src/test/unit/instances/UserStatInstanceTests.cpp
+            src/test/unit/instances/AdminStatInstanceTests.cpp
             src/main/utils/PrefixTrie.cpp
             src/main/utils/ErrorNotifier.cpp
             src/main/utils/LiteDBUtils.cpp
@@ -82,7 +82,7 @@ if (TERM4K_BUILD_TESTS)
             includes/miniaudio_impl.cpp
     )
 
-    target_include_directories(term4k_tests PRIVATE includes src/main test)
+    target_include_directories(term4k_tests PRIVATE includes src/main src/test)
     target_link_libraries(term4k_tests PRIVATE OpenSSL::Crypto)
 
     add_test(NAME term4k_tests COMMAND term4k_tests)
