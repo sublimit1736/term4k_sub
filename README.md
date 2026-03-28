@@ -34,7 +34,10 @@ It includes:
 
 > Auto-updated by `.github/workflows/readme-stats.yml`.
 
-**Total code lines:** `10,844`  
+> Chart theme preset: `dark` + `default`.
+> Switch quickly: `python3 scripts/update_readme_stats.py --theme light --style neon`.
+
+**Total code lines:** `10,846`  
 **Class/Struct definitions (C++):** `86`  
 **Stack object declarations (C++, heuristic):** `392`  
 **Heap allocations via `new` (C++, heuristic):** `0`  
@@ -43,11 +46,11 @@ It includes:
 ### Distribution Chart
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Inter, Segoe UI, Helvetica, Arial, sans-serif', 'pieTitleTextColor': '#111827', 'pieSectionTextColor': '#111827', 'pieOuterStrokeColor': '#ffffff', 'pieOuterStrokeWidth': '2px', 'pie1': '#4f46e5', 'pie2': '#06b6d4', 'pie3': '#10b981', 'pie4': '#f59e0b', 'pie5': '#ef4444', 'pie6': '#8b5cf6'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Fira Code, JetBrains Mono, Source Code Pro, Cascadia Code, Menlo, Consolas, monospace', 'pieTitleTextColor': '#e5e7eb', 'pieSectionTextColor': '#f3f4f6', 'pieOuterStrokeColor': 'transparent', 'pieOuterStrokeWidth': '0px', 'pieStrokeColor': 'transparent', 'pieStrokeWidth': '0px', 'pie1': '#6366f1', 'pie2': '#22d3ee', 'pie3': '#34d399', 'pie4': '#fbbf24', 'pie5': '#fb7185', 'pie6': '#a78bfa'}}}%%
 pie showData
     title Code Distribution by Language (LOC)
     "C++ (87.0%)" : 9432
-    "Markdown (6.1%)" : 662
+    "Markdown (6.1%)" : 664
     "Shell (3.9%)" : 422
     "CMake (2.3%)" : 252
     "JSON (0.7%)" : 76
