@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,14 +17,19 @@ BADGES_DIR = REPO_ROOT / ".github" / "badges"
 STATS_START = "<!-- README_STATS:START -->"
 STATS_END = "<!-- README_STATS:END -->"
 MAX_CHART_ITEMS = 6
-MERMAID_PIE_INIT = (
-    "%%{init: {'theme': 'base', 'themeVariables': "
-    "{'fontFamily': 'Inter, Segoe UI, Helvetica, Arial, sans-serif', "
-    "'pieTitleTextColor': '#111827', 'pieSectionTextColor': '#111827', "
-    "'pieOuterStrokeColor': '#ffffff', 'pieOuterStrokeWidth': '2px', "
-    "'pie1': '#4f46e5', 'pie2': '#06b6d4', 'pie3': '#10b981', "
-    "'pie4': '#f59e0b', 'pie5': '#ef4444', 'pie6': '#8b5cf6'}}}%%"
-)
+DEFAULT_THEME = "dark"
+DEFAULT_STYLE = "default"
+FONT_STACK = "Fira Code, JetBrains Mono, Source Code Pro, Cascadia Code, Menlo, Consolas, monospace"
+
+THEME_TEXTS = {
+    "dark": {"title": "#e5e7eb", "section": "#f3f4f6"},
+    "light": {"title": "#111827", "section": "#1f2937"},
+}
+
+PIE_STYLE_PALETTES = {
+    "default": ["#6366f1", "#22d3ee", "#34d399", "#fbbf24", "#fb7185", "#a78bfa"],
+    "neon": ["#00f5ff", "#39ff14", "#ff2bd6", "#ffe600", "#00ffa3", "#9d4edd"],
+}
 
 EXCLUDED_DIRS = {
     ".git",
@@ -162,9 +169,24 @@ def compress_for_chart(language_lines: dict[str, int], max_items: int = MAX_CHAR
     return head
 
 
-def build_mermaid_pie(language_lines: dict[str, int], total_lines: int) -> str:
+def build_mermaid_pie_init(theme: str, style: str) -> str:
+    text_colors = THEME_TEXTS.get(theme, THEME_TEXTS[DEFAULT_THEME])
+    palette = PIE_STYLE_PALETTES.get(style, PIE_STYLE_PALETTES[DEFAULT_STYLE])
+
+    return (
+        "%%{init: {'theme': 'base', 'themeVariables': "
+        f"{{'fontFamily': '{FONT_STACK}', "
+        f"'pieTitleTextColor': '{text_colors['title']}', 'pieSectionTextColor': '{text_colors['section']}', "
+        "'pieOuterStrokeColor': 'transparent', 'pieOuterStrokeWidth': '0px', "
+        "'pieStrokeColor': 'transparent', 'pieStrokeWidth': '0px', "
+        f"'pie1': '{palette[0]}', 'pie2': '{palette[1]}', 'pie3': '{palette[2]}', "
+        f"'pie4': '{palette[3]}', 'pie5': '{palette[4]}', 'pie6': '{palette[5]}'}}}}}}%%"
+    )
+
+
+def build_mermaid_pie(language_lines: dict[str, int], total_lines: int, theme: str, style: str) -> str:
     chart_items = compress_for_chart(language_lines)
-    lines = ["```mermaid", MERMAID_PIE_INIT, "pie showData", '    title Code Distribution by Language (LOC)']
+    lines = ["```mermaid", build_mermaid_pie_init(theme, style), "pie showData", '    title Code Distribution by Language (LOC)']
     for language, count in chart_items:
         label = f"{language} ({0.0 if total_lines == 0 else (count / total_lines * 100):.1f}%)"
         lines.append(f'    "{label}" : {count}')
@@ -176,12 +198,16 @@ def build_stats_block_en(
     language_lines: dict[str, int],
     total_lines: int,
     cpp_stats: CppSymbolStats,
+    theme: str,
+    style: str,
 ) -> str:
-    pie = build_mermaid_pie(language_lines, total_lines)
+    pie = build_mermaid_pie(language_lines, total_lines, theme, style)
     return (
         f"{STATS_START}\n"
         "## Live Code Statistics\n\n"
         "> Auto-updated by `.github/workflows/readme-stats.yml`.\n\n"
+        f"> Chart theme preset: `{theme}` + `{style}`.\n"
+        "> Switch quickly: `python3 scripts/update_readme_stats.py --theme light --style neon`.\n\n"
         f"**Total code lines:** `{format_num(total_lines)}`  \n"
         f"**Class/Struct definitions (C++):** `{format_num(cpp_stats.class_count)}`  \n"
         f"**Stack object declarations (C++, heuristic):** `{format_num(cpp_stats.stack_object_count)}`  \n"
@@ -197,12 +223,16 @@ def build_stats_block_zh(
     language_lines: dict[str, int],
     total_lines: int,
     cpp_stats: CppSymbolStats,
+    theme: str,
+    style: str,
 ) -> str:
-    pie = build_mermaid_pie(language_lines, total_lines)
+    pie = build_mermaid_pie(language_lines, total_lines, theme, style)
     return (
         f"{STATS_START}\n"
         "## 实时代码统计\n\n"
         "> 由 `.github/workflows/readme-stats.yml` 自动更新。\n\n"
+        f"> 当前图表主题：`{theme}` + `{style}`。\n"
+        "> 快速切换：`python3 scripts/update_readme_stats.py --theme light --style neon`。\n\n"
         f"**代码总行数：** `{format_num(total_lines)}`  \n"
         f"**类/结构体定义数量（C++）：** `{format_num(cpp_stats.class_count)}`  \n"
         f"**栈对象声明数量（C++，启发式）：** `{format_num(cpp_stats.stack_object_count)}`  \n"
@@ -341,7 +371,22 @@ def collect_cpp_symbol_stats() -> CppSymbolStats:
     )
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Update README stats blocks and shields badge payloads.")
+    parser.add_argument("--theme", choices=sorted(THEME_TEXTS.keys()), default=None, help="Mermaid chart text theme.")
+    parser.add_argument("--style", choices=sorted(PIE_STYLE_PALETTES.keys()), default=None, help="Mermaid chart color style preset.")
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+    theme = (args.theme or os.getenv("TERM4K_README_THEME") or DEFAULT_THEME).strip().lower()
+    style = (args.style or os.getenv("TERM4K_README_STYLE") or DEFAULT_STYLE).strip().lower()
+    if theme not in THEME_TEXTS:
+        theme = DEFAULT_THEME
+    if style not in PIE_STYLE_PALETTES:
+        style = DEFAULT_STYLE
+
     language_lines = collect_stats()
     total_lines = sum(language_lines.values())
     cpp_stats = collect_cpp_symbol_stats()
@@ -349,7 +394,7 @@ def main() -> None:
     README_EN.write_text(
         replace_between_markers(
             README_EN.read_text(encoding="utf-8"),
-            build_stats_block_en(language_lines, total_lines, cpp_stats),
+            build_stats_block_en(language_lines, total_lines, cpp_stats, theme, style),
         ),
         encoding="utf-8",
     )
@@ -357,7 +402,7 @@ def main() -> None:
     README_ZH.write_text(
         replace_between_markers(
             README_ZH.read_text(encoding="utf-8"),
-            build_stats_block_zh(language_lines, total_lines, cpp_stats),
+            build_stats_block_zh(language_lines, total_lines, cpp_stats, theme, style),
         ),
         encoding="utf-8",
     )
