@@ -34,7 +34,7 @@ term4k 是一个基于 C++20 的终端节奏游戏项目。
 
 > 由 `.github/workflows/readme-stats.yml` 自动更新。
 
-**代码总行数：** `10,844`  
+**代码总行数：** `10,846`  
 **类/结构体定义数量（C++）：** `86`  
 **栈对象声明数量（C++，启发式）：** `392`  
 **`new` 堆分配次数（C++，启发式）：** `0`  
@@ -47,7 +47,7 @@ term4k 是一个基于 C++20 的终端节奏游戏项目。
 pie showData
     title Code Distribution by Language (LOC)
     "C++ (87.0%)" : 9432
-    "Markdown (6.1%)" : 662
+    "Markdown (6.1%)" : 664
     "Shell (3.9%)" : 422
     "CMake (2.3%)" : 252
     "JSON (0.7%)" : 76

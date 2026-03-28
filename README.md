@@ -34,7 +34,7 @@ It includes:
 
 > Auto-updated by `.github/workflows/readme-stats.yml`.
 
-**Total code lines:** `10,844`  
+**Total code lines:** `10,846`  
 **Class/Struct definitions (C++):** `86`  
 **Stack object declarations (C++, heuristic):** `392`  
 **Heap allocations via `new` (C++, heuristic):** `0`  
@@ -47,7 +47,7 @@ It includes:
 pie showData
     title Code Distribution by Language (LOC)
     "C++ (87.0%)" : 9432
-    "Markdown (6.1%)" : 662
+    "Markdown (6.1%)" : 664
     "Shell (3.9%)" : 422
     "CMake (2.3%)" : 252
     "JSON (0.7%)" : 76
