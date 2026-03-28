@@ -2,6 +2,19 @@
 
 [Chinese documentation / 中文文档](documents/README_zh_CN.md)
 
+<p align="center">
+  <img alt="License" src="https://img.shields.io/github/license/TheBadRoger/term4k">
+  <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=c%2B%2B&logoColor=white">
+  <img alt="Last Commit" src="https://img.shields.io/github/last-commit/TheBadRoger/term4k">
+  <img alt="Repo Size" src="https://img.shields.io/github/repo-size/TheBadRoger/term4k">
+  <img alt="LOC" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/loc.json">
+  <img alt="Languages" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/languages.json">
+  <img alt="Top Language" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/top-language.json">
+  <img alt="Stack Objects" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/stack-objects.json">
+  <img alt="Heap New" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/heap-new.json">
+  <img alt="Smart Factory" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/smart-factory.json">
+</p>
+
 ## Documentation
 
 - [Architecture Overview (English)](documents/ARCHITECTURE.md)
@@ -16,6 +29,38 @@ It includes:
 - per-user runtime configuration persistence
 - localization support (`en_US`, `zh_CN`)
 - unit tests for core modules
+
+<!-- README_STATS:START -->
+## Live Code Statistics
+
+> Auto-updated by `.github/workflows/readme-stats.yml`.
+
+**Total code lines:** `10,862`  
+**Class/Struct definitions (C++):** `86`  
+**Stack object declarations (C++, heuristic):** `392`  
+**Heap allocations via `new` (C++, heuristic):** `0`  
+**`make_shared`/`make_unique` calls (C++, heuristic):** `1`
+
+### Distribution Chart
+
+```mermaid
+pie showData
+    title Code Distribution by Language (LOC)
+    "C++ (86.8%)" : 9432
+    "Markdown (6.3%)" : 680
+    "Shell (3.9%)" : 422
+    "CMake (2.3%)" : 252
+    "JSON (0.7%)" : 76
+```
+
+| Language | Lines | Share |
+| --- | ---: | ---: |
+| C++ | 9,432 | 86.83% |
+| Markdown | 680 | 6.26% |
+| Shell | 422 | 3.89% |
+| CMake | 252 | 2.32% |
+| JSON | 76 | 0.70% |
+<!-- README_STATS:END -->
 
 ## Install (Recommended)
 
@@ -133,4 +178,3 @@ cmake --build cmake-build-release --target package -j
 cmake -S . -B cmake-build-release -DCMAKE_BUILD_TYPE=Release -DTERM4K_ENABLE_RPM=ON -DTERM4K_STRICT_RPM_CHECK=ON
 cmake --build cmake-build-release --target package -j
 ```
-

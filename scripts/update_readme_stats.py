@@ -1,0 +1,378 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+README_EN = REPO_ROOT / "README.md"
+README_ZH = REPO_ROOT / "documents" / "README_zh_CN.md"
+BADGES_DIR = REPO_ROOT / ".github" / "badges"
+
+STATS_START = "<!-- README_STATS:START -->"
+STATS_END = "<!-- README_STATS:END -->"
+MAX_CHART_ITEMS = 6
+
+EXCLUDED_DIRS = {
+    ".git",
+    ".idea",
+    ".github",
+    "build",
+    "cmake-build-debug",
+    "cmake-build-release",
+    "cmake-build-release-strict",
+    "cmake-build-minsizerel",
+    "cmake-build-relwithdebinfo",
+    "_deps",
+}
+
+EXCLUDED_FILE_NAMES = {
+    "catch_amalgamated.cpp",
+    "catch_amalgamated.hpp",
+    "miniaudio.h",
+    "miniaudio_impl.cpp",
+}
+
+
+@dataclass(frozen=True)
+class LanguageRule:
+    name: str
+    suffixes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CppSymbolStats:
+    class_count: int
+    stack_object_count: int
+    heap_new_count: int
+    smart_factory_count: int
+
+
+LANGUAGE_RULES = [
+    LanguageRule("C++", (".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".h")),
+    LanguageRule("CMake", (".cmake",)),
+    LanguageRule("Shell", (".sh",)),
+    LanguageRule("Markdown", (".md",)),
+    LanguageRule("JSON", (".json",)),
+    LanguageRule("YAML", (".yml", ".yaml")),
+]
+
+SPECIAL_FILES = {
+    "CMakeLists.txt": "CMake",
+}
+
+CPP_SOURCE_SUFFIXES = {".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".h"}
+CPP_BUILTIN_TYPES = {
+    "auto", "bool", "char", "char8_t", "char16_t", "char32_t", "double", "float", "int", "long",
+    "short", "signed", "size_t", "ssize_t", "std::size_t", "std::ptrdiff_t", "uint8_t", "uint16_t",
+    "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t", "unsigned", "void", "wchar_t",
+}
+
+CLASS_DEF_RE = re.compile(r"\b(?:class|struct)\s+[A-Za-z_]\w*\b(?:\s+final)?\s*(?:[:{])")
+VAR_DECL_RE = re.compile(
+    r"^\s*(?:const\s+|constexpr\s+|static\s+|mutable\s+|inline\s+|thread_local\s+|volatile\s+)*"
+    r"(?P<type>(?:[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*(?:<[^;{}()]+>)?)|(?:unsigned|signed|long|short|int|double|float|bool|char|wchar_t)(?:\s+(?:long|int|short))?)"
+    r"(?:\s*[*&]\s*)?\s+"
+    r"(?P<name>[A-Za-z_]\w*)\s*"
+    r"(?:\([^;{}]*\)|\{[^;{}]*\}|=[^;{}]*)?\s*;"
+)
+NEW_EXPR_RE = re.compile(r"(?<!operator\s)\bnew\b")
+SMART_FACTORY_RE = re.compile(r"\b(?:std::)?make_(?:shared|unique)\s*<")
+
+
+CONTROL_HEADS = {
+    "if", "for", "while", "switch", "return", "case", "throw", "catch", "using", "typedef",
+    "delete", "new", "class", "struct", "namespace", "template", "friend", "public", "private",
+    "protected", "else", "do", "goto", "static_assert", "requires",
+}
+
+
+def should_skip(path: Path) -> bool:
+    if path.name in EXCLUDED_FILE_NAMES:
+        return True
+
+    for part in path.parts:
+        if part in EXCLUDED_DIRS:
+            return True
+
+    # Keep generated badge json and workflow files out of language stats.
+    if ".github" in path.parts:
+        return True
+
+    return False
+
+
+def detect_language(path: Path) -> str | None:
+    if path.name in SPECIAL_FILES:
+        return SPECIAL_FILES[path.name]
+
+    suffix = path.suffix.lower()
+    for rule in LANGUAGE_RULES:
+        if suffix in rule.suffixes:
+            return rule.name
+
+    return None
+
+
+def count_lines(path: Path) -> int:
+    with path.open("r", encoding="utf-8", errors="ignore") as f:
+        return sum(1 for _ in f)
+
+
+def collect_stats() -> dict[str, int]:
+    totals: dict[str, int] = {}
+
+    for file_path in REPO_ROOT.rglob("*"):
+        if not file_path.is_file() or should_skip(file_path):
+            continue
+
+        language = detect_language(file_path)
+        if language is None:
+            continue
+
+        totals[language] = totals.get(language, 0) + count_lines(file_path)
+
+    return dict(sorted(totals.items(), key=lambda item: item[1], reverse=True))
+
+
+def format_num(value: int) -> str:
+    return f"{value:,}"
+
+
+def compress_for_chart(language_lines: dict[str, int], max_items: int = MAX_CHART_ITEMS) -> list[tuple[str, int]]:
+    items = list(language_lines.items())
+    if len(items) <= max_items:
+        return items
+
+    head = items[:max_items]
+    other_total = sum(lines for _, lines in items[max_items:])
+    if other_total > 0:
+        head.append(("Other", other_total))
+    return head
+
+
+def make_table_rows(language_lines: dict[str, int], total_lines: int) -> list[str]:
+    rows: list[str] = []
+    for language, lines in language_lines.items():
+        share = 0.0 if total_lines == 0 else (lines / total_lines * 100)
+        rows.append(f"| {language} | {format_num(lines)} | {share:.2f}% |")
+    return rows
+
+
+def build_mermaid_pie(language_lines: dict[str, int], total_lines: int) -> str:
+    chart_items = compress_for_chart(language_lines)
+    lines = ["```mermaid", "pie showData", '    title Code Distribution by Language (LOC)']
+    for language, count in chart_items:
+        label = f"{language} ({0.0 if total_lines == 0 else (count / total_lines * 100):.1f}%)"
+        lines.append(f'    "{label}" : {count}')
+    lines.append("```")
+    return "\n".join(lines)
+
+
+def build_stats_block_en(
+    language_lines: dict[str, int],
+    total_lines: int,
+    cpp_stats: CppSymbolStats,
+) -> str:
+    rows = "\n".join(make_table_rows(language_lines, total_lines))
+    pie = build_mermaid_pie(language_lines, total_lines)
+    return (
+        f"{STATS_START}\n"
+        "## Live Code Statistics\n\n"
+        "> Auto-updated by `.github/workflows/readme-stats.yml`.\n\n"
+        f"**Total code lines:** `{format_num(total_lines)}`  \n"
+        f"**Class/Struct definitions (C++):** `{format_num(cpp_stats.class_count)}`  \n"
+        f"**Stack object declarations (C++, heuristic):** `{format_num(cpp_stats.stack_object_count)}`  \n"
+        f"**Heap allocations via `new` (C++, heuristic):** `{format_num(cpp_stats.heap_new_count)}`  \n"
+        f"**`make_shared`/`make_unique` calls (C++, heuristic):** `{format_num(cpp_stats.smart_factory_count)}`\n\n"
+        "### Distribution Chart\n\n"
+        f"{pie}\n\n"
+        "| Language | Lines | Share |\n"
+        "| --- | ---: | ---: |\n"
+        f"{rows}\n"
+        f"{STATS_END}"
+    )
+
+
+def build_stats_block_zh(
+    language_lines: dict[str, int],
+    total_lines: int,
+    cpp_stats: CppSymbolStats,
+) -> str:
+    rows = "\n".join(make_table_rows(language_lines, total_lines))
+    pie = build_mermaid_pie(language_lines, total_lines)
+    return (
+        f"{STATS_START}\n"
+        "## 实时代码统计\n\n"
+        "> 由 `.github/workflows/readme-stats.yml` 自动更新。\n\n"
+        f"**代码总行数：** `{format_num(total_lines)}`  \n"
+        f"**类/结构体定义数量（C++）：** `{format_num(cpp_stats.class_count)}`  \n"
+        f"**栈对象声明数量（C++，启发式）：** `{format_num(cpp_stats.stack_object_count)}`  \n"
+        f"**`new` 堆分配次数（C++，启发式）：** `{format_num(cpp_stats.heap_new_count)}`  \n"
+        f"**`make_shared`/`make_unique` 调用次数（C++，启发式）：** `{format_num(cpp_stats.smart_factory_count)}`\n\n"
+        "### 分布图\n\n"
+        f"{pie}\n\n"
+        "| 语言 | 行数 | 占比 |\n"
+        "| --- | ---: | ---: |\n"
+        f"{rows}\n"
+        f"{STATS_END}"
+    )
+
+
+def replace_between_markers(content: str, replacement: str) -> str:
+    if STATS_START in content and STATS_END in content:
+        start = content.index(STATS_START)
+        end = content.index(STATS_END) + len(STATS_END)
+        return content[:start] + replacement + content[end:]
+
+    return content.rstrip() + "\n\n" + replacement + "\n"
+
+
+def write_badges(language_lines: dict[str, int], total_lines: int, cpp_stats: CppSymbolStats) -> None:
+    BADGES_DIR.mkdir(parents=True, exist_ok=True)
+
+    top_language = next(iter(language_lines.keys()), "N/A")
+    top_share = 0.0 if total_lines == 0 else language_lines[top_language] / total_lines * 100 if top_language in language_lines else 0.0
+
+    badge_payloads = {
+        "loc.json": {
+            "schemaVersion": 1,
+            "label": "LOC",
+            "message": format_num(total_lines),
+            "color": "2ea44f",
+        },
+        "languages.json": {
+            "schemaVersion": 1,
+            "label": "Languages",
+            "message": str(len(language_lines)),
+            "color": "1f6feb",
+        },
+        "top-language.json": {
+            "schemaVersion": 1,
+            "label": "Top Language",
+            "message": f"{top_language} {top_share:.1f}%",
+            "color": "8250df",
+        },
+        "stack-objects.json": {
+            "schemaVersion": 1,
+            "label": "Stack Obj",
+            "message": format_num(cpp_stats.stack_object_count),
+            "color": "0969da",
+        },
+        "heap-new.json": {
+            "schemaVersion": 1,
+            "label": "Heap new",
+            "message": format_num(cpp_stats.heap_new_count),
+            "color": "bf8700",
+        },
+        "smart-factory.json": {
+            "schemaVersion": 1,
+            "label": "make_*",
+            "message": format_num(cpp_stats.smart_factory_count),
+            "color": "6f42c1",
+        },
+    }
+
+    for file_name, payload in badge_payloads.items():
+        (BADGES_DIR / file_name).write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+
+def is_cpp_file(path: Path) -> bool:
+    return path.suffix.lower() in CPP_SOURCE_SUFFIXES
+
+
+def strip_cpp_comments_and_strings(content: str) -> str:
+    # Remove comments first, then strings to reduce regex false positives.
+    content = re.sub(r"//.*?$", "", content, flags=re.MULTILINE)
+    content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+    content = re.sub(r'"(?:\\.|[^"\\])*"', '""', content)
+    content = re.sub(r"'(?:\\.|[^'\\])*'", "''", content)
+    return content
+
+
+def collect_cpp_symbol_stats() -> CppSymbolStats:
+    class_count = 0
+    stack_object_count = 0
+    heap_new_count = 0
+    smart_factory_count = 0
+
+    for file_path in REPO_ROOT.rglob("*"):
+        if not file_path.is_file() or should_skip(file_path) or not is_cpp_file(file_path):
+            continue
+
+        raw = file_path.read_text(encoding="utf-8", errors="ignore")
+        text = strip_cpp_comments_and_strings(raw)
+
+        class_count += len(CLASS_DEF_RE.findall(text))
+        heap_new_count += len(NEW_EXPR_RE.findall(text))
+        smart_factory_count += len(SMART_FACTORY_RE.findall(text))
+
+        for line in text.splitlines():
+            match = VAR_DECL_RE.match(line)
+            if not match:
+                continue
+
+            stripped = line.strip()
+            head = stripped.split("(")[0].split()[0]
+            if head in CONTROL_HEADS:
+                continue
+
+            type_name = match.group("type").split("<", 1)[0].strip()
+            if type_name in CPP_BUILTIN_TYPES:
+                continue
+
+            name = match.group("name")
+            # Avoid counting obvious function declarations as object instantiations.
+            if re.search(rf"\b{name}\s*\([^)]*\)\s*;", stripped) and "=" not in stripped and "{" not in stripped:
+                continue
+
+            if "::" in type_name:
+                base = type_name.split("::")[-1]
+            else:
+                base = type_name
+            if base.isupper():
+                continue
+
+            stack_object_count += 1
+
+    return CppSymbolStats(
+        class_count=class_count,
+        stack_object_count=stack_object_count,
+        heap_new_count=heap_new_count,
+        smart_factory_count=smart_factory_count,
+    )
+
+
+def main() -> None:
+    language_lines = collect_stats()
+    total_lines = sum(language_lines.values())
+    cpp_stats = collect_cpp_symbol_stats()
+
+    README_EN.write_text(
+        replace_between_markers(
+            README_EN.read_text(encoding="utf-8"),
+            build_stats_block_en(language_lines, total_lines, cpp_stats),
+        ),
+        encoding="utf-8",
+    )
+
+    README_ZH.write_text(
+        replace_between_markers(
+            README_ZH.read_text(encoding="utf-8"),
+            build_stats_block_zh(language_lines, total_lines, cpp_stats),
+        ),
+        encoding="utf-8",
+    )
+
+    write_badges(language_lines, total_lines, cpp_stats)
+
+
+if __name__ == "__main__":
+    main()
+

@@ -1,0 +1,50 @@
+name: README Stats
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "includes/**"
+      - "shell/**"
+      - "documents/**"
+      - "CMakeLists.txt"
+      - "README.md"
+      - "documents/README_zh_CN.md"
+      - "scripts/update_readme_stats.py"
+      - ".github/workflows/readme-stats.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update-readme-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Update stats and badge payloads
+        run: python scripts/update_readme_stats.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md documents/README_zh_CN.md .github/badges/*.json
+          if git diff --cached --quiet; then
+            echo "No README stats changes to commit."
+            exit 0
+          fi
+          git commit -m "docs: update README code statistics"
+          git push
+

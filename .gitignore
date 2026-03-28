@@ -83,3 +83,14 @@ Thumbs.db
 *.swp
 *.swo
 .vscode/
+
+### Python / script runtime artifacts ###
+__pycache__/
+*.py[cod]
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+### Local scratch / ad-hoc debug files ###
+.tmp_*
