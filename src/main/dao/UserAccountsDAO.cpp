@@ -73,7 +73,8 @@ bool UserAccountsDAO::addUser(const std::string &username, const std::string &pa
             uint32_t existingUid = 0;
             if (parseUint32Strict(getField(line, 1), existingUid) && existingUid == uid){
                 ErrorNotifier::notify("UserAccountsDAO::addUser",
-                                      I18nService::instance().get("error.auth_uid_exists") + ": " + std::to_string(uid));
+                                      I18nService::instance().get("error.auth_uid_exists") + ": " +
+                                      std::to_string(uid));
                 return false;
             }
         }
@@ -82,7 +83,8 @@ bool UserAccountsDAO::addUser(const std::string &username, const std::string &pa
     // Generate 16-byte random salt.
     std::vector<uint8_t> salt(16);
     if (RAND_bytes(salt.data(), static_cast<int>(salt.size())) != 1){
-        ErrorNotifier::notify("UserAccountsDAO::addUser", I18nService::instance().get("error.auth_salt_generation_failed"));
+        ErrorNotifier::notify("UserAccountsDAO::addUser",
+                              I18nService::instance().get("error.auth_salt_generation_failed"));
         return false;
     }
 
@@ -106,7 +108,8 @@ bool UserAccountsDAO::addUser(const std::string &username, const std::string &pa
 // Verifies password by recomputing slowHash and using constant-time compare.
 bool UserAccountsDAO::verifyUser(const std::string &username, const std::string &password) {
     if (username.empty() || password.empty()){
-        ErrorNotifier::notify("UserAccountsDAO::verifyUser", I18nService::instance().get("error.auth_empty_credentials"));
+        ErrorNotifier::notify("UserAccountsDAO::verifyUser",
+                              I18nService::instance().get("error.auth_empty_credentials"));
         return false;
     }
 
@@ -164,7 +167,8 @@ std::vector<std::string> UserAccountsDAO::readAllUsernames() {
 
 bool UserAccountsDAO::tryGetUIDByUsername(const std::string &username, uint32_t &uid) {
     if (username.empty()){
-        ErrorNotifier::notify("UserAccountsDAO::tryGetUIDByUsername", I18nService::instance().get("error.auth_username_empty"));
+        ErrorNotifier::notify("UserAccountsDAO::tryGetUIDByUsername",
+                              I18nService::instance().get("error.auth_username_empty"));
         return false;
     }
     std::ifstream in(accountList);

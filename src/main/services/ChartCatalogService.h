@@ -74,6 +74,7 @@ struct ChartRecordEntry {
     uint32_t score     = 0;    // Score for this record.
     float accuracy     = 0.0f; // Accuracy for this record.
     uint32_t timestamp = 0;    // Timestamp for this record.
+    uint32_t maxCombo  = 0;    // Max combo for this record.
 };
 
 // Chart catalog map keyed by chart ID.
@@ -86,6 +87,14 @@ using ChartRecordMap = std::map<std::string, ChartRecordEntry>;
 struct ChartRecordCollection {
     ChartRecordMap records;
     std::vector<std::string> order;
+};
+
+struct PlayableNoteConflict {
+    uint8_t lane    = 0;
+    uint32_t timeMs = 0;
+    std::string existingType;
+    std::string incomingType;
+    std::string resolution;
 };
 
 // Service for chart directory scanning and user stat aggregation.
@@ -108,5 +117,9 @@ public:
                                                     ChartListSortKey key,
                                                     SortOrder order
         );
-};
 
+    // Checks only playable notes (tap/hold head/hold tail) for same-lane same-time conflicts.
+    static std::vector<PlayableNoteConflict> checkChartCompliance(const std::string &chartFilePath,
+                                                                  uint16_t keyCount
+        );
+};

@@ -102,7 +102,7 @@ namespace {
         std::vector<std::string> fields;
         std::string token;
         while (iss >> token) fields.push_back(token);
-        if (fields.size() != 7) return false;
+        if (fields.size() < 7) return false;
         const std::string &uid = fields[0];
         return !uid.empty() && uid.find_first_not_of("0123456789") == std::string::npos;
     }
@@ -163,7 +163,8 @@ std::vector<uint8_t> ProofedRecordsDAO::extractLastHash(const std::vector<uint8_
 // Appends one record: verify chain -> hash chain update -> encrypt -> write.
 bool ProofedRecordsDAO::addRecord(const std::string &serial_record) {
     if (!LiteDBUtils::ensureKey()){
-        ErrorNotifier::notify("ProofedRecordsDAO::addRecord", I18nService::instance().get("error.encryption_key_ensure_failed"));
+        ErrorNotifier::notify("ProofedRecordsDAO::addRecord",
+                              I18nService::instance().get("error.encryption_key_ensure_failed"));
         return false;
     }
 
@@ -173,7 +174,8 @@ bool ProofedRecordsDAO::addRecord(const std::string &serial_record) {
 
     if (!data.empty()){
         if (!ProofedRecordsDAO::verifyChain()){
-            ErrorNotifier::notify("ProofedRecordsDAO::addRecord", I18nService::instance().get("error.database_integrity_check_failed"));
+            ErrorNotifier::notify("ProofedRecordsDAO::addRecord",
+                                  I18nService::instance().get("error.database_integrity_check_failed"));
             return false;
         }
         prevHash = extractLastHash(data);
@@ -224,7 +226,8 @@ bool ProofedRecordsDAO::addRecord(const std::string &serial_record) {
 // Reads all records (decrypted plaintext list).
 std::vector<std::string> ProofedRecordsDAO::readAllRecord() {
     if (!LiteDBUtils::ensureKey()){
-        ErrorNotifier::notify("ProofedRecordsDAO::readAllRecord", I18nService::instance().get("error.encryption_key_ensure_failed"));
+        ErrorNotifier::notify("ProofedRecordsDAO::readAllRecord",
+                              I18nService::instance().get("error.encryption_key_ensure_failed"));
         return {};
     }
 
@@ -251,13 +254,14 @@ std::vector<std::string> ProofedRecordsDAO::readAllRecord() {
 // Verifies integrity of the full hash chain.
 bool ProofedRecordsDAO::verifyChain() {
     if (!LiteDBUtils::ensureKey()){
-        ErrorNotifier::notify("ProofedRecordsDAO::verifyChain", I18nService::instance().get("error.encryption_key_ensure_failed"));
+        ErrorNotifier::notify("ProofedRecordsDAO::verifyChain",
+                              I18nService::instance().get("error.encryption_key_ensure_failed"));
         return false;
     }
 
     // Read all record lines and hash lines.
     auto records = readAllRecord();
-    auto hashes = readNonEmptyLines(proofList);
+    auto hashes  = readNonEmptyLines(proofList);
 
     // Record count and hash count must match.
     if (records.size() != hashes.size()) return false;
@@ -269,7 +273,7 @@ bool ProofedRecordsDAO::verifyChain() {
         const std::vector<uint8_t> recordBytes(records[i].begin(), records[i].end());
 
         // Recompute expected hash
-        const auto recordHash = LiteDBUtils::sha256(recordBytes);
+        const auto recordHash           = LiteDBUtils::sha256(recordBytes);
         std::vector<uint8_t> chainInput = prevHash;
         chainInput.insert(chainInput.end(), recordHash.begin(), recordHash.end());
         std::vector<uint8_t> expectedHash = LiteDBUtils::slowHash(chainInput);
@@ -287,13 +291,14 @@ bool ProofedRecordsDAO::verifyChain() {
 // returning only the continuous verified prefix.
 std::vector<std::string> ProofedRecordsDAO::readVerifiedRecord() {
     if (!LiteDBUtils::ensureKey()){
-        ErrorNotifier::notify("ProofedRecordsDAO::readVerifiedRecord", I18nService::instance().get("error.encryption_key_ensure_failed"));
+        ErrorNotifier::notify("ProofedRecordsDAO::readVerifiedRecord",
+                              I18nService::instance().get("error.encryption_key_ensure_failed"));
         return {};
     }
 
     // Read all record lines and hash lines.
     auto records = readAllRecord();
-    auto hashes = readNonEmptyLines(proofList);
+    auto hashes  = readNonEmptyLines(proofList);
 
     // Verify line-by-line from genesis hash.
     std::vector<uint8_t> prevHash = LiteDBUtils::slowHash(buildGenesisData());
@@ -445,7 +450,8 @@ std::vector<std::string> ProofedRecordsDAO::readVerifiedRecordByUIDAndChart(cons
 
 bool ProofedRecordsDAO::addAfterVerified(const std::string &serial_record) {
     if (!LiteDBUtils::ensureKey()){
-        ErrorNotifier::notify("ProofedRecordsDAO::addAfterVerified", I18nService::instance().get("error.encryption_key_ensure_failed"));
+        ErrorNotifier::notify("ProofedRecordsDAO::addAfterVerified",
+                              I18nService::instance().get("error.encryption_key_ensure_failed"));
         return false;
     }
     const auto recLines        = readNonEmptyLines(recordList);
@@ -461,7 +467,8 @@ bool ProofedRecordsDAO::addAfterVerified(const std::string &serial_record) {
 
 bool ProofedRecordsDAO::coverAfterVerified(const std::string &serial_record) {
     if (!LiteDBUtils::ensureKey()){
-        ErrorNotifier::notify("ProofedRecordsDAO::coverAfterVerified", I18nService::instance().get("error.encryption_key_ensure_failed"));
+        ErrorNotifier::notify("ProofedRecordsDAO::coverAfterVerified",
+                              I18nService::instance().get("error.encryption_key_ensure_failed"));
         return false;
     }
     const auto recLines        = readNonEmptyLines(recordList);
@@ -480,7 +487,8 @@ bool ProofedRecordsDAO::coverAfterVerified(const std::string &serial_record) {
 
 bool ProofedRecordsDAO::cleanNotVerified() {
     if (!LiteDBUtils::ensureKey()){
-        ErrorNotifier::notify("ProofedRecordsDAO::cleanNotVerified", I18nService::instance().get("error.encryption_key_ensure_failed"));
+        ErrorNotifier::notify("ProofedRecordsDAO::cleanNotVerified",
+                              I18nService::instance().get("error.encryption_key_ensure_failed"));
         return false;
     }
     const auto recLines        = readNonEmptyLines(recordList);

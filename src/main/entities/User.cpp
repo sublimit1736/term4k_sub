@@ -1,5 +1,12 @@
 #include "User.h"
 
+#include <utility>
+
+User::User() = default;
+
+User::User(const uint32_t UID, std::string username, std::string password) : UID(UID), username(std::move(username)),
+                                                                             password(std::move(password)) {}
+
 uint32_t User::getUID() const {
     return UID;
 }

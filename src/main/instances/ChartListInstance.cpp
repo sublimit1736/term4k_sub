@@ -125,10 +125,10 @@ void ChartListInstance::applySearchFilter() {
                                            searchByPrefixIncremental(currentSearchQuery, displayNameCursor);
             break;
         case ChartSearchMode::Artist: matchedIndices = artistTrie.searchByPrefixIncremental(currentSearchQuery,
-                                          artistCursor);
+                                               artistCursor);
             break;
         case ChartSearchMode::Charter: matchedIndices = charterTrie.searchByPrefixIncremental(currentSearchQuery,
-                                           charterCursor);
+                                                charterCursor);
             break;
     }
 

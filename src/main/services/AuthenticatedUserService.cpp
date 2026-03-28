@@ -18,6 +18,7 @@ namespace {
         uint32_t score     = 0;
         float accuracy     = 0.0f;
         uint32_t timestamp = 0;
+        uint32_t maxCombo  = 0;
         bool valid         = false;
     };
 
@@ -43,6 +44,7 @@ namespace {
         const std::size_t scoreIdx     = uidFormat ? 4 : 3;
         const std::size_t accuracyIdx  = uidFormat ? 5 : 4;
         const std::size_t timestampIdx = uidFormat ? 6 : 5;
+        const std::size_t maxComboIdx  = uidFormat ? 7 : 6;
 
         try{
             if (uidFormat) parsed.uid = fields.at(uidIdx);
@@ -50,7 +52,10 @@ namespace {
             parsed.score     = static_cast<uint32_t>(std::stoul(fields.at(scoreIdx)));
             parsed.accuracy  = std::stof(fields.at(accuracyIdx));
             parsed.timestamp = static_cast<uint32_t>(std::stoul(fields.at(timestampIdx)));
-            parsed.valid     = true;
+            if (fields.size() > maxComboIdx){
+                parsed.maxCombo = static_cast<uint32_t>(std::stoul(fields.at(maxComboIdx)));
+            }
+            parsed.valid = true;
         }
         catch (...){
             parsed.valid = false;
@@ -88,6 +93,7 @@ namespace {
             entry.score     = parsed.score;
             entry.accuracy  = parsed.accuracy;
             entry.timestamp = parsed.timestamp;
+            entry.maxCombo  = parsed.maxCombo;
 
             const auto found = catalog.find(parsed.chartId);
             if (found != catalog.end()){

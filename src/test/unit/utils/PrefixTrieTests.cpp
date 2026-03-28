@@ -2,7 +2,12 @@
 
 #include "utils/PrefixTrie.h"
 
-TEST_CASE("PrefixTrie supports case-insensitive prefix search", "[utils][PrefixTrie]") {
+TEST_CASE (
+"PrefixTrie supports case-insensitive prefix search"
+,
+"[utils][PrefixTrie]"
+)
+ {
     PrefixTrie trie;
 
     trie.insert("Hello", 3);
@@ -13,7 +18,12 @@ TEST_CASE("PrefixTrie supports case-insensitive prefix search", "[utils][PrefixT
     REQUIRE(result == std::vector<std::size_t>{1, 2, 3});
 }
 
-TEST_CASE("PrefixTrie removes duplicate indices and clears correctly", "[utils][PrefixTrie]") {
+TEST_CASE (
+"PrefixTrie removes duplicate indices and clears correctly"
+,
+"[utils][PrefixTrie]"
+)
+ {
     PrefixTrie trie;
 
     trie.insert("term", 4);
@@ -26,7 +36,12 @@ TEST_CASE("PrefixTrie removes duplicate indices and clears correctly", "[utils][
     REQUIRE(trie.searchByPrefix("te").empty());
 }
 
-TEST_CASE("PrefixTrie handles empty or missing prefixes", "[utils][PrefixTrie]") {
+TEST_CASE (
+"PrefixTrie handles empty or missing prefixes"
+,
+"[utils][PrefixTrie]"
+)
+ {
     PrefixTrie trie;
     trie.insert("Alpha", 9);
     trie.insert("Beta", 1);
@@ -35,7 +50,12 @@ TEST_CASE("PrefixTrie handles empty or missing prefixes", "[utils][PrefixTrie]")
     REQUIRE(trie.searchByPrefix("zzz").empty());
 }
 
-TEST_CASE("PrefixTrie incremental search reuses cursor across extend and backtrack", "[utils][PrefixTrie]") {
+TEST_CASE (
+"PrefixTrie incremental search reuses cursor across extend and backtrack"
+,
+"[utils][PrefixTrie]"
+)
+ {
     PrefixTrie trie;
     trie.insert("star", 0);
     trie.insert("start", 1);
@@ -51,5 +71,3 @@ TEST_CASE("PrefixTrie incremental search reuses cursor across extend and backtra
     REQUIRE(trie.searchByPrefixIncremental("x", cursor).empty());
     REQUIRE(trie.searchByPrefixIncremental("st", cursor) == std::vector<std::size_t>{0, 1, 2, 3});
 }
-
-

@@ -28,7 +28,7 @@ namespace {
                ch == '?' || ch == '"' || ch == '<' || ch == '>' || ch == '|';
     }
 
-    bool validateUsername(const std::string &username, std::string *outErrorMessage) {
+    bool validateUsername(const std::string &username, std::string* outErrorMessage) {
         if (username.empty()){
             if (outErrorMessage != nullptr) *outErrorMessage = I18nService::instance().get("error.username_empty");
             return false;
@@ -56,7 +56,8 @@ namespace {
 bool UserLoginService::registerUser(const std::string &username,
                                     const std::string &password,
                                     uint32_t uid,
-                                    std::string *outErrorMessage) {
+                                    std::string* outErrorMessage
+    ) {
     (void) uid;
 
     if (!validateUsername(username, outErrorMessage)) return false;
@@ -67,7 +68,8 @@ bool UserLoginService::registerUser(const std::string &username,
     }
 
     if (!UserAccountsDAO::addUser(username, password, nextSequentialUID())){
-        if (outErrorMessage != nullptr) *outErrorMessage = I18nService::instance().get("error.username_exists_or_write_failed");
+        if (outErrorMessage != nullptr) *outErrorMessage = I18nService::instance().
+                                        get("error.username_exists_or_write_failed");
         return false;
     }
 

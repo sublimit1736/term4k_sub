@@ -8,26 +8,32 @@
 using namespace test_support;
 
 namespace {
-std::string metadataJson(const std::string &id,
-                         const std::string &name,
-                         float difficulty) {
-    return std::string("{") +
-           "\"id\":\"" + id + "\"," +
-           "\"displayname\":\"" + name + "\"," +
-           "\"artist\":\"artist\"," +
-           "\"charter\":\"charter\"," +
-           "\"BPM\":\"120\"," +
-           "\"difficulty\":\"" + std::to_string(difficulty) + "\"," +
-           "\"previewBegin\":\"0\"," +
-           "\"previewEnd\":\"0\"," +
-           "\"keyCount\":\"4\"," +
-           "\"baseBPM\":\"120\"," +
-           "\"baseTempo\":\"4,4\"" +
-           "}";
-}
+    std::string metadataJson(const std::string &id,
+                             const std::string &name,
+                             float difficulty
+        ) {
+        return std::string("{") +
+               "\"id\":\"" + id + "\"," +
+               "\"displayname\":\"" + name + "\"," +
+               "\"artist\":\"artist\"," +
+               "\"charter\":\"charter\"," +
+               "\"BPM\":\"120\"," +
+               "\"difficulty\":\"" + std::to_string(difficulty) + "\"," +
+               "\"previewBegin\":\"0\"," +
+               "\"previewEnd\":\"0\"," +
+               "\"keyCount\":\"4\"," +
+               "\"baseBPM\":\"120\"," +
+               "\"baseTempo\":\"4,4\"" +
+               "}";
+    }
 }
 
-TEST_CASE("ChartCatalogService loads chart metadata and merges best stats", "[services][ChartCatalogService]") {
+TEST_CASE (
+"ChartCatalogService loads chart metadata and merges best stats"
+,
+"[services][ChartCatalogService]"
+)
+ {
     TempDir temp("term4k_chart_catalog");
     const auto chartsRoot = temp.path() / "charts";
     const auto dataRoot = temp.path() / "data";
@@ -50,9 +56,9 @@ TEST_CASE("ChartCatalogService loads chart metadata and merges best stats", "[se
     LiteDBUtils::setKeyFile((dataRoot / "key.bin").string());
     REQUIRE(LiteDBUtils::ensureKey());
 
-    REQUIRE(ProofedRecordsDAO::addRecord("7 chart_alpha song userA 900000 97.50 1000"));
-    REQUIRE(ProofedRecordsDAO::addRecord("7 chart_alpha song userA 880000 98.20 1200"));
-    REQUIRE(ProofedRecordsDAO::addRecord("8 chart_alpha song userB 999999 99.99 1300"));
+    REQUIRE(ProofedRecordsDAO::addRecord("7 chart_alpha song userA 900000 97.50 1000 111"));
+    REQUIRE(ProofedRecordsDAO::addRecord("7 chart_alpha song userA 880000 98.20 1200 222"));
+    REQUIRE(ProofedRecordsDAO::addRecord("8 chart_alpha song userB 999999 99.99 1300 333"));
 
     const auto items = ChartCatalogService::loadCatalogForUID(chartsRoot.string(), "7");
     REQUIRE(items.size() == 2);
@@ -74,7 +80,12 @@ TEST_CASE("ChartCatalogService loads chart metadata and merges best stats", "[se
     ProofedRecordsDAO::setDataDir(".");
 }
 
-TEST_CASE("ChartCatalogService ignores folders that violate fixed file/id rules", "[services][ChartCatalogService]") {
+TEST_CASE (
+"ChartCatalogService ignores folders that violate fixed file/id rules"
+,
+"[services][ChartCatalogService]"
+)
+ {
     TempDir temp("term4k_chart_catalog_strict");
     const auto chartsRoot = temp.path() / "charts";
     std::filesystem::create_directories(chartsRoot);
@@ -116,7 +127,12 @@ TEST_CASE("ChartCatalogService ignores folders that violate fixed file/id rules"
     REQUIRE(missingMusicIt->localizedIssue == "chartdetect.issue.missing_music");
 }
 
-TEST_CASE("ChartCatalogService supports all requested sort keys and orders", "[services][ChartCatalogService]") {
+TEST_CASE (
+"ChartCatalogService supports all requested sort keys and orders"
+,
+"[services][ChartCatalogService]"
+)
+ {
     ChartCatalogMap items;
     items["gamma"].chart.setDisplayName("Gamma");
     items["gamma"].chart.setDifficulty(7.0f);
@@ -146,8 +162,30 @@ TEST_CASE("ChartCatalogService supports all requested sort keys and orders", "[s
     REQUIRE(items.at(sorted[2]).stats.bestAccuracy == Catch::Approx(98.1f));
 }
 
+TEST_CASE (
+"ChartCatalogService compliance check reports playable-note conflicts"
+,
+"[services][ChartCatalogService]"
+)
+ {
+    TempDir temp("term4k_chart_catalog_compliance");
+    const auto chartPath = temp.path() / "chart.t4k";
 
+    writeTextFile(chartPath,
+                  std::string("t4kcb\n") +
+                  "0100000003e8\n" + // tap lane0 t=1000
+                  "0200000003e8000004b0\n" + // hold lane0 t=1000..1200 (tap vs hold head)
+                  "02000000044c000003e8\n" + // hold lane0 t=1100..1000 (tap vs hold tail)
+                  "t4kce\n");
 
+    const auto conflicts = ChartCatalogService::checkChartCompliance(chartPath.string(), 1);
+    REQUIRE(conflicts.size() == 2);
 
+    REQUIRE(conflicts[0].lane == 0);
+    REQUIRE(conflicts[0].timeMs == 1000);
+    REQUIRE(conflicts[0].resolution == "keep_tap_drop_hold_head");
 
-
+    REQUIRE(conflicts[1].lane == 0);
+    REQUIRE(conflicts[1].timeMs == 1000);
+    REQUIRE(conflicts[1].resolution == "keep_hold_tail_drop_tap");
+}

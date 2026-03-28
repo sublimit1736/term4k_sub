@@ -2,13 +2,23 @@
 
 #include "config/AppDirs.h"
 
-TEST_CASE("AppDirs exeDir has trailing slash", "[utils][AppDirs]") {
+TEST_CASE (
+"AppDirs exeDir has trailing slash"
+,
+"[utils][AppDirs]"
+)
+ {
     const std::string exeDir = AppDirs::exeDir();
     REQUIRE_FALSE(exeDir.empty());
     REQUIRE(exeDir.back() == '/');
 }
 
-TEST_CASE("AppDirs init is safe and yields non-empty directories", "[utils][AppDirs]") {
+TEST_CASE (
+"AppDirs init is safe and yields non-empty directories"
+,
+"[utils][AppDirs]"
+)
+ {
     AppDirs::init();
     const auto firstData = AppDirs::dataDir();
 
@@ -24,5 +34,3 @@ TEST_CASE("AppDirs init is safe and yields non-empty directories", "[utils][AppD
     REQUIRE(AppDirs::configDir().back() == '/');
     REQUIRE(AppDirs::localeDir().back() == '/');
 }
-
-

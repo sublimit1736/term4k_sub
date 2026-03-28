@@ -11,21 +11,27 @@
 using namespace test_support;
 
 namespace {
-std::string metadataJson(const std::string &id,
-                         const std::string &name,
-                         const float difficulty) {
-    return std::string("{") +
-           "\"id\":\"" + id + "\"," +
-           "\"displayname\":\"" + name + "\"," +
-           "\"artist\":\"artist\"," +
-           "\"charter\":\"charter\"," +
-           "\"BPM\":\"120\"," +
-           "\"difficulty\":\"" + std::to_string(difficulty) + "\"" +
-           "}";
-}
+    std::string metadataJson(const std::string &id,
+                             const std::string &name,
+                             const float difficulty
+        ) {
+        return std::string("{") +
+               "\"id\":\"" + id + "\"," +
+               "\"displayname\":\"" + name + "\"," +
+               "\"artist\":\"artist\"," +
+               "\"charter\":\"charter\"," +
+               "\"BPM\":\"120\"," +
+               "\"difficulty\":\"" + std::to_string(difficulty) + "\"" +
+               "}";
+    }
 }
 
-TEST_CASE("UserStatInstance computes rating and potential from b50", "[instances][UserStatInstance]") {
+TEST_CASE (
+"UserStatInstance computes rating and potential from b50"
+,
+"[instances][UserStatInstance]"
+)
+ {
     TempDir temp("term4k_user_stat_instance");
     const auto chartsRoot = temp.path() / "charts";
     const auto dataRoot = temp.path() / "data";
@@ -45,8 +51,8 @@ TEST_CASE("UserStatInstance computes rating and potential from b50", "[instances
     REQUIRE(login.registerUser("alice", "pw"));
     REQUIRE(login.login("alice", "pw"));
 
-    REQUIRE(ProofedRecordsDAO::addRecord("1000 chart_a song alice 900000 50.0 100"));
-    REQUIRE(ProofedRecordsDAO::addRecord("1000 chart_a song alice 910000 100.0 200"));
+    REQUIRE(ProofedRecordsDAO::addRecord("1000 chart_a song alice 900000 50.0 100 20"));
+    REQUIRE(ProofedRecordsDAO::addRecord("1000 chart_a song alice 910000 100.0 200 40"));
 
     UserStatInstance stat;
     REQUIRE(stat.refresh(chartsRoot.string()));
@@ -59,5 +65,3 @@ TEST_CASE("UserStatInstance computes rating and potential from b50", "[instances
     ProofedRecordsDAO::setDataDir(".");
     UserAccountsDAO::setDataDir(".");
 }
-
-

@@ -5,6 +5,14 @@
 #include <algorithm>
 #include <cctype>
 
+Chart::Chart() = default;
+
+Chart::Chart(std::string i, std::string d, std::string a, std::string c, std::string b, const float df,
+             const uint32_t pb, const uint32_t pe, const uint16_t kc, const float bb,
+             std::pair<uint8_t, uint8_t> bt
+    ) : id(std::move(i)), displayName(std::move(d)), artist(std::move(a)), charter(std::move(c)), BPM(std::move(b)),
+        difficulty(df), previewBegin(pb), previewEnd(pe), keyCount(kc), baseBPM(bb), baseTempo(bt) {}
+
 std::string Chart::getID() const {
     return id;
 }

@@ -1,5 +1,4 @@
-#ifndef TERM4K_USERSERVICE_H
-#define TERM4K_USERSERVICE_H
+#pragma once
 
 #include <cstdint>
 #include <optional>
@@ -14,7 +13,8 @@ public:
     // Registers a normal user; UID is assigned sequentially from 1000.
     // If outErrorMessage is non-null, a readable failure reason is returned.
     static bool registerUser(const std::string &username, const std::string &password, uint32_t uid,
-                             std::string *outErrorMessage = nullptr);
+                             std::string* outErrorMessage = nullptr
+        );
 
     // Logs in and stores current session in memory on success.
     static bool login(const std::string &username, const std::string &password);
@@ -41,4 +41,4 @@ public:
     static std::optional<User> currentUser();
 };
 
-#endif // TERM4K_USERSERVICE_H
+

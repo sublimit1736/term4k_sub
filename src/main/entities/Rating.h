@@ -1,5 +1,4 @@
-#ifndef TERM4K_RATING_H
-#define TERM4K_RATING_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -8,13 +7,12 @@
 class Rating {
 public:
     // Default constructor.
-    Rating() = default;
+    Rating();
 
     // Full-argument constructor.
     Rating(std::string chartID, std::string chartDisplayName, uint32_t UID, std::string username,
-        uint32_t timeStamp, uint32_t score, float accuracy) :
-        UID(UID), timeStamp(timeStamp), username(username), chartID(chartID),
-        score(score), accuracy(accuracy) {}
+           uint32_t timeStamp, uint32_t score, float accuracy
+        );
 
     // --- Getters ---
     uint32_t getTimeStamp() const;
@@ -56,7 +54,7 @@ public:
     static Rating deserializeString(const std::string &s);
 
 private:
-    uint32_t UID = 0;
+    uint32_t UID       = 0;
     uint32_t timeStamp = 0;
     std::string username;
     std::string chartID;
@@ -65,4 +63,3 @@ private:
     float accuracy = 0.0f;
 };
 
-#endif // TERM4K_RATING_H

@@ -1,5 +1,4 @@
-#ifndef TERM4K_SONGPLAYER_H
-#define TERM4K_SONGPLAYER_H
+#pragma once
 #include "miniaudio.h"
 #include <cstdint>
 
@@ -47,4 +46,4 @@ private:
     float volume     = 1.0f;
 };
 
-#endif
+

@@ -1,5 +1,4 @@
-#ifndef TERM4K_USERACCOUNTSDAO_H
-#define TERM4K_USERACCOUNTSDAO_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -33,4 +32,4 @@ private:
     static std::string getField(const std::string &line, size_t idx);
 };
 
-#endif // TERM4K_USERACCOUNTSDAO_H
+

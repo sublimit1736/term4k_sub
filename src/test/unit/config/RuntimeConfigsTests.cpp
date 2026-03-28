@@ -8,7 +8,12 @@
 
 using namespace test_support;
 
-TEST_CASE("RuntimeConfigs provides expected defaults", "[config][RuntimeConfigs]") {
+TEST_CASE (
+"RuntimeConfigs provides expected defaults"
+,
+"[config][RuntimeConfigs]"
+)
+ {
     RuntimeConfigs::resetToDefaults();
 
     REQUIRE(RuntimeConfigs::theme == "dark");
@@ -20,13 +25,20 @@ TEST_CASE("RuntimeConfigs provides expected defaults", "[config][RuntimeConfigs]
     REQUIRE(RuntimeConfigs::showAPIndicator);
     REQUIRE(RuntimeConfigs::showFCIndicator);
     REQUIRE(RuntimeConfigs::chartOffsetMs == 0);
+    REQUIRE(RuntimeConfigs::chartDisplayOffsetMs == 0);
     REQUIRE(RuntimeConfigs::chartPreloadMs == 2000);
+    REQUIRE(RuntimeConfigs::chartEndTimingMode == ChartEndTimingMode::AfterChartEnd);
 
     const std::vector<uint8_t> expected = {68, 70, 74, 75};
     REQUIRE(RuntimeConfigs::keyBindings == expected);
 }
 
-TEST_CASE("RuntimeConfigs saves and loads per-user settings", "[config][RuntimeConfigs]") {
+TEST_CASE (
+"RuntimeConfigs saves and loads per-user settings"
+,
+"[config][RuntimeConfigs]"
+)
+ {
     TempDir temp("term4k_runtime_configs");
     RuntimeConfigs::setConfigDirOverrideForTesting(temp.path().string());
 
@@ -39,7 +51,9 @@ TEST_CASE("RuntimeConfigs saves and loads per-user settings", "[config][RuntimeC
     RuntimeConfigs::showAPIndicator = false;
     RuntimeConfigs::showFCIndicator = true;
     RuntimeConfigs::chartOffsetMs = -12;
+    RuntimeConfigs::chartDisplayOffsetMs = 17;
     RuntimeConfigs::chartPreloadMs = 2400;
+    RuntimeConfigs::chartEndTimingMode = ChartEndTimingMode::AfterAudioEnd;
     RuntimeConfigs::keyBindings = {65, 83, 68, 70, 74, 75};
 
     REQUIRE(RuntimeConfigs::saveForUser("alice"));
@@ -54,7 +68,9 @@ TEST_CASE("RuntimeConfigs saves and loads per-user settings", "[config][RuntimeC
     RuntimeConfigs::showAPIndicator = true;
     RuntimeConfigs::showFCIndicator = false;
     RuntimeConfigs::chartOffsetMs = 50;
+    RuntimeConfigs::chartDisplayOffsetMs = -50;
     RuntimeConfigs::chartPreloadMs = 100;
+    RuntimeConfigs::chartEndTimingMode = ChartEndTimingMode::AfterChartEnd;
     RuntimeConfigs::keyBindings = {1, 2, 3};
 
     REQUIRE(RuntimeConfigs::loadForUser("alice"));
@@ -67,7 +83,9 @@ TEST_CASE("RuntimeConfigs saves and loads per-user settings", "[config][RuntimeC
     REQUIRE_FALSE(RuntimeConfigs::showAPIndicator);
     REQUIRE(RuntimeConfigs::showFCIndicator);
     REQUIRE(RuntimeConfigs::chartOffsetMs == -12);
+    REQUIRE(RuntimeConfigs::chartDisplayOffsetMs == 17);
     REQUIRE(RuntimeConfigs::chartPreloadMs == 2400);
+    REQUIRE(RuntimeConfigs::chartEndTimingMode == ChartEndTimingMode::AfterAudioEnd);
 
     const std::vector<uint8_t> expected = {65, 83, 68, 70, 74, 75};
     REQUIRE(RuntimeConfigs::keyBindings == expected);

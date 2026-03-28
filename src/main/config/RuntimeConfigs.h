@@ -2,13 +2,14 @@
 // Created by 32402 on 2026/3/26.
 //
 
-#ifndef TERM4K_RUNTIMECONFIGS_H
-#define TERM4K_RUNTIMECONFIGS_H
+#pragma once
 
 
 #include <cstdint>
 #include <string>
 #include <vector>
+
+enum class ChartEndTimingMode { AfterAudioEnd, AfterChartEnd, };
 
 // Global runtime settings hub: defaults, per-user load, and persistence.
 class RuntimeConfigs {
@@ -27,7 +28,9 @@ public:
     static bool showAPIndicator;
     static bool showFCIndicator;
     static int32_t chartOffsetMs;
+    static int32_t chartDisplayOffsetMs;
     static uint32_t chartPreloadMs;
+    static ChartEndTimingMode chartEndTimingMode;
     static std::vector<uint8_t> keyBindings;
 
     static void resetToDefaults();
@@ -48,4 +51,3 @@ private:
 };
 
 
-#endif //TERM4K_RUNTIMECONFIGS_H

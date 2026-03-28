@@ -7,21 +7,26 @@
 #include <vector>
 
 namespace {
-class SinkGuard {
-public:
-    explicit SinkGuard(std::vector<std::string> &messages) {
-        ErrorNotifier::setSink([&messages](const std::string &msg) {
-            messages.push_back(msg);
-        });
-    }
+    class SinkGuard {
+    public:
+        explicit SinkGuard(std::vector<std::string> &messages) {
+            ErrorNotifier::setSink([&messages](const std::string &msg) {
+                messages.push_back(msg);
+            });
+        }
 
-    ~SinkGuard() {
-        ErrorNotifier::setSink(nullptr);
-    }
-};
+        ~SinkGuard() {
+            ErrorNotifier::setSink(nullptr);
+        }
+    };
 } // namespace
 
-TEST_CASE("ErrorNotifier forwards plain and contextual messages", "[utils][ErrorNotifier]") {
+TEST_CASE (
+"ErrorNotifier forwards plain and contextual messages"
+,
+"[utils][ErrorNotifier]"
+)
+ {
     std::vector<std::string> messages;
     SinkGuard guard(messages);
 
@@ -33,7 +38,12 @@ TEST_CASE("ErrorNotifier forwards plain and contextual messages", "[utils][Error
     REQUIRE(messages[1] == "ctx: detail");
 }
 
-TEST_CASE("ErrorNotifier reports exceptions and unknown failures", "[utils][ErrorNotifier]") {
+TEST_CASE (
+"ErrorNotifier reports exceptions and unknown failures"
+,
+"[utils][ErrorNotifier]"
+)
+ {
     std::vector<std::string> messages;
     SinkGuard guard(messages);
 
@@ -45,4 +55,3 @@ TEST_CASE("ErrorNotifier reports exceptions and unknown failures", "[utils][Erro
     REQUIRE(messages[0] == "work: boom");
     REQUIRE(messages[1] == "mystery: unknown exception");
 }
-

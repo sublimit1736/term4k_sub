@@ -1,5 +1,4 @@
-#ifndef TERM4K_CHARTIO_H
-#define TERM4K_CHARTIO_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -8,7 +7,7 @@
 
 // Chart event payload: event type + event data.
 struct ChartEvent {
-    uint32_t type; // Event type code (click/push/release/changeBPM/changeTempo/changeStreamSpeed)
+    uint8_t type;  // Event type code (click/push/release/changeBPM/changeTempo/changeStreamSpeed)
     uint32_t data; // Payload: 0 for tap/hold,
     //          bit-cast float for changeBPM/changeStreamSpeed,
     //          packed uint8 pair for changeTempo: (a << 8) | b.
@@ -25,12 +24,12 @@ constexpr uint8_t changeTempoNote       = 0x04;
 constexpr uint8_t changeStreamSpeedNote = 0x05;
 
 // Event type ids used in ChartBuffer.
-constexpr uint32_t click             = 1;
-constexpr uint32_t push              = 2;
-constexpr uint32_t release           = 3;
-constexpr uint32_t changeBPM         = 4;
-constexpr uint32_t changeTempo       = 5;
-constexpr uint32_t changeStreamSpeed = 6;
+constexpr uint8_t click             = 1;
+constexpr uint8_t push              = 2;
+constexpr uint8_t release           = 3;
+constexpr uint8_t changeBPM         = 4;
+constexpr uint8_t changeTempo       = 5;
+constexpr uint8_t changeStreamSpeed = 6;
 
 // Chart file read/parse helper (all-static).
 class ChartIOService {
@@ -61,4 +60,4 @@ private:
     static uint8_t parseHexField2(const std::string &str, int start);
 };
 
-#endif // TERM4K_CHARTIO_H
+

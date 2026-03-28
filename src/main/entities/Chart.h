@@ -1,5 +1,4 @@
-#ifndef TERM4K_CHART_H
-#define TERM4K_CHART_H
+#pragma once
 
 #include <string>
 #include <utility>
@@ -9,15 +8,13 @@
 class Chart {
 public:
     // Default constructor.
-    Chart() {}
+    Chart();
 
     // Full-argument constructor.
     Chart(std::string i, std::string d, std::string a, std::string c, std::string b, const float df,
           uint32_t pb                    = 0, uint32_t pe = 0, uint16_t kc = 0, float bb = 0.0f,
           std::pair<uint8_t, uint8_t> bt = {0, 0}
-        ) :
-        id(std::move(i)), displayName(std::move(d)), artist(std::move(a)), charter(std::move(c)), BPM(std::move(b)),
-        difficulty(df), previewBegin(pb), previewEnd(pe), keyCount(kc), baseBPM(bb), baseTempo(bt) {}
+        );
 
     // --- Getters ---
     std::string getID() const;
@@ -89,4 +86,3 @@ private:
 };
 
 
-#endif // TERM4K_CHART_H

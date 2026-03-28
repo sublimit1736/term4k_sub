@@ -5,7 +5,8 @@
 
 bool UserLoginInstance::registerUser(const std::string &username,
                                      const std::string &password,
-                                     std::string *outErrorMessage) {
+                                     std::string* outErrorMessage
+    ) {
     return UserLoginService::registerUser(username, password, 0, outErrorMessage);
 }
 

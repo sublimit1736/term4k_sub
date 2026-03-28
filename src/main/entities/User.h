@@ -1,15 +1,13 @@
-#ifndef TERM4K_USER_H
-#define TERM4K_USER_H
+#pragma once
 
 #include <string>
 #include <cstdint>
 
 class User {
 public:
-    User() = default;
+    User();
 
-    User(uint32_t UID, std::string username, std::string password) : UID(UID), username(std::move(username)),
-                                                                     password(std::move(password)) {}
+    User(uint32_t UID, std::string username, std::string password);
 
     uint32_t getUID() const;
 
@@ -32,4 +30,3 @@ private:
 const User Guest = User(0, "Guest", "");
 const User Admin = User(1, "Admin", "");
 
-#endif // TERM4K_USER_H

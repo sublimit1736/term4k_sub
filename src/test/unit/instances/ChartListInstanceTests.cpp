@@ -6,23 +6,29 @@
 using namespace test_support;
 
 namespace {
-std::string metadataJson(const std::string &id,
-                         const std::string &name,
-                         float difficulty,
-                         const std::string &artist = "artist",
-                         const std::string &charter = "charter") {
-    return std::string("{") +
-           "\"id\":\"" + id + "\"," +
-           "\"displayname\":\"" + name + "\"," +
-           "\"artist\":\"" + artist + "\"," +
-           "\"charter\":\"" + charter + "\"," +
-           "\"BPM\":\"120\"," +
-           "\"difficulty\":\"" + std::to_string(difficulty) + "\"" +
-           "}";
-}
+    std::string metadataJson(const std::string &id,
+                             const std::string &name,
+                             float difficulty,
+                             const std::string &artist  = "artist",
+                             const std::string &charter = "charter"
+        ) {
+        return std::string("{") +
+               "\"id\":\"" + id + "\"," +
+               "\"displayname\":\"" + name + "\"," +
+               "\"artist\":\"" + artist + "\"," +
+               "\"charter\":\"" + charter + "\"," +
+               "\"BPM\":\"120\"," +
+               "\"difficulty\":\"" + std::to_string(difficulty) + "\"" +
+               "}";
+    }
 }
 
-TEST_CASE("ChartListInstance refresh and sort orchestrate service behavior", "[instances][ChartListInstance]") {
+TEST_CASE (
+"ChartListInstance refresh and sort orchestrate service behavior"
+,
+"[instances][ChartListInstance]"
+)
+ {
     TempDir temp("term4k_chart_list_instance");
     const auto chartsRoot = temp.path() / "charts";
     std::filesystem::create_directories(chartsRoot / "one");
@@ -54,7 +60,12 @@ TEST_CASE("ChartListInstance refresh and sort orchestrate service behavior", "[i
     REQUIRE(instance.failures().empty());
 }
 
-TEST_CASE("ChartListInstance exposes detection failures for invalid chart folders", "[instances][ChartListInstance]") {
+TEST_CASE (
+"ChartListInstance exposes detection failures for invalid chart folders"
+,
+"[instances][ChartListInstance]"
+)
+ {
     TempDir temp("term4k_chart_list_instance_failures");
     const auto chartsRoot = temp.path() / "charts";
     std::filesystem::create_directories(chartsRoot / "good");
@@ -74,7 +85,12 @@ TEST_CASE("ChartListInstance exposes detection failures for invalid chart folder
     REQUIRE(instance.failures().front().issue == ChartDetectionIssue::MissingMusic);
 }
 
-TEST_CASE("ChartListInstance supports case-insensitive prefix search by selectable mode", "[instances][ChartListInstance]") {
+TEST_CASE (
+"ChartListInstance supports case-insensitive prefix search by selectable mode"
+,
+"[instances][ChartListInstance]"
+)
+ {
     TempDir temp("term4k_chart_list_instance_search");
     const auto chartsRoot = temp.path() / "charts";
     std::filesystem::create_directories(chartsRoot / "star");
@@ -144,8 +160,3 @@ TEST_CASE("ChartListInstance supports case-insensitive prefix search by selectab
     REQUIRE(instance.searchQuery().empty());
     REQUIRE(instance.filteredOrderedChartIDs() == instance.orderedChartIDs());
 }
-
-
-
-
-

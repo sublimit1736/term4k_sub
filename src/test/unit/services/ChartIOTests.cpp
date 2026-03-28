@@ -6,12 +6,22 @@
 
 using namespace test_support;
 
-TEST_CASE("ChartIO hex helpers return lowercase fixed-width strings", "[services][ChartIO]") {
+TEST_CASE (
+"ChartIO hex helpers return lowercase fixed-width strings"
+,
+"[services][ChartIO]"
+)
+ {
     REQUIRE(ChartIOService::num2hex8str(0x1Au) == "0000001a");
     REQUIRE(ChartIOService::num2hex2str(0xAFu) == "af");
 }
 
-TEST_CASE("ChartIO parses all note types and applies key bindings", "[services][ChartIO]") {
+TEST_CASE (
+"ChartIO parses all note types and applies key bindings"
+,
+"[services][ChartIO]"
+)
+ {
     TempDir temp("term4k_chart");
 
     RuntimeConfigs::resetToDefaults();
@@ -57,7 +67,12 @@ TEST_CASE("ChartIO parses all note types and applies key bindings", "[services][
     REQUIRE(buffer.find(256) == buffer.end());
 }
 
-TEST_CASE("ChartIO rejects invalid header and clamps negative adjusted timing", "[services][ChartIO]") {
+TEST_CASE (
+"ChartIO rejects invalid header and clamps negative adjusted timing"
+,
+"[services][ChartIO]"
+)
+ {
     TempDir temp("term4k_chart_invalid");
 
     const auto badPath = temp.path() / "bad.t4k";
@@ -89,7 +104,12 @@ TEST_CASE("ChartIO rejects invalid header and clamps negative adjusted timing", 
     REQUIRE(preloadBuffer.find(700) != preloadBuffer.end());
 }
 
-TEST_CASE("ChartIO accepts absolute paths and fails cleanly on missing files", "[services][ChartIO]") {
+TEST_CASE (
+"ChartIO accepts absolute paths and fails cleanly on missing files"
+,
+"[services][ChartIO]"
+)
+ {
     TempDir temp("term4k_chart_absolute");
     RuntimeConfigs::resetToDefaults();
     RuntimeConfigs::chartOffsetMs = 0;
@@ -106,7 +126,12 @@ TEST_CASE("ChartIO accepts absolute paths and fails cleanly on missing files", "
     REQUIRE_FALSE(ChartIOService::readChart(missingPath.string().c_str(), missingBuffer, 1, 120.0f, {4, 4}));
 }
 
-TEST_CASE("ChartIO tolerates malformed lines and only keeps valid notes", "[services][ChartIO]") {
+TEST_CASE (
+"ChartIO tolerates malformed lines and only keeps valid notes"
+,
+"[services][ChartIO]"
+)
+ {
     TempDir temp("term4k_chart_malformed");
     RuntimeConfigs::resetToDefaults();
     RuntimeConfigs::chartOffsetMs = 0;
@@ -130,7 +155,12 @@ TEST_CASE("ChartIO tolerates malformed lines and only keeps valid notes", "[serv
     REQUIRE(buffer.at(50).data == static_cast<uint32_t>('x'));
 }
 
-TEST_CASE("ChartIO rejects null or empty chart path", "[services][ChartIO]") {
+TEST_CASE (
+"ChartIO rejects null or empty chart path"
+,
+"[services][ChartIO]"
+)
+ {
     ChartBuffer nullBuffer;
     REQUIRE_FALSE(ChartIOService::readChart(nullptr, nullBuffer, 1, 120.0f, {4, 4}));
     REQUIRE(nullBuffer.empty());

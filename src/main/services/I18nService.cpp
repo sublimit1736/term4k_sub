@@ -20,8 +20,8 @@ bool I18nService::load(const std::string &filePath) {
         return false;
     }
 
-// Extract locale id from filename (strip path + extension),
-// e.g. "config/i18n/zh_CN.json" -> "zh_CN".
+    // Extract locale id from filename (strip path + extension),
+    // e.g. "config/i18n/zh_CN.json" -> "zh_CN".
     auto lastSlash = std::string::npos;
     {
         auto ps = filePath.rfind('/');

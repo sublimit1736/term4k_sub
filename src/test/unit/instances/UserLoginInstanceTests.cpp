@@ -8,7 +8,12 @@
 
 using namespace test_support;
 
-TEST_CASE("UserLoginInstance handles register/login/logout for normal users", "[instances][UserLoginInstance]") {
+TEST_CASE (
+"UserLoginInstance handles register/login/logout for normal users"
+,
+"[instances][UserLoginInstance]"
+)
+ {
     TempDir temp("term4k_user_login_instance");
     UserAccountsDAO::setDataDir(temp.path().string());
     LiteDBUtils::setKeyFile((temp.path() / "key.bin").string());
@@ -31,4 +36,3 @@ TEST_CASE("UserLoginInstance handles register/login/logout for normal users", "[
     AuthenticatedUserService::logout();
     UserAccountsDAO::setDataDir(".");
 }
-

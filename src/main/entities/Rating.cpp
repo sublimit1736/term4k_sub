@@ -4,9 +4,17 @@
 #include "utils/JsonUtils.h"
 
 #include <sstream>
+#include <utility>
 #include <vector>
 
 using Json = JsonUtils;
+
+Rating::Rating() = default;
+
+Rating::Rating(std::string chartID, std::string chartDisplayName, const uint32_t UID, std::string username,
+               const uint32_t timeStamp, const uint32_t score, const float accuracy
+    ) : UID(UID), timeStamp(timeStamp), username(std::move(username)), chartID(std::move(chartID)),
+        chartDisplayName(std::move(chartDisplayName)), score(score), accuracy(accuracy) {}
 
 uint32_t Rating::getTimeStamp() const { return timeStamp; }
 uint32_t Rating::getUID() const { return UID; }
@@ -40,22 +48,26 @@ std::string Rating::serializeString() const {
 // Deserialize from flat JSON first; if that fails, fall back to legacy space-separated format.
 void Rating::deserializeFromString(const std::string &s) {
     Json json;
-    if (Json::parseFlatObject(s, json)) {
-        chartID = json.get("chartID", chartID);
+    if (Json::parseFlatObject(s, json)){
+        chartID          = json.get("chartID", chartID);
         chartDisplayName = json.get("chartDisplayName", chartDisplayName);
-        username = json.get("username", username);
+        username         = json.get("username", username);
 
-        try { UID = static_cast<uint32_t>(std::stoul(json.get("UID", std::to_string(UID)))); } catch (...) {}
-        try { score = static_cast<uint32_t>(std::stoul(json.get("score", std::to_string(score)))); } catch (...) {}
-        try { accuracy = std::stof(json.get("accuracy", std::to_string(accuracy))); } catch (...) {}
-        try { timeStamp = static_cast<uint32_t>(std::stoul(json.get("timeStamp", std::to_string(timeStamp)))); } catch (...) {}
+        try{ UID = static_cast<uint32_t>(std::stoul(json.get("UID", std::to_string(UID)))); }
+        catch (...){}
+        try{ score = static_cast<uint32_t>(std::stoul(json.get("score", std::to_string(score)))); }
+        catch (...){}
+        try{ accuracy = std::stof(json.get("accuracy", std::to_string(accuracy))); }
+        catch (...){}
+        try{ timeStamp = static_cast<uint32_t>(std::stoul(json.get("timeStamp", std::to_string(timeStamp)))); }
+        catch (...){}
         return;
     }
 
     // Legacy format:
     // chartID chartDisplayName UID username score accuracy timeStamp
     std::istringstream iss(s);
-    if (iss >> chartID >> chartDisplayName >> UID >> username >> score >> accuracy >> timeStamp) {
+    if (iss >> chartID >> chartDisplayName >> UID >> username >> score >> accuracy >> timeStamp){
         return;
     }
 
@@ -66,13 +78,16 @@ void Rating::deserializeFromString(const std::string &s) {
     std::string token;
     while (iss2 >> token) fields.push_back(token);
 
-    if (fields.size() >= 6) {
-        chartID = fields[0];
+    if (fields.size() >= 6){
+        chartID          = fields[0];
         chartDisplayName = fields[1];
-        username = fields[2];
-        try { score = static_cast<uint32_t>(std::stoul(fields[3])); } catch (...) {}
-        try { accuracy = std::stof(fields[4]); } catch (...) {}
-        try { timeStamp = static_cast<uint32_t>(std::stoul(fields[5])); } catch (...) {}
+        username         = fields[2];
+        try{ score = static_cast<uint32_t>(std::stoul(fields[3])); }
+        catch (...){}
+        try{ accuracy = std::stof(fields[4]); }
+        catch (...){}
+        try{ timeStamp = static_cast<uint32_t>(std::stoul(fields[5])); }
+        catch (...){}
         UID = 0;
     }
 }

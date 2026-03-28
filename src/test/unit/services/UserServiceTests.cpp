@@ -10,7 +10,12 @@
 
 using namespace test_support;
 
-TEST_CASE("UserService guest/admin login modes update session flags", "[services][UserService]") {
+TEST_CASE (
+"UserService guest/admin login modes update session flags"
+,
+"[services][UserService]"
+)
+ {
     UserLoginService::logout();
 
     // Guest session should not expose UID and should not be marked as admin.
@@ -29,7 +34,12 @@ TEST_CASE("UserService guest/admin login modes update session flags", "[services
     REQUIRE_FALSE(UserLoginService::currentUser().has_value());
 }
 
-TEST_CASE("UserService register/login uses DAO-backed credentials", "[services][UserService]") {
+TEST_CASE (
+"UserService register/login uses DAO-backed credentials"
+,
+"[services][UserService]"
+)
+ {
     TempDir temp("term4k_user_service");
 
     UserAccountsDAO::setDataDir(temp.path().string());
@@ -47,7 +57,12 @@ TEST_CASE("UserService register/login uses DAO-backed credentials", "[services][
     UserAccountsDAO::setDataDir(".");
 }
 
-TEST_CASE("UserService blocks reserved usernames and allocates sequential UIDs", "[services][UserService]") {
+TEST_CASE (
+"UserService blocks reserved usernames and allocates sequential UIDs"
+,
+"[services][UserService]"
+)
+ {
     TempDir temp("term4k_user_service_admin_guard");
 
     UserAccountsDAO::setDataDir(temp.path().string());
@@ -66,7 +81,12 @@ TEST_CASE("UserService blocks reserved usernames and allocates sequential UIDs",
     UserAccountsDAO::setDataDir(".");
 }
 
-TEST_CASE("UserService session transitions follow expected state machine", "[services][UserService]") {
+TEST_CASE (
+"UserService session transitions follow expected state machine"
+,
+"[services][UserService]"
+)
+ {
     TempDir temp("term4k_user_service_state_machine");
     UserAccountsDAO::setDataDir(temp.path().string());
     LiteDBUtils::setKeyFile((temp.path() / "key.bin").string());
@@ -101,7 +121,12 @@ TEST_CASE("UserService session transitions follow expected state machine", "[ser
     UserAccountsDAO::setDataDir(".");
 }
 
-TEST_CASE("UserService failed login does not clear existing guest or admin session", "[services][UserService]") {
+TEST_CASE (
+"UserService failed login does not clear existing guest or admin session"
+,
+"[services][UserService]"
+)
+ {
     TempDir temp("term4k_user_service_failed_transition");
     UserAccountsDAO::setDataDir(temp.path().string());
     LiteDBUtils::setKeyFile((temp.path() / "key.bin").string());
@@ -126,7 +151,12 @@ TEST_CASE("UserService failed login does not clear existing guest or admin sessi
     UserAccountsDAO::setDataDir(".");
 }
 
-TEST_CASE("UserService register rejects illegal usernames with readable reason", "[services][UserService]") {
+TEST_CASE (
+"UserService register rejects illegal usernames with readable reason"
+,
+"[services][UserService]"
+)
+ {
     TempDir temp("term4k_user_service_invalid_name");
 
     UserAccountsDAO::setDataDir(temp.path().string());
@@ -149,7 +179,12 @@ TEST_CASE("UserService register rejects illegal usernames with readable reason",
     UserAccountsDAO::setDataDir(".");
 }
 
-TEST_CASE("UserService guest uses defaults and admin persists personalized settings", "[services][UserService]") {
+TEST_CASE (
+"UserService guest uses defaults and admin persists personalized settings"
+,
+"[services][UserService]"
+)
+ {
     TempDir dataDir("term4k_user_service_cfg_data");
     TempDir cfgDir("term4k_user_service_cfg_runtime");
 

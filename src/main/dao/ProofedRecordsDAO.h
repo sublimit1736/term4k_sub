@@ -1,5 +1,4 @@
-#ifndef TERM4K_PROOFEDRECORDSDAO_H
-#define TERM4K_PROOFEDRECORDSDAO_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -18,7 +17,7 @@ public:
     static void setDataDir(const std::string &dir);
 
     // Appends one score record.
-    // Recommended format: uid chartId songName username score accuracy timestamp
+    // Recommended format: uid chartId songName username score accuracy timestamp [maxCombo]
     static bool addRecord(const std::string &serial_record);
 
     // Inserts after the last verified record; following records remain unverified.
@@ -97,4 +96,3 @@ private:
     static std::string getField(const std::string &record, size_t idx);
 };
 
-#endif // TERM4K_PROOFEDRECORDSDAO_H

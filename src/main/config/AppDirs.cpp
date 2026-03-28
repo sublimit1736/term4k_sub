@@ -58,7 +58,7 @@ void AppDirs::init() {
     // Detect system installation by checking /etc/term4k.
     const fs::path sysConfig = "/etc/term4k";
     if (fs::exists(sysConfig) && fs::is_directory(sysConfig)){
-        systemMode    = true;
+        systemMode     = true;
         dataDirValue   = "/var/lib/term4k/";
         chartsDirValue = "/usr/share/term4k/charts/";
         configDirValue = "/etc/term4k/";
@@ -84,8 +84,8 @@ void AppDirs::init() {
 
     // Use FHS path in system installs and local bundle path in user mode.
     localeDirValue = systemMode
-                     ? "/usr/share/term4k/i18n/"
-                     : ensureTrailingSlash(exeDir() + "i18n");
+                         ? "/usr/share/term4k/i18n/"
+                         : ensureTrailingSlash(exeDir() + "i18n");
     if (!systemMode) ensureDir(localeDirValue);
 
     initialized = true;

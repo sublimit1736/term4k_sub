@@ -7,21 +7,26 @@
 #include <vector>
 
 namespace {
-class SinkGuard {
-public:
-    explicit SinkGuard(std::vector<std::string> &messages) {
-        ErrorNotifier::setSink([&messages](const std::string &msg) {
-            messages.push_back(msg);
-        });
-    }
+    class SinkGuard {
+    public:
+        explicit SinkGuard(std::vector<std::string> &messages) {
+            ErrorNotifier::setSink([&messages](const std::string &msg) {
+                messages.push_back(msg);
+            });
+        }
 
-    ~SinkGuard() {
-        ErrorNotifier::setSink(nullptr);
-    }
-};
+        ~SinkGuard() {
+            ErrorNotifier::setSink(nullptr);
+        }
+    };
 } // namespace
 
-TEST_CASE("SongPlayer reports errors when used before initialization", "[services][SongPlayer]") {
+TEST_CASE (
+"SongPlayer reports errors when used before initialization"
+,
+"[services][SongPlayer]"
+)
+ {
     AudioService player;
     std::vector<std::string> messages;
     SinkGuard guard(messages);
@@ -33,7 +38,12 @@ TEST_CASE("SongPlayer reports errors when used before initialization", "[service
     REQUIRE(messages[0].find("error.device_not_initialized") != std::string::npos);
 }
 
-TEST_CASE("SongPlayer rejects missing audio files", "[services][SongPlayer]") {
+TEST_CASE (
+"SongPlayer rejects missing audio files"
+,
+"[services][SongPlayer]"
+)
+ {
     AudioService player;
     std::vector<std::string> messages;
     SinkGuard guard(messages);
@@ -42,7 +52,12 @@ TEST_CASE("SongPlayer rejects missing audio files", "[services][SongPlayer]") {
     REQUIRE_FALSE(messages.empty());
 }
 
-TEST_CASE("SongPlayer control methods are safe before load", "[services][SongPlayer]") {
+TEST_CASE (
+"SongPlayer control methods are safe before load"
+,
+"[services][SongPlayer]"
+)
+ {
     AudioService player;
 
     REQUIRE_NOTHROW(player.pause());
@@ -51,5 +66,3 @@ TEST_CASE("SongPlayer control methods are safe before load", "[services][SongPla
     REQUIRE_NOTHROW(player.setVolume(2.0f));
     REQUIRE_NOTHROW(player.stopSong());
 }
-
-

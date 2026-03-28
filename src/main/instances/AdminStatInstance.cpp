@@ -15,6 +15,7 @@ namespace {
         uint32_t score     = 0;
         float accuracy     = 0.0f;
         uint32_t timestamp = 0;
+        uint32_t maxCombo  = 0;
         bool valid         = false;
     };
 
@@ -42,7 +43,10 @@ namespace {
             parsed.score     = static_cast<uint32_t>(std::stoul(fields.at(4)));
             parsed.accuracy  = std::stof(fields.at(5));
             parsed.timestamp = static_cast<uint32_t>(std::stoul(fields.at(6)));
-            parsed.valid     = true;
+            if (fields.size() >= 8){
+                parsed.maxCombo = static_cast<uint32_t>(std::stoul(fields.at(7)));
+            }
+            parsed.valid = true;
         }
         catch (...){
             parsed.valid = false;
@@ -72,6 +76,7 @@ namespace {
         item.score     = parsed.score;
         item.accuracy  = parsed.accuracy;
         item.timestamp = parsed.timestamp;
+        item.maxCombo  = parsed.maxCombo;
 
         const auto found = catalogById.find(parsed.chartId);
         if (found != catalogById.end()){

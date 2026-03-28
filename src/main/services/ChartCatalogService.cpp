@@ -1,5 +1,6 @@
 #include "ChartCatalogService.h"
 
+#include "ChartIOService.h"
 #include "dao/ProofedRecordsDAO.h"
 #include "entities/Chart.h"
 #include "I18nService.h"
@@ -10,11 +11,113 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <sstream>
 
 namespace fs = std::filesystem;
 
 namespace {
+    enum class PlayableEventType { Tap, HoldHead, HoldTail, };
+
+    struct LaneTimeKey {
+        uint8_t lane    = 0;
+        uint32_t timeMs = 0;
+
+        bool operator<(const LaneTimeKey &other) const {
+            if (timeMs != other.timeMs) return timeMs < other.timeMs;
+            return lane < other.lane;
+        }
+    };
+
+    uint8_t hexVal(const char c) {
+        if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
+        if (c >= 'a' && c <= 'f') return static_cast<uint8_t>(c - 'a' + 10);
+        if (c >= 'A' && c <= 'F') return static_cast<uint8_t>(c - 'A' + 10);
+        return 0;
+    }
+
+    uint8_t parseHexField2(const std::string &str, const int start) {
+        uint8_t val = 0;
+        for (int i = start; i < start + 2; ++i){
+            val = static_cast<uint8_t>((val << 4) | hexVal(str[i]));
+        }
+        return val;
+    }
+
+    uint32_t parseHexField8(const std::string &str, const int start) {
+        uint32_t val = 0;
+        for (int i = start; i < start + 8; ++i){
+            val = hexVal(str[i]) | (val << 4);
+        }
+        return val;
+    }
+
+    std::string playableEventTypeName(const PlayableEventType type) {
+        switch (type){
+            case PlayableEventType::Tap: return "tap";
+            case PlayableEventType::HoldHead: return "hold_head";
+            case PlayableEventType::HoldTail: return "hold_tail";
+        }
+        return "unknown";
+    }
+
+    struct ConflictResolution {
+        std::optional<PlayableEventType> keptType;
+        std::string resolution;
+    };
+
+    ConflictResolution resolveConflict(const PlayableEventType existing,
+                                       const PlayableEventType incoming
+        ) {
+        if (existing == incoming){
+            return {existing, "merge_same_type"};
+        }
+        if ((existing == PlayableEventType::Tap && incoming == PlayableEventType::HoldHead) ||
+            (existing == PlayableEventType::HoldHead && incoming == PlayableEventType::Tap)){
+            return {PlayableEventType::Tap, "keep_tap_drop_hold_head"};
+        }
+        if ((existing == PlayableEventType::Tap && incoming == PlayableEventType::HoldTail) ||
+            (existing == PlayableEventType::HoldTail && incoming == PlayableEventType::Tap)){
+            return {PlayableEventType::HoldTail, "keep_hold_tail_drop_tap"};
+        }
+        if ((existing == PlayableEventType::HoldHead && incoming == PlayableEventType::HoldTail) ||
+            (existing == PlayableEventType::HoldTail && incoming == PlayableEventType::HoldHead)){
+            return {std::nullopt, "drop_hold_head_and_hold_tail"};
+        }
+        return {existing, "keep_existing"};
+    }
+
+    void appendOrResolvePlayableEvent(std::map<LaneTimeKey, PlayableEventType> &events,
+                                      std::vector<PlayableNoteConflict> &conflicts,
+                                      const uint8_t lane,
+                                      const uint32_t timeMs,
+                                      const PlayableEventType incomingType
+        ) {
+        const LaneTimeKey key{lane, timeMs};
+        const auto existingIt = events.find(key);
+        if (existingIt == events.end()){
+            events[key] = incomingType;
+            return;
+        }
+
+        const PlayableEventType existingType = existingIt->second;
+        const ConflictResolution resolved    = resolveConflict(existingType, incomingType);
+
+        conflicts.push_back(PlayableNoteConflict{
+                                lane,
+                                timeMs,
+                                playableEventTypeName(existingType),
+                                playableEventTypeName(incomingType),
+                                resolved.resolution,
+                            });
+
+        if (!resolved.keptType.has_value()){
+            events.erase(existingIt);
+            return;
+        }
+        existingIt->second = resolved.keptType.value();
+    }
+
     std::string issueI18nKey(const ChartDetectionIssue issue) {
         switch (issue){
             case ChartDetectionIssue::MissingMeta: return "chartdetect.issue.missing_meta";
@@ -102,7 +205,7 @@ namespace {
     }
 
     bool isUIDRecord(const std::vector<std::string> &fields) {
-        if (fields.size() != 7) return false;
+        if (fields.size() < 7) return false;
         return !fields[0].empty() &&
                fields[0].find_first_not_of("0123456789") == std::string::npos;
     }
@@ -143,6 +246,67 @@ namespace {
         }
         return statsByChart;
     }
+}
+
+std::vector<PlayableNoteConflict> ChartCatalogService::checkChartCompliance(const std::string &chartFilePath,
+                                                                            const uint16_t keyCount
+    ) {
+    std::vector<PlayableNoteConflict> conflicts;
+    if (chartFilePath.empty()) return conflicts;
+
+    std::ifstream chartFile(chartFilePath, std::ios::in);
+    if (!chartFile.is_open()){
+        ErrorNotifier::notify("ChartCatalogService::checkChartCompliance",
+                              I18nService::instance().get("error.chart_open_failed") + ": " + chartFilePath);
+        return conflicts;
+    }
+
+    std::string beginMarker;
+    std::getline(chartFile, beginMarker);
+    if (beginMarker != "t4kcb"){
+        ErrorNotifier::notify("ChartCatalogService::checkChartCompliance",
+                              I18nService::instance().get("error.chart_invalid_format") + ": " + chartFilePath);
+        return conflicts;
+    }
+
+    std::map<LaneTimeKey, PlayableEventType> events;
+    std::string line;
+    while (std::getline(chartFile, line)){
+        if (line == "t4kce") break;
+        if (line.size() < 2) continue;
+
+        const uint8_t type = parseHexField2(line, 0);
+        if (type == tap){
+            if (line.size() < 12) continue;
+            const uint8_t lane = parseHexField2(line, 2);
+            if (lane >= keyCount) continue;
+            const uint32_t t = parseHexField8(line, 4);
+            appendOrResolvePlayableEvent(events, conflicts, lane, t, PlayableEventType::Tap);
+        }
+        else if (type == hold){
+            if (line.size() < 20) continue;
+            const uint8_t lane = parseHexField2(line, 2);
+            if (lane >= keyCount) continue;
+            const uint32_t t1 = parseHexField8(line, 4);
+            const uint32_t t2 = parseHexField8(line, 12);
+            appendOrResolvePlayableEvent(events, conflicts, lane, t1, PlayableEventType::HoldHead);
+            appendOrResolvePlayableEvent(events, conflicts, lane, t2, PlayableEventType::HoldTail);
+        }
+    }
+
+    for (const auto &conflict: conflicts){
+        ErrorNotifier::notify(
+                              "ChartCatalogService::checkChartCompliance",
+                              I18nService::instance().get("warning.chart_compliance_conflict") +
+                              " (lane=" + std::to_string(static_cast<unsigned int>(conflict.lane)) +
+                              ", timeMs=" + std::to_string(conflict.timeMs) +
+                              ", existingType=" + conflict.existingType +
+                              ", incomingType=" + conflict.incomingType +
+                              ", resolution=" + conflict.resolution + ")"
+                             );
+    }
+
+    return conflicts;
 }
 
 ChartCatalogMap ChartCatalogService::loadCatalogForUID(const std::string &chartsRoot,

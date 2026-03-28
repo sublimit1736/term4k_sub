@@ -1,5 +1,4 @@
-#ifndef TERM4K_LITEDBUTILS_H
-#define TERM4K_LITEDBUTILS_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -38,4 +37,4 @@ private:
     static std::vector<uint8_t> key;
 };
 
-#endif // TERM4K_LITEDBUTILS_H
+

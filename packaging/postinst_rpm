@@ -1,0 +1,18 @@
+#!/bin/sh
+# term4k runtime post-install script for RPM packages.
+# Creates writable runtime directories not shipped directly in the package payload.
+
+set -e
+
+# Writable data directory for records.db, proof.db, and key.bin.
+if [ ! -d /var/lib/term4k ]; then
+    install -d -m 0755 -o root -g root /var/lib/term4k
+fi
+
+# Application config directory for system-level custom config.
+if [ ! -d /etc/term4k ]; then
+    install -d -m 0755 -o root -g root /etc/term4k
+fi
+
+exit 0
+

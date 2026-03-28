@@ -1,5 +1,4 @@
-#ifndef TERM4K_JSON_UTILS_H
-#define TERM4K_JSON_UTILS_H
+#pragma once
 
 #include <map>
 #include <cstddef>
@@ -43,4 +42,4 @@ private:
     std::map<std::string, std::string> entries;
 };
 
-#endif // TERM4K_JSON_UTILS_H
+

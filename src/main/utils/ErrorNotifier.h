@@ -1,5 +1,4 @@
-#ifndef TERM4K_ERRORNOTIFIER_H
-#define TERM4K_ERRORNOTIFIER_H
+#pragma once
 
 #include <exception>
 #include <functional>
@@ -21,4 +20,4 @@ public:
     static void setSink(Sink sink);
 };
 
-#endif // TERM4K_ERRORNOTIFIER_H
+

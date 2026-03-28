@@ -14,9 +14,9 @@ namespace {
 }
 
 bool UserStatInstance::refresh(const std::string &chartsRoot) {
-    userRecords       = AuthenticatedUserService::loadCurrentUserVerifiedRecords(chartsRoot);
-    currentRating     = 0.0;
-    currentPotential  = 0.0;
+    userRecords      = AuthenticatedUserService::loadCurrentUserVerifiedRecords(chartsRoot);
+    currentRating    = 0.0;
+    currentPotential = 0.0;
 
     if (userRecords.records.empty()) return false;
 
