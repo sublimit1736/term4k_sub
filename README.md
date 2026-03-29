@@ -36,7 +36,7 @@ It includes:
 
 | Metric | Value |
 | --- | ---: |
-| Total code lines | `10,850` |
+| Total code lines | `10,854` |
 | Class/Struct definitions (C++) | `86` |
 | Function definitions (C++, heuristic) | `414` |
 | Stack object declarations (C++, heuristic) | `392` |
@@ -51,7 +51,7 @@ It includes:
 pie showData
     title Code Distribution by Language (LOC)
     "C++ (86.9%)" : 9432
-    "Markdown (6.2%)" : 668
+    "Markdown (6.2%)" : 672
     "Shell (3.9%)" : 422
     "CMake (2.3%)" : 252
     "JSON (0.7%)" : 76
