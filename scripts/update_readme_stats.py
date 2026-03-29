@@ -61,7 +61,9 @@ class LanguageRule:
 @dataclass(frozen=True)
 class CppSymbolStats:
     class_count: int
+    function_count: int
     stack_object_count: int
+    static_variable_count: int
     heap_new_count: int
     smart_factory_count: int
 
@@ -96,6 +98,16 @@ VAR_DECL_RE = re.compile(
 )
 NEW_EXPR_RE = re.compile(r"(?<!operator\s)\bnew\b")
 SMART_FACTORY_RE = re.compile(r"\b(?:std::)?make_(?:shared|unique)\s*<")
+FUNCTION_DEF_RE = re.compile(
+    r"^\s*(?!if\b|for\b|while\b|switch\b|catch\b|else\b|do\b|try\b)"
+    r"(?:template\s*<[^;{}]+>\s*)?"
+    r"(?:(?:inline|constexpr|consteval|constinit|static|virtual|explicit|friend|extern)\s+)*"
+    r"(?:(?:[\w:<>~]+\s+)+)?"
+    r"[~A-Za-z_]\w*(?:::[~A-Za-z_]\w*)*\s*\([^;{}]*\)\s*"
+    r"(?:(?:const|noexcept|override|final)\s*)*"
+    r"(?:->\s*[^;{}]+)?\s*\{\s*$",
+    flags=re.MULTILINE,
+)
 
 
 CONTROL_HEADS = {
@@ -202,17 +214,24 @@ def build_stats_block_en(
     style: str,
 ) -> str:
     pie = build_mermaid_pie(language_lines, total_lines, theme, style)
+    table = "\n".join([
+        "| Metric | Value |",
+        "| --- | ---: |",
+        f"| Total code lines | `{format_num(total_lines)}` |",
+        f"| Class/Struct definitions (C++) | `{format_num(cpp_stats.class_count)}` |",
+        f"| Function definitions (C++, heuristic) | `{format_num(cpp_stats.function_count)}` |",
+        f"| Stack object declarations (C++, heuristic) | `{format_num(cpp_stats.stack_object_count)}` |",
+        f"| Static variable declarations (C++, heuristic) | `{format_num(cpp_stats.static_variable_count)}` |",
+        f"| Heap allocations via `new` (C++, heuristic) | `{format_num(cpp_stats.heap_new_count)}` |",
+        f"| `make_shared`/`make_unique` calls (C++, heuristic) | `{format_num(cpp_stats.smart_factory_count)}` |",
+    ])
     return (
         f"{STATS_START}\n"
         "## Live Code Statistics\n\n"
         "> Auto-updated by `.github/workflows/readme-stats.yml`.\n\n"
         f"> Chart theme preset: `{theme}` + `{style}`.\n"
         "> Switch quickly: `python3 scripts/update_readme_stats.py --theme light --style neon`.\n\n"
-        f"**Total code lines:** `{format_num(total_lines)}`  \n"
-        f"**Class/Struct definitions (C++):** `{format_num(cpp_stats.class_count)}`  \n"
-        f"**Stack object declarations (C++, heuristic):** `{format_num(cpp_stats.stack_object_count)}`  \n"
-        f"**Heap allocations via `new` (C++, heuristic):** `{format_num(cpp_stats.heap_new_count)}`  \n"
-        f"**`make_shared`/`make_unique` calls (C++, heuristic):** `{format_num(cpp_stats.smart_factory_count)}`\n\n"
+        f"{table}\n\n"
         "### Distribution Chart\n\n"
         f"{pie}\n"
         f"{STATS_END}"
@@ -227,17 +246,24 @@ def build_stats_block_zh(
     style: str,
 ) -> str:
     pie = build_mermaid_pie(language_lines, total_lines, theme, style)
+    table = "\n".join([
+        "| 指标 | 数值 |",
+        "| --- | ---: |",
+        f"| 代码总行数 | `{format_num(total_lines)}` |",
+        f"| 类/结构体定义数量（C++） | `{format_num(cpp_stats.class_count)}` |",
+        f"| 函数定义数量（C++，启发式） | `{format_num(cpp_stats.function_count)}` |",
+        f"| 栈对象声明数量（C++，启发式） | `{format_num(cpp_stats.stack_object_count)}` |",
+        f"| 静态变量声明数量（C++，启发式） | `{format_num(cpp_stats.static_variable_count)}` |",
+        f"| `new` 堆分配次数（C++，启发式） | `{format_num(cpp_stats.heap_new_count)}` |",
+        f"| `make_shared`/`make_unique` 调用次数（C++，启发式） | `{format_num(cpp_stats.smart_factory_count)}` |",
+    ])
     return (
         f"{STATS_START}\n"
         "## 实时代码统计\n\n"
         "> 由 `.github/workflows/readme-stats.yml` 自动更新。\n\n"
         f"> 当前图表主题：`{theme}` + `{style}`。\n"
         "> 快速切换：`python3 scripts/update_readme_stats.py --theme light --style neon`。\n\n"
-        f"**代码总行数：** `{format_num(total_lines)}`  \n"
-        f"**类/结构体定义数量（C++）：** `{format_num(cpp_stats.class_count)}`  \n"
-        f"**栈对象声明数量（C++，启发式）：** `{format_num(cpp_stats.stack_object_count)}`  \n"
-        f"**`new` 堆分配次数（C++，启发式）：** `{format_num(cpp_stats.heap_new_count)}`  \n"
-        f"**`make_shared`/`make_unique` 调用次数（C++，启发式）：** `{format_num(cpp_stats.smart_factory_count)}`\n\n"
+        f"{table}\n\n"
         "### 分布图\n\n"
         f"{pie}\n"
         f"{STATS_END}"
@@ -278,24 +304,6 @@ def write_badges(language_lines: dict[str, int], total_lines: int, cpp_stats: Cp
             "message": f"{top_language} {top_share:.1f}%",
             "color": "8250df",
         },
-        "stack-objects.json": {
-            "schemaVersion": 1,
-            "label": "Stack Obj",
-            "message": format_num(cpp_stats.stack_object_count),
-            "color": "0969da",
-        },
-        "heap-new.json": {
-            "schemaVersion": 1,
-            "label": "Heap new",
-            "message": format_num(cpp_stats.heap_new_count),
-            "color": "bf8700",
-        },
-        "smart-factory.json": {
-            "schemaVersion": 1,
-            "label": "make_*",
-            "message": format_num(cpp_stats.smart_factory_count),
-            "color": "6f42c1",
-        },
     }
 
     for file_name, payload in badge_payloads.items():
@@ -320,7 +328,9 @@ def strip_cpp_comments_and_strings(content: str) -> str:
 
 def collect_cpp_symbol_stats() -> CppSymbolStats:
     class_count = 0
+    function_count = 0
     stack_object_count = 0
+    static_variable_count = 0
     heap_new_count = 0
     smart_factory_count = 0
 
@@ -332,6 +342,7 @@ def collect_cpp_symbol_stats() -> CppSymbolStats:
         text = strip_cpp_comments_and_strings(raw)
 
         class_count += len(CLASS_DEF_RE.findall(text))
+        function_count += len(FUNCTION_DEF_RE.findall(text))
         heap_new_count += len(NEW_EXPR_RE.findall(text))
         smart_factory_count += len(SMART_FACTORY_RE.findall(text))
 
@@ -354,6 +365,9 @@ def collect_cpp_symbol_stats() -> CppSymbolStats:
             if re.search(rf"\b{name}\s*\([^)]*\)\s*;", stripped) and "=" not in stripped and "{" not in stripped:
                 continue
 
+            if re.search(r"\bstatic\b", stripped):
+                static_variable_count += 1
+
             if "::" in type_name:
                 base = type_name.split("::")[-1]
             else:
@@ -365,7 +379,9 @@ def collect_cpp_symbol_stats() -> CppSymbolStats:
 
     return CppSymbolStats(
         class_count=class_count,
+        function_count=function_count,
         stack_object_count=stack_object_count,
+        static_variable_count=static_variable_count,
         heap_new_count=heap_new_count,
         smart_factory_count=smart_factory_count,
     )

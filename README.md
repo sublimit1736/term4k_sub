@@ -10,9 +10,6 @@
   <img alt="LOC" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/loc.json">
   <img alt="Languages" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/languages.json">
   <img alt="Top Language" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/top-language.json">
-  <img alt="Stack Objects" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/stack-objects.json">
-  <img alt="Heap New" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/heap-new.json">
-  <img alt="Smart Factory" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/smart-factory.json">
 </p>
 
 ## Documentation
@@ -37,11 +34,15 @@ It includes:
 > Chart theme preset: `dark` + `default`.
 > Switch quickly: `python3 scripts/update_readme_stats.py --theme light --style neon`.
 
-**Total code lines:** `10,852`  
-**Class/Struct definitions (C++):** `86`  
-**Stack object declarations (C++, heuristic):** `392`  
-**Heap allocations via `new` (C++, heuristic):** `0`  
-**`make_shared`/`make_unique` calls (C++, heuristic):** `1`
+| Metric | Value |
+| --- | ---: |
+| Total code lines | `10,850` |
+| Class/Struct definitions (C++) | `86` |
+| Function definitions (C++, heuristic) | `414` |
+| Stack object declarations (C++, heuristic) | `392` |
+| Static variable declarations (C++, heuristic) | `16` |
+| Heap allocations via `new` (C++, heuristic) | `0` |
+| `make_shared`/`make_unique` calls (C++, heuristic) | `1` |
 
 ### Distribution Chart
 
@@ -50,7 +51,7 @@ It includes:
 pie showData
     title Code Distribution by Language (LOC)
     "C++ (86.9%)" : 9432
-    "Markdown (6.2%)" : 670
+    "Markdown (6.2%)" : 668
     "Shell (3.9%)" : 422
     "CMake (2.3%)" : 252
     "JSON (0.7%)" : 76

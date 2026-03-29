@@ -10,9 +10,6 @@
   <img alt="LOC" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/loc.json">
   <img alt="Languages" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/languages.json">
   <img alt="Top Language" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/top-language.json">
-  <img alt="Stack Objects" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/stack-objects.json">
-  <img alt="Heap New" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/heap-new.json">
-  <img alt="Smart Factory" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/smart-factory.json">
 </p>
 
 ## 文档导航
@@ -37,11 +34,15 @@ term4k 是一个基于 C++20 的终端节奏游戏项目。
 > 当前图表主题：`dark` + `default`。
 > 快速切换：`python3 scripts/update_readme_stats.py --theme light --style neon`。
 
-**代码总行数：** `10,852`  
-**类/结构体定义数量（C++）：** `86`  
-**栈对象声明数量（C++，启发式）：** `392`  
-**`new` 堆分配次数（C++，启发式）：** `0`  
-**`make_shared`/`make_unique` 调用次数（C++，启发式）：** `1`
+| 指标 | 数值 |
+| --- | ---: |
+| 代码总行数 | `10,850` |
+| 类/结构体定义数量（C++） | `86` |
+| 函数定义数量（C++，启发式） | `414` |
+| 栈对象声明数量（C++，启发式） | `392` |
+| 静态变量声明数量（C++，启发式） | `16` |
+| `new` 堆分配次数（C++，启发式） | `0` |
+| `make_shared`/`make_unique` 调用次数（C++，启发式） | `1` |
 
 ### 分布图
 
@@ -50,7 +51,7 @@ term4k 是一个基于 C++20 的终端节奏游戏项目。
 pie showData
     title Code Distribution by Language (LOC)
     "C++ (86.9%)" : 9432
-    "Markdown (6.2%)" : 670
+    "Markdown (6.2%)" : 668
     "Shell (3.9%)" : 422
     "CMake (2.3%)" : 252
     "JSON (0.7%)" : 76
