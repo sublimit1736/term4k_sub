@@ -37,7 +37,7 @@ term4k 是一个基于 C++20 的终端节奏游戏项目。
 > 当前图表主题：`dark` + `default`。
 > 快速切换：`python3 scripts/update_readme_stats.py --theme light --style neon`。
 
-**代码总行数：** `10,846`  
+**代码总行数：** `10,852`  
 **类/结构体定义数量（C++）：** `86`  
 **栈对象声明数量（C++，启发式）：** `392`  
 **`new` 堆分配次数（C++，启发式）：** `0`  
@@ -49,8 +49,8 @@ term4k 是一个基于 C++20 的终端节奏游戏项目。
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Fira Code, JetBrains Mono, Source Code Pro, Cascadia Code, Menlo, Consolas, monospace', 'pieTitleTextColor': '#e5e7eb', 'pieSectionTextColor': '#f3f4f6', 'pieOuterStrokeColor': 'transparent', 'pieOuterStrokeWidth': '0px', 'pieStrokeColor': 'transparent', 'pieStrokeWidth': '0px', 'pie1': '#6366f1', 'pie2': '#22d3ee', 'pie3': '#34d399', 'pie4': '#fbbf24', 'pie5': '#fb7185', 'pie6': '#a78bfa'}}}%%
 pie showData
     title Code Distribution by Language (LOC)
-    "C++ (87.0%)" : 9432
-    "Markdown (6.1%)" : 664
+    "C++ (86.9%)" : 9432
+    "Markdown (6.2%)" : 670
     "Shell (3.9%)" : 422
     "CMake (2.3%)" : 252
     "JSON (0.7%)" : 76
