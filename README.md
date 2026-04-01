@@ -88,7 +88,7 @@ It includes:
 
 | Metric | Value |
 | --- | ---: |
-| Total code lines | `13,246` |
+| Total code lines | `13,346` |
 | Class/Struct definitions (C++) | `96` |
 | Function definitions (C++, heuristic) | `539` |
 | Stack object declarations (C++, heuristic) | `513` |
@@ -102,8 +102,8 @@ It includes:
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Fira Code, JetBrains Mono, Source Code Pro, Cascadia Code, Menlo, Consolas, monospace', 'pieTitleTextColor': '#e5e7eb', 'pieSectionTextColor': '#f3f4f6', 'pieOuterStrokeColor': 'transparent', 'pieOuterStrokeWidth': '0px', 'pieStrokeColor': 'transparent', 'pieStrokeWidth': '0px', 'pie1': '#6366f1', 'pie2': '#22d3ee', 'pie3': '#34d399', 'pie4': '#fbbf24', 'pie5': '#fb7185', 'pie6': '#a78bfa'}}}%%
 pie showData
     title Code Distribution by Language (LOC)
-    "C++ (87.7%)" : 11622
-    "Markdown (5.2%)" : 688
+    "C++ (87.1%)" : 11622
+    "Markdown (5.9%)" : 788
     "Shell (3.2%)" : 422
     "CMake (2.1%)" : 276
     "JSON (1.8%)" : 238
