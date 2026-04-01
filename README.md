@@ -3,65 +3,20 @@
 [Chinese documentation / 中文文档](documents/README_zh_CN.md)
 
 <p align="center">
-  <strong>CI Status</strong><br>
-  <a href="https://github.com/TheBadRoger/term4k/actions/workflows/build.yml">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/build.yml?branch=main&label=Build&style=flat-square&labelColor=0f172a&color=22c55e">
-      <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/build.yml?branch=main&label=Build&style=flat-square&labelColor=f3f4f6&color=16a34a">
-    </picture>
-  </a>
-  <a href="https://github.com/TheBadRoger/term4k/actions/workflows/unit-tests.yml">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/unit-tests.yml?branch=main&label=Unit%20Tests&style=flat-square&labelColor=0f172a&color=22c55e">
-      <img alt="Unit Tests" src="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/unit-tests.yml?branch=main&label=Unit%20Tests&style=flat-square&labelColor=f3f4f6&color=16a34a">
-    </picture>
-  </a>
-  <br>
   <strong>Project Meta</strong><br>
-  <a href="https://github.com/TheBadRoger/term4k/blob/main/LICENSE">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/license/TheBadRoger/term4k?style=flat-square&labelColor=0f172a&color=64748b">
-      <img alt="License" src="https://img.shields.io/github/license/TheBadRoger/term4k?style=flat-square&labelColor=f3f4f6&color=6b7280">
-    </picture>
-  </a>
-  <a href="https://en.cppreference.com/w/cpp/20">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/C%2B%2B-20-1d4ed8?logo=c%2B%2B&logoColor=white&style=flat-square&labelColor=0f172a">
-      <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-2563eb?logo=c%2B%2B&logoColor=white&style=flat-square&labelColor=f3f4f6">
-    </picture>
-  </a>
-  <a href="https://github.com/TheBadRoger/term4k/commits/main">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/last-commit/TheBadRoger/term4k?style=flat-square&labelColor=0f172a&color=0ea5e9">
-      <img alt="Last Commit" src="https://img.shields.io/github/last-commit/TheBadRoger/term4k?style=flat-square&labelColor=f3f4f6&color=0284c7">
-    </picture>
-  </a>
-  <a href="https://github.com/TheBadRoger/term4k">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/repo-size/TheBadRoger/term4k?style=flat-square&labelColor=0f172a&color=14b8a6">
-      <img alt="Repo Size" src="https://img.shields.io/github/repo-size/TheBadRoger/term4k?style=flat-square&labelColor=f3f4f6&color=0d9488">
-    </picture>
-  </a>
-  <br>
+  <a href="https://github.com/TheBadRoger/term4k/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/TheBadRoger/term4k?style=flat-square&labelColor=0f172a&color=64748b"></a>
+  <a href="https://en.cppreference.com/w/cpp/20"><img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-1d4ed8?logo=c%2B%2B&logoColor=white&style=flat-square&labelColor=0f172a"></a>
+  <a href="https://github.com/TheBadRoger/term4k/commits/main"><img alt="Last Commit" src="https://img.shields.io/github/last-commit/TheBadRoger/term4k?style=flat-square&labelColor=0f172a&color=0ea5e9"></a>
+  <a href="https://github.com/TheBadRoger/term4k"><img alt="Repo Size" src="https://img.shields.io/github/repo-size/TheBadRoger/term4k?style=flat-square&labelColor=0f172a&color=14b8a6"></a>
+  <br><br>
   <strong>Code Stats</strong><br>
-  <a href="https://github.com/TheBadRoger/term4k#live-code-statistics">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/loc.json&style=flat-square&labelColor=0f172a&color=22c55e">
-      <img alt="LOC" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/loc.json&style=flat-square&labelColor=f3f4f6&color=16a34a">
-    </picture>
-  </a>
-  <a href="https://github.com/TheBadRoger/term4k#live-code-statistics">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/languages.json&style=flat-square&labelColor=0f172a&color=0ea5e9">
-      <img alt="Languages" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/languages.json&style=flat-square&labelColor=f3f4f6&color=0284c7">
-    </picture>
-  </a>
-  <a href="https://github.com/TheBadRoger/term4k#live-code-statistics">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/top-language.json&style=flat-square&labelColor=0f172a&color=a855f7">
-      <img alt="Top Language" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/top-language.json&style=flat-square&labelColor=f3f4f6&color=9333ea">
-    </picture>
-  </a>
+  <a href="https://github.com/TheBadRoger/term4k#live-code-statistics"><img alt="LOC" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/loc.json&style=flat-square&labelColor=0f172a&color=22c55e"></a>
+  <a href="https://github.com/TheBadRoger/term4k#live-code-statistics"><img alt="Languages" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/languages.json&style=flat-square&labelColor=0f172a&color=0ea5e9"></a>
+  <a href="https://github.com/TheBadRoger/term4k#live-code-statistics"><img alt="Top Language" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/top-language.json&style=flat-square&labelColor=0f172a&color=a855f7"></a>
+  <br><br>
+  <strong>CI Status</strong><br>
+  <a href="https://github.com/TheBadRoger/term4k/actions/workflows/build.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/build.yml?branch=main&label=Build&style=flat-square&labelColor=0f172a&color=22c55e"></a>
+  <a href="https://github.com/TheBadRoger/term4k/actions/workflows/unit-tests.yml"><img alt="Unit Tests" src="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/unit-tests.yml?branch=main&label=Unit%20Tests&style=flat-square&labelColor=0f172a&color=22c55e"></a>
 </p>
 
 ## Documentation
@@ -81,14 +36,11 @@ It includes:
 <!-- README_STATS:START -->
 ## Live Code Statistics
 
-> Auto-updated by `.github/workflows/readme-stats.yml`.
-
-> Chart theme preset: `dark` + `default`.
-> Switch quickly: `python3 scripts/update_readme_stats.py --theme light --style neon`.
+> Last updated: `2026-04-01 15:36:54` (GMT).
 
 | Metric | Value |
 | --- | ---: |
-| Total code lines | `13,246` |
+| Total code lines | `13,256` |
 | Class/Struct definitions (C++) | `96` |
 | Function definitions (C++, heuristic) | `539` |
 | Stack object declarations (C++, heuristic) | `513` |
@@ -99,11 +51,11 @@ It includes:
 ### Distribution Chart
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Fira Code, JetBrains Mono, Source Code Pro, Cascadia Code, Menlo, Consolas, monospace', 'pieTitleTextColor': '#e5e7eb', 'pieSectionTextColor': '#f3f4f6', 'pieOuterStrokeColor': 'transparent', 'pieOuterStrokeWidth': '0px', 'pieStrokeColor': 'transparent', 'pieStrokeWidth': '0px', 'pie1': '#6366f1', 'pie2': '#22d3ee', 'pie3': '#34d399', 'pie4': '#fbbf24', 'pie5': '#fb7185', 'pie6': '#a78bfa'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Fira Code, JetBrains Mono, Source Code Pro, Cascadia Code, Menlo, Consolas, monospace', 'pieTitleTextColor': '#e5e7eb', 'pieSectionTextColor': '#111827', 'pieOuterStrokeColor': 'transparent', 'pieOuterStrokeWidth': '0px', 'pieStrokeColor': 'transparent', 'pieStrokeWidth': '0px', 'pie1': '#6366f1', 'pie2': '#22d3ee', 'pie3': '#34d399', 'pie4': '#fbbf24', 'pie5': '#fb7185', 'pie6': '#a78bfa'}}}%%
 pie showData
     title Code Distribution by Language (LOC)
     "C++ (87.7%)" : 11622
-    "Markdown (5.2%)" : 688
+    "Markdown (5.3%)" : 698
     "Shell (3.2%)" : 422
     "CMake (2.1%)" : 276
     "JSON (1.8%)" : 238
