@@ -3,15 +3,65 @@
 [Chinese documentation / 中文文档](documents/README_zh_CN.md)
 
 <p align="center">
-  <img alt="License" src="https://img.shields.io/github/license/TheBadRoger/term4k">
-  <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=c%2B%2B&logoColor=white">
-  <img alt="Last Commit" src="https://img.shields.io/github/last-commit/TheBadRoger/term4k">
-  <img alt="Repo Size" src="https://img.shields.io/github/repo-size/TheBadRoger/term4k">
-  <img alt="Build" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/build.json">
-  <img alt="Unit Tests" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/unit-tests.json">
-  <img alt="LOC" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/loc.json">
-  <img alt="Languages" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/languages.json">
-  <img alt="Top Language" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/top-language.json">
+  <strong>CI Status</strong><br>
+  <a href="https://github.com/TheBadRoger/term4k/actions/workflows/build.yml">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/build.yml?branch=main&label=Build&style=flat-square&labelColor=0f172a&color=22c55e">
+      <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/build.yml?branch=main&label=Build&style=flat-square&labelColor=f3f4f6&color=16a34a">
+    </picture>
+  </a>
+  <a href="https://github.com/TheBadRoger/term4k/actions/workflows/unit-tests.yml">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/unit-tests.yml?branch=main&label=Unit%20Tests&style=flat-square&labelColor=0f172a&color=22c55e">
+      <img alt="Unit Tests" src="https://img.shields.io/github/actions/workflow/status/TheBadRoger/term4k/unit-tests.yml?branch=main&label=Unit%20Tests&style=flat-square&labelColor=f3f4f6&color=16a34a">
+    </picture>
+  </a>
+  <br>
+  <strong>Project Meta</strong><br>
+  <a href="https://github.com/TheBadRoger/term4k/blob/main/LICENSE">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/license/TheBadRoger/term4k?style=flat-square&labelColor=0f172a&color=64748b">
+      <img alt="License" src="https://img.shields.io/github/license/TheBadRoger/term4k?style=flat-square&labelColor=f3f4f6&color=6b7280">
+    </picture>
+  </a>
+  <a href="https://en.cppreference.com/w/cpp/20">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/C%2B%2B-20-1d4ed8?logo=c%2B%2B&logoColor=white&style=flat-square&labelColor=0f172a">
+      <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-2563eb?logo=c%2B%2B&logoColor=white&style=flat-square&labelColor=f3f4f6">
+    </picture>
+  </a>
+  <a href="https://github.com/TheBadRoger/term4k/commits/main">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/last-commit/TheBadRoger/term4k?style=flat-square&labelColor=0f172a&color=0ea5e9">
+      <img alt="Last Commit" src="https://img.shields.io/github/last-commit/TheBadRoger/term4k?style=flat-square&labelColor=f3f4f6&color=0284c7">
+    </picture>
+  </a>
+  <a href="https://github.com/TheBadRoger/term4k">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/repo-size/TheBadRoger/term4k?style=flat-square&labelColor=0f172a&color=14b8a6">
+      <img alt="Repo Size" src="https://img.shields.io/github/repo-size/TheBadRoger/term4k?style=flat-square&labelColor=f3f4f6&color=0d9488">
+    </picture>
+  </a>
+  <br>
+  <strong>Code Stats</strong><br>
+  <a href="https://github.com/TheBadRoger/term4k#live-code-statistics">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/loc.json&style=flat-square&labelColor=0f172a&color=22c55e">
+      <img alt="LOC" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/loc.json&style=flat-square&labelColor=f3f4f6&color=16a34a">
+    </picture>
+  </a>
+  <a href="https://github.com/TheBadRoger/term4k#live-code-statistics">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/languages.json&style=flat-square&labelColor=0f172a&color=0ea5e9">
+      <img alt="Languages" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/languages.json&style=flat-square&labelColor=f3f4f6&color=0284c7">
+    </picture>
+  </a>
+  <a href="https://github.com/TheBadRoger/term4k#live-code-statistics">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/top-language.json&style=flat-square&labelColor=0f172a&color=a855f7">
+      <img alt="Top Language" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TheBadRoger/term4k/main/.github/badges/top-language.json&style=flat-square&labelColor=f3f4f6&color=9333ea">
+    </picture>
+  </a>
 </p>
 
 ## Documentation

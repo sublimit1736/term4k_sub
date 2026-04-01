@@ -1,0 +1,35 @@
+name: Unit Tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/**"
+      - "includes/**"
+      - "CMakeLists.txt"
+      - "src/test/**"
+      - ".github/workflows/unit-tests.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "includes/**"
+      - "CMakeLists.txt"
+      - "src/test/**"
+      - ".github/workflows/unit-tests.yml"
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -S . -B cmake-build-ci -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build cmake-build-ci -j
+
+      - name: Run unit tests
+        run: ctest --test-dir cmake-build-ci --output-on-failure
+
