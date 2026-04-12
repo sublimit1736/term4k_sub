@@ -38,17 +38,17 @@ It includes:
 <!-- README_STATS:START -->
 ## Live Code Statistics
 
-> Last updated: `2026-04-12 04:43:02` (GMT).
+> Last updated: `2026-04-12 16:25:27` (GMT).
 
 | Metric | Value |
 | --- | ---: |
-| Total code lines | `13,250` |
-| Class/Struct definitions (C++) | `96` |
-| Function definitions (C++, heuristic) | `539` |
-| Stack object declarations (C++, heuristic) | `513` |
+| Total code lines | `12,273` |
+| Class/Struct definitions (C++) | `84` |
+| Function definitions (C++, heuristic) | `447` |
+| Stack object declarations (C++, heuristic) | `501` |
 | Static variable declarations (C++, heuristic) | `18` |
 | Heap allocations via `new` (C++, heuristic) | `0` |
-| `make_shared`/`make_unique` calls (C++, heuristic) | `3` |
+| `make_shared`/`make_unique` calls (C++, heuristic) | `1` |
 
 ### Distribution Chart
 
@@ -56,11 +56,11 @@ It includes:
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Fira Code, JetBrains Mono, Source Code Pro, Cascadia Code, Menlo, Consolas, monospace', 'pieTitleTextColor': '#e5e7eb', 'pieSectionTextColor': '#111827', 'pieOuterStrokeColor': 'transparent', 'pieOuterStrokeWidth': '0px', 'pieStrokeColor': 'transparent', 'pieStrokeWidth': '0px', 'pie1': '#6366f1', 'pie2': '#22d3ee', 'pie3': '#34d399', 'pie4': '#fbbf24', 'pie5': '#fb7185', 'pie6': '#a78bfa'}}}%%
 pie showData
     title Code Distribution by Language (LOC)
-    "C++ (87.7%)" : 11622
-    "Markdown (5.2%)" : 692
-    "Shell (3.2%)" : 422
-    "CMake (2.1%)" : 276
-    "JSON (1.8%)" : 238
+    "C++ (85.8%)" : 10531
+    "Markdown (5.8%)" : 710
+    "Shell (3.4%)" : 422
+    "CMake (2.6%)" : 318
+    "JSON (2.4%)" : 292
 ```
 <!-- README_STATS:END -->
 
