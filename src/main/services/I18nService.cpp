@@ -10,6 +10,23 @@
 
 namespace fs = std::filesystem;
 
+namespace {
+std::string devI18nDirIfPresent() {
+    std::error_code ec;
+
+    const std::vector<std::string> candidates = {
+        "src/resources/i18n/",
+        "../src/resources/i18n/",
+    };
+
+    for (const std::string &dir : candidates) {
+        if (fs::exists(dir, ec) && fs::is_directory(dir, ec)) return dir;
+        ec.clear();
+    }
+    return "";
+}
+}
+
 // -- Singleton ---------------------------------------------------------------
 
 I18nService &I18nService::instance() {
@@ -54,12 +71,21 @@ bool I18nService::ensureLocaleLoaded(const std::string &preferredLocale) {
     AppDirs::init();
 
     std::vector<std::string> candidates;
-    candidates.push_back("src/resources/i18n/" + locale + ".json");
-    if (locale != "en_US") candidates.push_back("src/resources/i18n/en_US.json");
+    const std::string devDir = devI18nDirIfPresent();
+    if (!devDir.empty()) {
+        candidates.push_back(devDir + locale + ".json");
+        if (locale != "en_US") candidates.push_back(devDir + "en_US.json");
+    }
 
     const std::string productionDir = AppDirs::localeDir();
     candidates.push_back(productionDir + locale + ".json");
     if (locale != "en_US") candidates.push_back(productionDir + "en_US.json");
+
+    if (devDir.empty()) {
+        // Last-resort fallback for ad-hoc local runs without installed resources.
+        candidates.push_back("src/resources/i18n/" + locale + ".json");
+        if (locale != "en_US") candidates.push_back("src/resources/i18n/en_US.json");
+    }
 
     for (const std::string &path : candidates) {
         std::error_code ec;

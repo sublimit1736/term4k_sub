@@ -21,7 +21,7 @@ void writeFile(const std::string &path, const std::string &content) {
 
 TEST_CASE("SettingsInstance keeps unsaved draft isolated from RuntimeConfigs", "[instances][SettingsInstance]") {
     RuntimeConfigs::resetToDefaults();
-    RuntimeConfigs::theme       = "lazyvim_dark";
+    RuntimeConfigs::theme       = "tomorrow-night";
     RuntimeConfigs::musicVolume = 0.8f;
 
     SettingsInstance instance;
@@ -33,12 +33,12 @@ TEST_CASE("SettingsInstance keeps unsaved draft isolated from RuntimeConfigs", "
     instance.setDraft(d);
 
     REQUIRE(instance.hasUnsavedChanges());
-    REQUIRE(RuntimeConfigs::theme == "lazyvim_dark");
+    REQUIRE(RuntimeConfigs::theme == "tomorrow-night");
     REQUIRE(RuntimeConfigs::musicVolume == Catch::Approx(0.8f));
 
     instance.discardUnsavedChanges();
     REQUIRE_FALSE(instance.hasUnsavedChanges());
-    REQUIRE(instance.draft().getTheme() == "lazyvim_dark");
+    REQUIRE(instance.draft().getTheme() == "tomorrow-night");
     REQUIRE(instance.draft().getMusicVolume() == Catch::Approx(0.8f));
 }
 
@@ -49,13 +49,13 @@ TEST_CASE("SettingsInstance saves draft to disk and clears dirty state", "[insta
     RuntimeConfigs::setConfigDirOverrideForTesting(temp.path().string());
     ThemePresetService::setThemeDirOverridesForTesting(userThemes.path().string(), systemThemes.path().string());
 
-    writeFile((systemThemes.path() / "lazyvim_dark.json").string(),
-              R"({"id":"lazyvim_dark","text.primary":"#ffffff"})");
+    writeFile((systemThemes.path() / "tomorrow-night.json").string(),
+              R"({"id":"tomorrow-night","text.primary":"#ffffff"})");
     writeFile((systemThemes.path() / "lazyvim_light.json").string(),
               R"({"id":"lazyvim_light","text.primary":"#111111"})");
 
     RuntimeConfigs::resetToDefaults();
-    RuntimeConfigs::theme       = "lazyvim_dark";
+    RuntimeConfigs::theme       = "tomorrow-night";
     RuntimeConfigs::musicVolume = 1.0f;
 
     SettingsInstance instance;
@@ -75,7 +75,7 @@ TEST_CASE("SettingsInstance saves draft to disk and clears dirty state", "[insta
     const auto path = RuntimeConfigs::settingsFilePathForUser("alice");
     REQUIRE(std::filesystem::exists(path));
 
-    RuntimeConfigs::theme         = "lazyvim_dark";
+    RuntimeConfigs::theme         = "tomorrow-night";
     RuntimeConfigs::musicVolume   = 0.99f;
     RuntimeConfigs::chartOffsetMs = 0;
     RuntimeConfigs::keyBindings   = {1, 2};
@@ -97,19 +97,19 @@ TEST_CASE("SettingsInstance supports theme preset list/select/import/export", "[
 
     ThemePresetService::setThemeDirOverridesForTesting(userThemes.path().string(), systemThemes.path().string());
 
-    writeFile((systemThemes.path() / "lazyvim_dark.json").string(),
-              R"({"id":"lazyvim_dark","text.primary":"#ffffff"})");
-    writeFile((systemThemes.path() / "tokyo_night.json").string(),
-              R"({"id":"tokyo_night","text.primary":"#c0caf5"})");
+    writeFile((systemThemes.path() / "tomorrow-night.json").string(),
+              R"({"id":"tomorrow-night","text.primary":"#ffffff"})");
+    writeFile((systemThemes.path() / "tokyo-night.json").string(),
+              R"({"id":"tokyo-night","text.primary":"#c0caf5"})");
     writeFile((importDir.path() / "paper light.json").string(),
               R"({"id":"paper_light","text.primary":"#1f1f1f"})");
 
     SettingsInstance instance;
     instance.loadFromRuntime();
 
-    REQUIRE(instance.availableThemeIds() == std::vector<std::string>{"lazyvim_dark", "tokyo_night"});
-    REQUIRE(instance.selectTheme("tokyo_night"));
-    REQUIRE(instance.draft().getTheme() == "tokyo_night");
+    REQUIRE(instance.availableThemeIds() == std::vector<std::string>{"tokyo-night", "tomorrow-night"});
+    REQUIRE(instance.selectTheme("tokyo-night"));
+    REQUIRE(instance.draft().getTheme() == "tokyo-night");
     REQUIRE_FALSE(instance.selectTheme("missing_theme"));
 
     std::string importedThemeId;

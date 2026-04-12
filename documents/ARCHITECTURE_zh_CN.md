@@ -11,20 +11,18 @@
 项目整体采用分层结构：
 
 ```text
-UI 层 (ui/*)
-    -> Instance 场景编排层 (instances/*)
-        -> Service 业务服务层 (services/*)
-            -> DAO + Config + Utils + Entities (dao/*, config/*, utils/*, entities/*)
+Instance 场景编排层 (instances/*)
+    -> Service 业务服务层 (services/*)
+        -> DAO + Config + Utils + Entities (dao/*, config/*, utils/*, entities/*)
 ```
 
 典型运行链路：
 
-1. UI 接收交互。
-2. Instance 组织一个场景的状态与流程。
-3. Service 执行业务逻辑与计算。
-4. DAO 负责持久化读写。
-5. Entities 作为跨层数据载体。
-6. Config/Utils 提供全局配置与通用能力。
+1. Instance 组织一个场景的状态与流程。
+2. Service 执行业务逻辑与计算。
+3. DAO 负责持久化读写。
+4. Entities 作为跨层数据载体。
+5. Config/Utils 提供全局配置与通用能力。
 
 ## 2）目录包含关系与结构联系
 
@@ -35,13 +33,11 @@ src/main/
   entities/    数据模型与游戏快照
   instances/   场景级编排对象
   services/    核心业务逻辑
-  ui/          UI 门面与多线程 UI 运行时
   utils/       通用工具组件
 ```
 
 模块关系重点：
 
-- `ui/*` 主要绑定 `instances/*`。
 - `instances/*` 主要组合调用 `services/*`。
 - `services/*` 依赖 `entities/*`、`dao/*`、`utils/*`、`config/*`。
 - `dao/*` 使用 `utils/LiteDBUtils` 提供密钥、哈希、加密能力。
@@ -130,22 +126,7 @@ src/main/
 | `PlayableNoteConflict` | 可演奏音符冲突检查结果（同轨同刻冲突）。 |
 | `ChartCatalogService` | 曲目扫描、用户统计聚合、排序与合规检查服务。 |
 
-### 4.6 ui
-
-| 类 / 类型 | 作用 |
-|---|---|
-| `ui::StartMenuUI` | 开始菜单 UI 门面（当前为占位生命周期接口）。 |
-| `ui::UserLoginUI` | 登录界面 UI 门面，绑定 `UserLoginInstance`。 |
-| `ui::ChartListUI` | 曲目列表 UI 门面，绑定 `ChartListInstance`。 |
-| `ui::GameplayUI` | 游玩界面 UI 门面，绑定 `GameplayInstance`。 |
-| `ui::GameplaySettlementUI` | 结算界面 UI 门面，绑定 `GameplaySettlementInstance`。 |
-| `ui::UserStatUI` | 用户统计 UI 门面，绑定 `UserStatInstance`。 |
-| `ui::AdminUserStatUI` | 管理统计 UI 门面，绑定 `AdminStatInstance`。 |
-| `ui::UserSettingsUI` | 用户设置 UI 门面，绑定 `SettingsInstance`。 |
-| `ui::UIThreadRuntime` | 多场景 UI 线程生命周期管理与场景切换协调器。 |
-| `ui::UIThreadRuntime::UIScene` | UI 场景枚举，供运行时切换状态机使用。 |
-
-### 4.7 utils
+### 4.6 utils
 
 | 类 | 作用 |
 |---|---|
@@ -156,16 +137,16 @@ src/main/
 
 ## 5）典型依赖示例
 
-- **曲目浏览**：`ui::ChartListUI` -> `ChartListInstance` -> `ChartCatalogService` + `PrefixTrie` + `Chart`。
-- **游玩流程**：`ui::GameplayUI` -> `GameplayInstance` -> `GameplaySessionService` -> (`GameplayChartService`、`GameplayClockService`、`GameplayStatsService`) -> `GameplayFinalResult`。
+- **曲目浏览**：`ChartListInstance` -> `ChartCatalogService` + `PrefixTrie` + `Chart`。
+- **游玩流程**：`GameplayInstance` -> `GameplaySessionService` -> (`GameplayChartService`、`GameplayClockService`、`GameplayStatsService`) -> `GameplayFinalResult`。
 - **结果保存**：`GameplaySettlementInstance` -> `GameplayRecordService` -> `AuthenticatedUserService` + `ProofedRecordsDAO`。
-- **登录流程**：`ui::UserLoginUI` -> `UserLoginInstance` -> `UserLoginService` -> `UserAccountsDAO`。
-- **设置流程**：`ui::UserSettingsUI` -> `SettingsInstance` -> `SettingsService` -> `RuntimeConfigs`（并按用户持久化）。
+- **登录流程**：`UserLoginInstance` -> `UserLoginService` -> `UserAccountsDAO`。
+- **设置流程**：`SettingsInstance` -> `SettingsService` -> `RuntimeConfigs`（并按用户持久化）。
 
 ## 6）当前架构特征
 
-- 层级边界较明确，依赖方向基本单向（UI -> Instance -> Service -> Data/Utility）。
+- 层级边界较明确，依赖方向基本单向（Instance -> Service -> Data/Utility）。
 - 业务服务多为静态工具风格，`Instance` 负责场景状态承接。
-- UI 接口当前偏占位实现，领域逻辑与数据层已具备可扩展结构。
+- 领域逻辑与数据层已具备可扩展结构，可被 headless 程序或外部前端复用。
 
 

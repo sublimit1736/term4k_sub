@@ -16,7 +16,7 @@ TEST_CASE (
  {
     RuntimeConfigs::resetToDefaults();
 
-    REQUIRE(RuntimeConfigs::theme == "dark");
+    REQUIRE(RuntimeConfigs::theme == "tomorrow-night");
     REQUIRE(RuntimeConfigs::locale == "en_US");
     REQUIRE(RuntimeConfigs::musicVolume == Catch::Approx(1.0f));
     REQUIRE(RuntimeConfigs::hitSoundVolume == Catch::Approx(1.0f));
@@ -93,7 +93,7 @@ TEST_CASE (
     RuntimeConfigs::theme = "light";
     RuntimeConfigs::musicVolume = 0.2f;
     REQUIRE_FALSE(RuntimeConfigs::loadForUser("missing_user"));
-    REQUIRE(RuntimeConfigs::theme == "dark");
+    REQUIRE(RuntimeConfigs::theme == "tomorrow-night");
     REQUIRE(RuntimeConfigs::musicVolume == Catch::Approx(1.0f));
 
     REQUIRE(RuntimeConfigs::settingsFilePathForUser("a/b").find("a_b_settings.json") != std::string::npos);

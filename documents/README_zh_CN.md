@@ -23,7 +23,9 @@
 
 - [架构与模块分工](./ARCHITECTURE_zh_CN.md)
 
-term4k 是一个基于 C++20 的终端节奏游戏项目。
+term4k 是一个基于 C++20 的节奏游戏核心逻辑项目。
+
+当前代码库为无内置 UI 的 headless 形态。
 
 主要能力包括：
 
@@ -156,3 +158,24 @@ cmake -S . -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
 cmake --build cmake-build-release -j
 ./cmake-build-release/term4k
 ```
+
+## 依赖管理策略
+
+第三方依赖统一由 `CMake` 管理，并与项目源码分离。
+
+- 音频核心：`miniaudio`
+- 单元测试：`Catch2`
+- TUI（可选）：`FTXUI`（通过 `TERM4K_ENABLE_TUI=ON` 启用）
+
+默认使用 `FetchContent` 自动拉取依赖。
+
+```bash
+# 默认模式：FetchContent
+cmake -S . -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+```
+
+```bash
+# 优先使用系统依赖，找不到时回退到 FetchContent
+cmake -S . -B cmake-build-release -DCMAKE_BUILD_TYPE=Release -DTERM4K_USE_SYSTEM_DEPS=ON
+```
+

@@ -21,17 +21,17 @@ TEST_CASE("ThemePresetService lists merged user/system theme ids", "[services][T
     TempDir userThemes("term4k_theme_user");
     TempDir systemThemes("term4k_theme_system");
 
-    writeFile((userThemes.path() / "tokyo_night.json").string(),
-              R"({"id":"tokyo_night","text.primary":"#ffffff"})");
-    writeFile((systemThemes.path() / "lazyvim_dark.json").string(),
-              R"({"id":"lazyvim_dark","text.primary":"#eeeeee"})");
-    writeFile((systemThemes.path() / "tokyo_night.json").string(),
-              R"({"id":"tokyo_night","text.primary":"#000000"})");
+    writeFile((userThemes.path() / "tokyo-night.json").string(),
+              R"({"id":"tokyo-night","text.primary":"#ffffff"})");
+    writeFile((systemThemes.path() / "tomorrow-night.json").string(),
+              R"({"id":"tomorrow-night","text.primary":"#eeeeee"})");
+    writeFile((systemThemes.path() / "tokyo-night.json").string(),
+              R"({"id":"tokyo-night","text.primary":"#000000"})");
 
     ThemePresetService::setThemeDirOverridesForTesting(userThemes.path().string(), systemThemes.path().string());
 
     const auto ids = ThemePresetService::listThemeIds();
-    REQUIRE(ids == std::vector<std::string>{"lazyvim_dark", "tokyo_night"});
+    REQUIRE(ids == std::vector<std::string>{"tokyo-night", "tomorrow-night"});
 
     ThemePresetService::clearThemeDirOverridesForTesting();
 }

@@ -255,9 +255,9 @@ TEST_CASE("UIThreadRuntime user settings success target scene is configurable", 
     ThemePresetService::setThemeDirOverridesForTesting(userThemes.path().string(), systemThemes.path().string());
 
     {
-        std::ofstream out((systemThemes.path() / "lazyvim_dark.json").string(), std::ios::trunc);
+        std::ofstream out((systemThemes.path() / "tomorrow-night.json").string(), std::ios::trunc);
         REQUIRE(out.is_open());
-        out << R"({"id":"lazyvim_dark","text.primary":"#ffffff"})";
+        out << R"({"id":"tomorrow-night","text.primary":"#ffffff"})";
         REQUIRE(out.good());
     }
 
@@ -280,7 +280,7 @@ TEST_CASE("UIThreadRuntime user settings success target scene is configurable", 
     REQUIRE(runtime.currentScene() == ui::UIThreadRuntime::UIScene::UserSettings);
 
     std::string error;
-    REQUIRE(settingsUI.selectTheme("lazyvim_dark", &error));
+    REQUIRE(settingsUI.selectTheme("tomorrow-night", &error));
     REQUIRE(error.empty());
 
     bool switched = false;

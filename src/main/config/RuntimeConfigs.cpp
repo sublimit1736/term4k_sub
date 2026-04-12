@@ -15,7 +15,7 @@
 #include <sstream>
 
 namespace {
-    constexpr const char* kDefaultTheme = "lazyvim_dark";
+    constexpr const char* kDefaultTheme = "tomorrow-night";
     constexpr uint32_t kSchemaVersion   = 1;
 
     std::string ensureTrailingSlash(std::string path) {
@@ -34,6 +34,13 @@ namespace {
         std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
             return static_cast<char>(std::tolower(ch));
         });
+        return value;
+    }
+
+    std::string canonicalThemeId(std::string value) {
+        value = toLower(trim(value));
+        if (value == "tomorrow_night") return "tomorrow-night";
+        if (value == "tokyo_night") return "tokyo-night";
         return value;
     }
 
@@ -80,11 +87,11 @@ namespace {
     }
 
     std::string normalizeTheme(const std::string &raw, const std::string &fallback) {
-        std::string value = toLower(trim(raw));
+        std::string value = canonicalThemeId(raw);
         if (!value.empty() && ThemePresetService::themeExists(value)) return value;
         if (!value.empty()) return value;
 
-        std::string fallbackValue = toLower(trim(fallback));
+        std::string fallbackValue = canonicalThemeId(fallback);
         if (!fallbackValue.empty() && ThemePresetService::themeExists(fallbackValue)) return fallbackValue;
         if (!fallbackValue.empty()) return fallbackValue;
 

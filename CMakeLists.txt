@@ -8,14 +8,41 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(OpenSSL REQUIRED)
 
 include(GNUInstallDirs)
+include(FetchContent)
 
 option(TERM4K_BUILD_TESTS "Build term4k unit tests" ON)
 option(TERM4K_ENABLE_RPM "Enable RPM package generation when rpmbuild is available" ON)
 option(TERM4K_STRICT_RPM_CHECK "Fail configure when TERM4K_ENABLE_RPM=ON but rpmbuild is missing" OFF)
+set(TERM4K_ENABLE_TUI ON CACHE BOOL "Enable FTXUI-based terminal homepage UI" FORCE)
+option(TERM4K_USE_SYSTEM_DEPS "Prefer system-installed dependencies before FetchContent fallback" OFF)
+
+if (TERM4K_USE_SYSTEM_DEPS)
+    find_path(TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR miniaudio.h)
+endif ()
+
+if (TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR)
+    set(TERM4K_MINIAUDIO_IMPL "${CMAKE_BINARY_DIR}/term4k_miniaudio_impl.c")
+    file(WRITE "${TERM4K_MINIAUDIO_IMPL}" "#define MINIAUDIO_IMPLEMENTATION\n#include <miniaudio.h>\n")
+
+    add_library(term4k_miniaudio STATIC "${TERM4K_MINIAUDIO_IMPL}")
+    target_include_directories(term4k_miniaudio PUBLIC "${TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR}")
+    set(TERM4K_MINIAUDIO_TARGET term4k_miniaudio)
+    set(TERM4K_MINIAUDIO_INCLUDE_DIR "${TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR}")
+    message(STATUS "term4k deps: using system miniaudio from ${TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR}")
+else ()
+    FetchContent_Declare(
+            miniaudio
+            GIT_REPOSITORY https://github.com/mackron/miniaudio.git
+            GIT_TAG 0.11.22
+    )
+    FetchContent_MakeAvailable(miniaudio)
+    set(TERM4K_MINIAUDIO_TARGET miniaudio)
+    set(TERM4K_MINIAUDIO_INCLUDE_DIR "${miniaudio_SOURCE_DIR}")
+    message(STATUS "term4k deps: using FetchContent miniaudio")
+endif ()
 
 set(TERM4K_CORE_SOURCES
         src/main/services/AudioService.cpp
-        includes/miniaudio_impl.cpp
         src/main/services/ChartIOService.cpp
         src/main/services/ChartCatalogService.cpp
         src/main/entities/Chart.cpp
@@ -39,15 +66,6 @@ set(TERM4K_CORE_SOURCES
         src/main/services/GameplayRecordService.cpp
         src/main/services/SettingsService.cpp
         src/main/services/ThemePresetService.cpp
-        src/main/ui/StartMenuUI.cpp
-        src/main/ui/AdminUserStatUI.cpp
-        src/main/ui/ChartListUI.cpp
-        src/main/ui/GameplayUI.cpp
-        src/main/ui/GameplaySettlementUI.cpp
-        src/main/ui/UserStatUI.cpp
-        src/main/ui/UserLoginUI.cpp
-        src/main/ui/UserSettingsUI.cpp
-        src/main/ui/UIThreadRuntime.cpp
         src/main/instances/ChartListInstance.cpp
         src/main/instances/UserLoginInstance.cpp
         src/main/instances/UserStatInstance.cpp
@@ -56,37 +74,75 @@ set(TERM4K_CORE_SOURCES
         src/main/instances/GameplaySettlementInstance.cpp
         src/main/instances/SettingsInstance.cpp
         src/main/utils/ErrorNotifier.cpp
-        src/main/utils/tui/DisplayWidth.cpp
-        src/main/utils/tui/FramePacer.cpp
-        src/main/utils/tui/InputDecoder.cpp
-        src/main/utils/tui/RenderBuffer.cpp
-        src/main/utils/tui/SceneLoopCore.cpp
         src/main/config/AppDirs.cpp
-        src/main/config/RuntimeConfigs.cpp)
+        src/main/config/RuntimeConfigs.cpp
+        src/main/ui/ThemeAdapter.cpp)
 
 add_library(term4k_core STATIC ${TERM4K_CORE_SOURCES})
 add_library(term4k::core ALIAS term4k_core)
-target_include_directories(term4k_core PUBLIC includes src/main)
-target_link_libraries(term4k_core PUBLIC OpenSSL::Crypto)
+target_include_directories(term4k_core
+        PUBLIC
+        src/main
+        ${TERM4K_MINIAUDIO_INCLUDE_DIR})
+target_link_libraries(term4k_core
+        PUBLIC
+        OpenSSL::Crypto
+        ${TERM4K_MINIAUDIO_TARGET})
 
 add_executable(term4k src/main/main.cpp)
+target_compile_definitions(term4k PRIVATE TERM4K_VERSION="${PROJECT_VERSION}")
 target_link_libraries(term4k PRIVATE term4k::core)
 
+if (TERM4K_ENABLE_TUI)
+    if (TERM4K_USE_SYSTEM_DEPS)
+        find_package(ftxui CONFIG QUIET)
+    endif ()
+
+    if (NOT TARGET ftxui::screen)
+        FetchContent_Declare(
+                ftxui
+                GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI.git
+                GIT_TAG v6.1.9
+        )
+        FetchContent_MakeAvailable(ftxui)
+        message(STATUS "term4k deps: using FetchContent FTXUI")
+    else ()
+        message(STATUS "term4k deps: using system FTXUI")
+    endif ()
+
+    target_sources(term4k PRIVATE
+            src/main/ui/HomePageUI.cpp
+            src/main/ui/ChartSelectUI.cpp
+    )
+
+    target_compile_definitions(term4k PRIVATE TERM4K_ENABLE_TUI=1)
+    target_link_libraries(term4k PRIVATE ftxui::screen ftxui::dom ftxui::component)
+endif ()
+
 if (TERM4K_BUILD_TESTS)
+    if (TERM4K_USE_SYSTEM_DEPS)
+        find_package(Catch2 3 CONFIG QUIET)
+    endif ()
+
+    if (NOT TARGET Catch2::Catch2WithMain)
+        FetchContent_Declare(
+                catch2
+                GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+                GIT_TAG v3.7.1
+        )
+        FetchContent_MakeAvailable(catch2)
+        message(STATUS "term4k deps: using FetchContent Catch2")
+    else ()
+        message(STATUS "term4k deps: using system Catch2")
+    endif ()
+
     enable_testing()
 
     add_executable(term4k_tests
-            includes/catch_amalgamated.cpp
-            src/test/test_main.cpp
             src/test/unit/utils/PrefixTrieTests.cpp
             src/test/unit/utils/ErrorNotifierTests.cpp
             src/test/unit/utils/LiteDBUtilsTests.cpp
             src/test/unit/utils/AppDirsTests.cpp
-            src/test/unit/utils/tui/DisplayWidthTests.cpp
-            src/test/unit/utils/tui/FramePacerTests.cpp
-            src/test/unit/utils/tui/InputDecoderTests.cpp
-            src/test/unit/utils/tui/RenderBufferTests.cpp
-            src/test/unit/utils/tui/SceneLoopCoreTests.cpp
             src/test/unit/config/RuntimeConfigsTests.cpp
             src/test/unit/services/I18nTests.cpp
             src/test/unit/services/ChartIOTests.cpp
@@ -103,12 +159,11 @@ if (TERM4K_BUILD_TESTS)
             src/test/unit/instances/GameplayInstanceTests.cpp
             src/test/unit/instances/GameplaySettlementInstanceTests.cpp
             src/test/unit/instances/SettingsInstanceTests.cpp
-            src/test/unit/ui/UIThreadRuntimeTests.cpp
-            src/test/unit/ui/UserSettingsUITests.cpp
+            src/test/unit/ui/ThemeAdapterTests.cpp
     )
 
     target_include_directories(term4k_tests PRIVATE src/test)
-    target_link_libraries(term4k_tests PRIVATE term4k::core)
+    target_link_libraries(term4k_tests PRIVATE term4k::core Catch2::Catch2WithMain)
 
     add_test(NAME term4k_tests COMMAND term4k_tests)
     add_test(NAME term4k_tests_utils COMMAND term4k_tests "[utils]")
@@ -155,15 +210,6 @@ set(TERM4K_PUBLIC_HEADERS
         src/main/services/GameplayRecordService.h
         src/main/services/SettingsService.h
         src/main/services/ThemePresetService.h
-        src/main/ui/StartMenuUI.h
-        src/main/ui/AdminUserStatUI.h
-        src/main/ui/ChartListUI.h
-        src/main/ui/GameplayUI.h
-        src/main/ui/GameplaySettlementUI.h
-        src/main/ui/UserStatUI.h
-        src/main/ui/UserLoginUI.h
-        src/main/ui/UserSettingsUI.h
-        src/main/ui/UIThreadRuntime.h
         src/main/instances/ChartListInstance.h
         src/main/instances/UserLoginInstance.h
         src/main/instances/UserStatInstance.h
@@ -182,11 +228,7 @@ set(TERM4K_PUBLIC_HEADERS
         src/main/entities/User.h
         src/main/entities/GameplayChartData.h
         src/main/utils/ErrorNotifier.h
-        src/main/utils/tui/DisplayWidth.h
-        src/main/utils/tui/FramePacer.h
-        src/main/utils/tui/InputDecoder.h
-        src/main/utils/tui/RenderBuffer.h
-        src/main/utils/tui/SceneLoopCore.h)
+)
 
 install(FILES ${TERM4K_PUBLIC_HEADERS}
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/term4k

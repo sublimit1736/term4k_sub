@@ -1,5 +1,5 @@
 {
-  "id": "tomorrow_night",
+  "id": "tomorrow-night",
   "name": "Tomorrow Night",
   "surface.bg": "#1d1f21",
   "surface.panel": "#282a2e",
@@ -11,6 +11,6 @@
   "status.ok": "#b5bd68",
   "status.warn": "#f0c674",
   "status.error": "#cc6666",
-  "border.normal": "#4d5057"
+  "border.normal": "#373b41"
 }
 

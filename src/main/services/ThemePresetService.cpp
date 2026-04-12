@@ -27,6 +27,20 @@ std::string trim(const std::string &value) {
     const auto right = value.find_last_not_of(" \t\r\n");
     return value.substr(left, right - left + 1);
 }
+
+std::string devThemesDirIfPresent() {
+    const std::vector<std::string> candidates = {
+        ensureTrailingSlash("src/resources/themes"),
+        ensureTrailingSlash("../src/resources/themes"),
+    };
+
+    std::error_code ec;
+    for (const std::string &dir : candidates) {
+        if (fs::exists(dir, ec) && fs::is_directory(dir, ec)) return dir;
+        ec.clear();
+    }
+    return "";
+}
 } // namespace
 
 std::string ThemePresetService::userDirOverride;
@@ -83,7 +97,9 @@ bool ThemePresetService::ensureDir(const std::string &dir) {
 
 std::vector<std::string> ThemePresetService::listThemeIds() {
     std::vector<std::string> ids;
-    const std::vector<std::string> dirs = {userThemesDir(), systemThemesDir()};
+    const bool usingOverrides = !userDirOverride.empty() || !systemDirOverride.empty();
+    const std::string devDir = usingOverrides ? "" : devThemesDirIfPresent();
+    const std::vector<std::string> dirs = {userThemesDir(), devDir, systemThemesDir()};
 
     for (const std::string &dir : dirs) {
         std::error_code ec;
@@ -109,11 +125,38 @@ bool ThemePresetService::loadThemeById(const std::string &themeId, JsonUtils &ou
     const std::string normalizedId = normalizeThemeId(themeId);
     if (normalizedId.empty()) return false;
 
-    const std::string userPath = makeThemePath(userThemesDir(), normalizedId);
-    if (JsonUtils::loadFlatObjectFromFile(userPath, out)) return true;
+    const std::string userDir = userThemesDir();
+    const bool usingOverrides = !userDirOverride.empty() || !systemDirOverride.empty();
+    const std::string devDir = usingOverrides ? "" : devThemesDirIfPresent();
+    const std::string systemDir = systemThemesDir();
 
-    const std::string systemPath = makeThemePath(systemThemesDir(), normalizedId);
-    return JsonUtils::loadFlatObjectFromFile(systemPath, out);
+    auto tryLoad = [&](const std::string &id) {
+        const std::string userPath = makeThemePath(userDir, id);
+        if (JsonUtils::loadFlatObjectFromFile(userPath, out)) return true;
+
+        if (!devDir.empty()) {
+            const std::string devPath = makeThemePath(devDir, id);
+            if (JsonUtils::loadFlatObjectFromFile(devPath, out)) return true;
+        }
+
+        const std::string systemPath = makeThemePath(systemDir, id);
+        return JsonUtils::loadFlatObjectFromFile(systemPath, out);
+    };
+
+    if (tryLoad(normalizedId)) return true;
+
+    std::string alias = normalizedId;
+    bool hasAlias = false;
+    if (alias.find('_') != std::string::npos) {
+        std::replace(alias.begin(), alias.end(), '_', '-');
+        hasAlias = alias != normalizedId;
+    } else if (alias.find('-') != std::string::npos) {
+        std::replace(alias.begin(), alias.end(), '-', '_');
+        hasAlias = alias != normalizedId;
+    }
+
+    if (hasAlias && tryLoad(alias)) return true;
+    return false;
 }
 
 bool ThemePresetService::themeExists(const std::string &themeId) {

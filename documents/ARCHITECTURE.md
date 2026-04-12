@@ -11,20 +11,18 @@ This document explains the major modules in `term4k`, their relationships, conta
 The project follows a layered style:
 
 ```text
-UI layer (ui/*)
-    -> Instance layer (instances/*)
-        -> Service layer (services/*)
-            -> DAO + Config + Utils + Entities (dao/*, config/*, utils/*, entities/*)
+Instance layer (instances/*)
+    -> Service layer (services/*)
+        -> DAO + Config + Utils + Entities (dao/*, config/*, utils/*, entities/*)
 ```
 
 Typical runtime flow:
 
-1. UI receives interaction.
-2. Instance orchestrates one business scene.
-3. Services execute use cases and calculations.
-4. DAOs read/write persistent data.
-5. Entities carry structured data across layers.
-6. Config/Utils provide shared runtime infrastructure.
+1. Instance orchestrates one business scene.
+2. Services execute use cases and calculations.
+3. DAOs read/write persistent data.
+4. Entities carry structured data across layers.
+5. Config/Utils provide shared runtime infrastructure.
 
 ## 2) Directory Containment and Relationships
 
@@ -35,13 +33,11 @@ src/main/
   entities/    data models and gameplay snapshots
   instances/   scene-level orchestration objects
   services/    business logic and domain services
-  ui/          UI facades and multi-thread UI runtime
   utils/       cross-cutting helper components
 ```
 
 Cross-module relationship highlights:
 
-- `ui/*` classes mostly bind to `instances/*` classes.
 - `instances/*` classes mainly compose `services/*` classes.
 - `services/*` classes depend on `entities/*`, `dao/*`, `utils/*`, and `config/*`.
 - `dao/*` uses `utils/LiteDBUtils` for key management, hashing, and crypto helpers.
@@ -123,29 +119,14 @@ Cross-module relationship highlights:
 | `SortOrder` | Sort direction enum (`Ascending`, `Descending`). |
 | `ChartDetectionIssue` | Chart folder scan failure reason enum. |
 | `ChartPlayStats` | Per-chart play summary (play count, best score, best accuracy). |
-| `ChartDetectionFailure` | Detailed chart detection failure payload for UI/reporting. |
+| `ChartDetectionFailure` | Detailed chart detection failure payload for diagnostics/reporting. |
 | `ChartCatalogEntry` | Catalog item with metadata paths and aggregated user stats. |
 | `ChartRecordEntry` | Business-level record entry mapped to chart/user context. |
 | `ChartRecordCollection` | Record map + display order bundle. |
 | `PlayableNoteConflict` | Compliance check result for same-lane/same-time playable-note conflicts. |
 | `ChartCatalogService` | Chart directory scanning, per-user catalog assembly, sorting, and compliance checks. |
 
-### 4.6 ui
-
-| Class / Type | Responsibility |
-|---|---|
-| `ui::StartMenuUI` | Start-menu UI facade (placeholder lifecycle API). |
-| `ui::UserLoginUI` | Login screen UI facade, binds `UserLoginInstance`. |
-| `ui::ChartListUI` | Chart-list UI facade, binds `ChartListInstance`. |
-| `ui::GameplayUI` | Gameplay screen UI facade, binds `GameplayInstance`. |
-| `ui::GameplaySettlementUI` | Settlement UI facade, binds `GameplaySettlementInstance`. |
-| `ui::UserStatUI` | User-stat UI facade, binds `UserStatInstance`. |
-| `ui::AdminUserStatUI` | Admin-stat UI facade, binds `AdminStatInstance`. |
-| `ui::UserSettingsUI` | User-settings UI facade, binds `SettingsInstance`. |
-| `ui::UIThreadRuntime` | Multi-scene UI thread lifecycle and scene switching coordinator. |
-| `ui::UIThreadRuntime::UIScene` | Scene enum used by UI runtime switching state machine. |
-
-### 4.7 utils
+### 4.6 utils
 
 | Class | Responsibility |
 |---|---|
@@ -156,16 +137,16 @@ Cross-module relationship highlights:
 
 ## 5) Practical Dependency Examples
 
-- **Chart browse**: `ui::ChartListUI` -> `ChartListInstance` -> `ChartCatalogService` + `PrefixTrie` + `Chart`.
-- **Gameplay**: `ui::GameplayUI` -> `GameplayInstance` -> `GameplaySessionService` -> (`GameplayChartService`, `GameplayClockService`, `GameplayStatsService`) -> `GameplayFinalResult`.
+- **Chart browse**: `ChartListInstance` -> `ChartCatalogService` + `PrefixTrie` + `Chart`.
+- **Gameplay**: `GameplayInstance` -> `GameplaySessionService` -> (`GameplayChartService`, `GameplayClockService`, `GameplayStatsService`) -> `GameplayFinalResult`.
 - **Result save**: `GameplaySettlementInstance` -> `GameplayRecordService` -> `AuthenticatedUserService` + `ProofedRecordsDAO`.
-- **Login**: `ui::UserLoginUI` -> `UserLoginInstance` -> `UserLoginService` -> `UserAccountsDAO`.
-- **Settings**: `ui::UserSettingsUI` -> `SettingsInstance` -> `SettingsService` -> `RuntimeConfigs` (+ per-user persistence).
+- **Login**: `UserLoginInstance` -> `UserLoginService` -> `UserAccountsDAO`.
+- **Settings**: `SettingsInstance` -> `SettingsService` -> `RuntimeConfigs` (+ per-user persistence).
 
 ## 6) Current Architecture Characteristics
 
-- Layer boundaries are explicit and mostly one-way (UI -> Instance -> Service -> Data/Utility).
+- Layer boundaries are explicit and mostly one-way (Instance -> Service -> Data/Utility).
 - Most business services are static utility style; instance objects act as scene state holders.
-- UI APIs are currently placeholder-oriented, while domain/gameplay and persistence are already structured for extension.
+- Domain/gameplay and persistence modules are structured for headless embedding and extension.
 
 

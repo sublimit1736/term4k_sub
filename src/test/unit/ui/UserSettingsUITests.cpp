@@ -23,7 +23,7 @@ TEST_CASE("UserSettingsUI theme APIs are safe without bound instance", "[ui][Use
 
     REQUIRE(ui.availableThemeIds().empty());
     std::string error;
-    REQUIRE_FALSE(ui.selectTheme("lazyvim_dark", &error));
+    REQUIRE_FALSE(ui.selectTheme("tomorrow-night", &error));
     REQUIRE_FALSE(error.empty());
     REQUIRE_FALSE(ui.importThemeFromFile("missing.json", nullptr, &error));
     REQUIRE_FALSE(error.empty());
@@ -40,8 +40,8 @@ TEST_CASE("UserSettingsUI delegates theme operations to SettingsInstance", "[ui]
 
     ThemePresetService::setThemeDirOverridesForTesting(userThemes.path().string(), systemThemes.path().string());
 
-    writeFile((systemThemes.path() / "lazyvim_dark.json").string(),
-              R"({"id":"lazyvim_dark","text.primary":"#ffffff"})");
+    writeFile((systemThemes.path() / "tomorrow-night.json").string(),
+              R"({"id":"tomorrow-night","text.primary":"#ffffff"})");
     writeFile((importDir.path() / "my custom light.json").string(),
               R"({"id":"my_custom_light","text.primary":"#101010"})");
 
@@ -51,10 +51,10 @@ TEST_CASE("UserSettingsUI delegates theme operations to SettingsInstance", "[ui]
     ui::UserSettingsUI ui(&instance);
 
     const auto ids = ui.availableThemeIds();
-    REQUIRE(ids == std::vector<std::string>{"lazyvim_dark"});
+    REQUIRE(ids == std::vector<std::string>{"tomorrow-night"});
 
     std::string error;
-    REQUIRE(ui.selectTheme("lazyvim_dark", &error));
+    REQUIRE(ui.selectTheme("tomorrow-night", &error));
     REQUIRE(error.empty());
     REQUIRE(ui.consumeApplySucceeded());
     REQUIRE_FALSE(ui.consumeApplySucceeded());

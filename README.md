@@ -23,7 +23,9 @@
 
 - [Architecture Overview](documents/ARCHITECTURE.md)
 
-term4k is a terminal-based rhythm game project written in C++20.
+term4k is a C++20 rhythm-game core logic project.
+
+The current codebase is headless (no built-in UI layer).
 
 It includes:
 
@@ -155,6 +157,26 @@ sh update.sh --install-script-url "https://raw.githubusercontent.com/TheBadRoger
 cmake -S . -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
 cmake --build cmake-build-release -j
 ./cmake-build-release/term4k
+```
+
+## Dependency Strategy
+
+Third-party dependencies are resolved by `CMake` and kept outside project sources.
+
+- Core audio: `miniaudio`
+- Unit tests: `Catch2`
+- TUI (optional): `FTXUI` (enabled by `TERM4K_ENABLE_TUI=ON`)
+
+By default, dependencies are fetched automatically via `FetchContent`.
+
+```bash
+# Default mode: FetchContent
+cmake -S . -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+```
+
+```bash
+# Prefer system packages first, then fall back to FetchContent
+cmake -S . -B cmake-build-release -DCMAKE_BUILD_TYPE=Release -DTERM4K_USE_SYSTEM_DEPS=ON
 ```
 
 ## Packaging Options
