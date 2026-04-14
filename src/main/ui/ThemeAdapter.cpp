@@ -87,9 +87,9 @@ Rgb ThemeAdapter::adaptHex(const std::string &hex, const Rgb &fallback, bool tru
 bool ThemeAdapter::terminalSupportsTrueColor() {
     const char *value = std::getenv("COLORTERM");
     if (!value || value[0] == '\0') return false;
-
     const std::string lowered = lowerCopy(value);
-    return lowered.find("truecolor") != std::string::npos || lowered.find("24bit") != std::string::npos;
+    return lowered.find("truecolor") != std::string::npos ||
+           lowered.find("24bit") != std::string::npos;
 }
 
 ThemePalette ThemeAdapter::fromThemeJson(const std::string &themeId, const JsonUtils &theme, bool trueColor) {

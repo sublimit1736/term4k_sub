@@ -15,6 +15,13 @@
     <libraryRoots>
       <file path="$PROJECT_DIR$/includes" />
     </libraryRoots>
+    <excludeRoots>
+      <file path="$PROJECT_DIR$/.cmake-deps" />
+      <file path="$PROJECT_DIR$/cmake-build-debug-default" />
+      <file path="$PROJECT_DIR$/cmake-build-debug-sysdeps" />
+      <file path="$PROJECT_DIR$/cmake-build-debug-tui" />
+      <file path="$PROJECT_DIR$/cmake-build-release" />
+    </excludeRoots>
   </component>
   <component name="MaterialThemeProjectNewConfig">
     <option name="metadata">

@@ -160,7 +160,10 @@ std::vector<uint8_t> ProofedRecordsDAO::extractLastHash(const std::vector<uint8_
     return LiteDBUtils::hexDecode(lastLine);
 }
 
-// Appends one record: verify chain -> hash chain update -> encrypt -> write.
+// Appends one record: extend hash chain -> encrypt -> write.
+// Does NOT call verifyChain() (O(N×slowHash)) on every append; the chain
+// remains verifiable at any time via verifyChain().  Only the stored last
+// hash from proof.db is needed to continue the chain.
 bool ProofedRecordsDAO::addRecord(const std::string &serial_record) {
     if (!LiteDBUtils::ensureKey()){
         ErrorNotifier::notify("ProofedRecordsDAO::addRecord",
@@ -168,19 +171,15 @@ bool ProofedRecordsDAO::addRecord(const std::string &serial_record) {
         return false;
     }
 
-    // Read existing proof data and verify chain if proof exists.
+    // Determine the previous chain hash: either the last stored proof hash
+    // or the genesis hash when the proof file is empty/absent.
     auto data = readRawData();
     std::vector<uint8_t> prevHash;
 
     if (!data.empty()){
-        if (!ProofedRecordsDAO::verifyChain()){
-            ErrorNotifier::notify("ProofedRecordsDAO::addRecord",
-                                  I18nService::instance().get("error.database_integrity_check_failed"));
-            return false;
-        }
         prevHash = extractLastHash(data);
     }
-    else{
+    if (prevHash.empty()){
         // Genesis hash: slowHash(seed + key)
         prevHash = LiteDBUtils::slowHash(buildGenesisData());
     }

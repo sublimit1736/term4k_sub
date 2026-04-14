@@ -132,7 +132,12 @@ int SettingsUI::run() {
         if (bindings.size() > 10) bindings.resize(10);
         draft.setKeyBindings(bindings);
     };
+    // Ensure exactly 10 key slots once at startup; not repeated every render frame.
     ensureTenKeySlots();
+
+    // Conflict-warning cache: recomputed only when key bindings change.
+    std::string cachedConflictWarning;
+    bool conflictWarningDirty = true;
 
     auto saveAndRefresh = [&]() {
         instance.setDraft(draft);
@@ -239,6 +244,9 @@ int SettingsUI::run() {
             tr("ui.settings.tab.gameplay"),
         };
 
+        // ensureTenKeySlots is called once at startup; not repeated every frame.
+        const std::vector<uint8_t> &bindings = draft.getKeyBindings();
+
         Elements tabElements;
         for (int i = 0; i < static_cast<int>(tabs.size()); ++i) {
             Element t = text(" " + tabs[static_cast<std::size_t>(i)] + " ") | bold;
@@ -250,9 +258,6 @@ int SettingsUI::run() {
             tabElements.push_back(t);
             tabElements.push_back(text(" "));
         }
-
-        ensureTenKeySlots();
-        const std::vector<uint8_t> &bindings = draft.getKeyBindings();
 
         Elements logicalRows;
         if (tabIndex == 0) {
@@ -299,6 +304,12 @@ int SettingsUI::run() {
         Element body = vbox({separator(), panel | flex});
 
         if (showKeyEditor) {
+            // Recompute conflict warning only when bindings changed (dirty flag).
+            if (conflictWarningDirty) {
+                cachedConflictWarning = computeConflictWarning();
+                conflictWarningDirty = false;
+            }
+
             Elements keyRows;
             for (int lane = 0; lane < 10; ++lane) {
                 const std::string laneLabel = tr("ui.settings.field.key_slot") + std::to_string(lane);
@@ -313,15 +324,13 @@ int SettingsUI::run() {
                 if (lane < 9) keyRows.push_back(text(""));
             }
 
-            const std::string conflictWarning = computeConflictWarning();
-
             Element editorBody = vbox({
                 text(tr("ui.settings.key_editor.title")) | bold | color(toColor(palette.accentPrimary)),
                 text(keyCaptureMode ? tr("ui.settings.key_editor.capturing") : tr("ui.settings.key_editor.ready")) |
                     color(toColor(palette.textMuted)),
-                conflictWarning.empty()
+                cachedConflictWarning.empty()
                     ? text("")
-                    : text(tr("ui.settings.key_editor.conflict_prefix") + conflictWarning) | color(Color::Red),
+                    : text(tr("ui.settings.key_editor.conflict_prefix") + cachedConflictWarning) | color(Color::Red),
                 separator(),
                 vbox(std::move(keyRows)),
             });
@@ -358,6 +367,7 @@ int SettingsUI::run() {
                     bindings[static_cast<std::size_t>(keyEditorLane)] = static_cast<uint8_t>(captured);
                     draft.setKeyBindings(bindings);
                     keyCaptureMode = false;
+                    conflictWarningDirty = true;
                     return true;
                 }
                 if (event == Event::Backspace) {
@@ -365,6 +375,7 @@ int SettingsUI::run() {
                     bindings[static_cast<std::size_t>(keyEditorLane)] = 0;
                     draft.setKeyBindings(bindings);
                     keyCaptureMode = false;
+                    conflictWarningDirty = true;
                     return true;
                 }
                 if (event == Event::Escape) {

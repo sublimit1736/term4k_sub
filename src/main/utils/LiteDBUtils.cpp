@@ -2,13 +2,10 @@
 #include "ErrorNotifier.h"
 
 #include <fstream>
-#include <exception>
-#include <iomanip>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 #include <random>
-#include <sstream>
 
 std::string LiteDBUtils::keyFile = "key.bin";
 std::vector<uint8_t> LiteDBUtils::key;
@@ -21,28 +18,37 @@ void LiteDBUtils::setKeyFile(const std::string &path) {
 }
 
 std::string LiteDBUtils::hexEncode(const std::vector<uint8_t> &data) {
-    std::ostringstream oss;
-    for (auto b: data){
-        oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
+    // Use a direct lookup table instead of ostringstream to avoid per-byte stream overhead.
+    static constexpr char kHex[] = "0123456789abcdef";
+    std::string out;
+    out.reserve(data.size() * 2);
+    for (const auto b : data) {
+        out.push_back(kHex[b >> 4]);
+        out.push_back(kHex[b & 0x0F]);
     }
-    return oss.str();
+    return out;
 }
 
 std::vector<uint8_t> LiteDBUtils::hexDecode(const std::string &hex) {
     std::vector<uint8_t> result;
     result.reserve(hex.size() / 2);
-    for (size_t i = 0; i + 1 < hex.size(); i += 2){
-        try{
-            result.push_back(static_cast<uint8_t>(std::stoi(hex.substr(i, 2), nullptr, 16)));
-        }
-        catch (const std::exception &ex){
-            ErrorNotifier::notifyException("LiteDBUtils::hexDecode", ex);
-            return {};
-        }
-        catch (...){
+    // Parse hex digits directly without substr/stoi to avoid per-pair heap allocations.
+    // Invalid characters cause an early-return just like the original stoi-based path.
+    auto isHex = [](const char c) -> bool {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    };
+    auto hexVal = [](const char c) -> uint8_t {
+        if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
+        if (c >= 'a' && c <= 'f') return static_cast<uint8_t>(c - 'a' + 10);
+        if (c >= 'A' && c <= 'F') return static_cast<uint8_t>(c - 'A' + 10);
+        return 0;
+    };
+    for (size_t i = 0; i + 1 < hex.size(); i += 2) {
+        if (!isHex(hex[i]) || !isHex(hex[i + 1])) {
             ErrorNotifier::notifyUnknown("LiteDBUtils::hexDecode");
             return {};
         }
+        result.push_back(static_cast<uint8_t>((hexVal(hex[i]) << 4) | hexVal(hex[i + 1])));
     }
     return result;
 }
@@ -54,9 +60,13 @@ std::vector<uint8_t> LiteDBUtils::sha256(const std::vector<uint8_t> &data) {
 }
 
 std::vector<uint8_t> LiteDBUtils::slowHash(const std::vector<uint8_t> &data) {
+    // Reuse a single temporary buffer across all iterations to avoid
+    // allocating a new vector<uint8_t> on each of the 10 000 rounds.
     std::vector<uint8_t> h = sha256(data);
-    for (int i = 1; i < SLOW_HASH_ITERATIONS; ++i){
-        h = sha256(h);
+    std::vector<uint8_t> tmp(SHA256_DIGEST_LENGTH);
+    for (int i = 1; i < SLOW_HASH_ITERATIONS; ++i) {
+        SHA256(h.data(), h.size(), tmp.data());
+        h.swap(tmp);
     }
     return h;
 }

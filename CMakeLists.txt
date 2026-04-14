@@ -5,12 +5,33 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# ── Release-build optimisation ──────────────────────────────────────────────
+# Interprocedural optimisation (LTO) for all targets that opt in.
+include(CheckIPOSupported)
+check_ipo_supported(RESULT TERM4K_IPO_SUPPORTED OUTPUT _ipo_err)
+
+# Per-target Release flags for GCC / Clang.
+# (MSVC sets /O2 by default in Release; no extra action needed there.)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options($<$<CONFIG:Release>:-O3>
+                        $<$<CONFIG:Release>:-DNDEBUG>)
+endif()
+# ────────────────────────────────────────────────────────────────────────────
+
 find_package(OpenSSL REQUIRED)
 
 include(GNUInstallDirs)
 include(FetchContent)
 
-option(TERM4K_BUILD_TESTS "Build term4k unit tests" ON)
+# Centralize all FetchContent dependencies under the repo root so multiple
+# cmake-build-* directories do not duplicate downloaded sources/sub-builds.
+set(TERM4K_FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.cmake-deps"
+    CACHE PATH "Shared directory for FetchContent dependencies")
+file(MAKE_DIRECTORY "${TERM4K_FETCHCONTENT_BASE_DIR}")
+set(FETCHCONTENT_BASE_DIR "${TERM4K_FETCHCONTENT_BASE_DIR}"
+    CACHE PATH "FetchContent base directory" FORCE)
+message(STATUS "term4k deps: FetchContent base dir = ${FETCHCONTENT_BASE_DIR}")
+
 option(TERM4K_ENABLE_RPM "Enable RPM package generation when rpmbuild is available" ON)
 option(TERM4K_STRICT_RPM_CHECK "Fail configure when TERM4K_ENABLE_RPM=ON but rpmbuild is missing" OFF)
 set(TERM4K_ENABLE_TUI ON CACHE BOOL "Enable FTXUI-based terminal homepage UI" FORCE)
@@ -89,9 +110,19 @@ target_link_libraries(term4k_core
         OpenSSL::Crypto
         ${TERM4K_MINIAUDIO_TARGET})
 
+# Enable LTO for term4k_core in Release builds when supported.
+if(TERM4K_IPO_SUPPORTED)
+    set_property(TARGET term4k_core PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+endif()
+
 add_executable(term4k src/main/main.cpp)
 target_compile_definitions(term4k PRIVATE TERM4K_VERSION="${PROJECT_VERSION}")
 target_link_libraries(term4k PRIVATE term4k::core)
+
+# Enable LTO for the main executable in Release builds when supported.
+if(TERM4K_IPO_SUPPORTED)
+    set_property(TARGET term4k PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+endif()
 
 if (TERM4K_ENABLE_TUI)
     if (TERM4K_USE_SYSTEM_DEPS)

@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cstddef>
-#include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class PrefixTrie {
@@ -26,7 +26,7 @@ public:
 private:
     struct Node {
         Node* parent = nullptr;
-        std::map<char, std::unique_ptr<Node>> children;
+        std::unordered_map<char, std::unique_ptr<Node>> children;
         std::vector<std::size_t> indices;
     };
 

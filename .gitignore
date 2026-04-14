@@ -37,7 +37,7 @@
 /CPackSourceConfig.cmake
 /_CPack_Packages/
 /_deps/
-/*-prefix/
+/.cmake-deps/
 /CMakeUserPresets.json
 /CMakeLists.txt.user
 

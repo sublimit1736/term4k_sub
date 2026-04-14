@@ -298,6 +298,22 @@ int ChartSelectUI::run() {
     chartList.refresh(AppDirs::chartsDir(), statsUID);
     const std::vector<std::string> allVerifiedRecords = AuthenticatedUserService::loadAllVerifiedRecords();
 
+    // Pre-compute chart file sizes once; avoids a syscall per item per render frame.
+    std::unordered_map<std::string, std::string> fileSizeCache;
+    {
+        std::error_code ec;
+        for (const auto &[id, entry] : chartList.items()) {
+            const auto sz = std::filesystem::file_size(entry.chartFilePath, ec);
+            if (!ec) fileSizeCache[id] = formatFileSize(sz);
+            ec.clear();
+        }
+    }
+
+    // Leaderboard cache: rebuild only when the selected chart or sort mode changes.
+    std::string leaderboardCacheKey;
+    bool leaderboardCacheByAcc = false;
+    LeaderboardView cachedLeaderboard;
+
     const std::array<SearchModeOption, 3> searchModes = {{
         {ChartSearchMode::DisplayName, "ui.chart_select.search_mode.display_name"},
         {ChartSearchMode::Artist, "ui.chart_select.search_mode.artist"},
@@ -369,9 +385,9 @@ int ChartSelectUI::run() {
                     const auto &entry = it->second;
                     if (!entry.chart.getDisplayName().empty()) title = entry.chart.getDisplayName();
 
-                    std::error_code ec;
-                    const auto fileSize = std::filesystem::file_size(entry.chartFilePath, ec);
-                    if (!ec) sizeText = formatFileSize(fileSize);
+                    // Use precomputed size; avoids a per-item syscall every frame.
+                    const auto szIt = fileSizeCache.find(ids[i]);
+                    if (szIt != fileSizeCache.end()) sizeText = szIt->second;
 
                     if (entry.stats.playCount > 0) {
                         const float acc = accuracyPercent(entry.stats.bestAccuracy);
@@ -527,11 +543,15 @@ int ChartSelectUI::run() {
                      flex;
 
         const bool rankByAccuracy = leaderboardByAccuracy;
-        const std::string currentChartId = hasSelection ? idText : "";
-        const LeaderboardView leaderboard = buildLeaderboard(allVerifiedRecords,
-                                                             currentChartId,
-                                                             rankByAccuracy,
-                                                             statsUID);
+        const std::string currentChartId = hasSelection ? ids[selectedIndex] : "";
+
+        // Only rebuild the leaderboard when the selected chart or ranking mode changes.
+        if (currentChartId != leaderboardCacheKey || rankByAccuracy != leaderboardCacheByAcc) {
+            cachedLeaderboard   = buildLeaderboard(allVerifiedRecords, currentChartId, rankByAccuracy, statsUID);
+            leaderboardCacheKey = currentChartId;
+            leaderboardCacheByAcc = rankByAccuracy;
+        }
+        const LeaderboardView &leaderboard = cachedLeaderboard;
 
         Elements rankRows;
         if (leaderboard.top.empty()) {

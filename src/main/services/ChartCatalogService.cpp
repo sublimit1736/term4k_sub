@@ -221,21 +221,14 @@ double singleChartEvaluation(const float difficulty, const float accuracy) {
     return rating_utils::singleChartEvaluation(difficulty, accuracy);
 }
 
-std::map<std::string, ChartPlayStats> buildStatsByChart(const std::string &chartsRoot,
-                                                        const std::string &uid) {
+// Aggregates per-chart play stats for a user from verified records.
+// Looks up chart difficulty from the already-built catalog so the directory
+// does not need to be scanned a second time.
+std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
+        const ChartCatalogMap &catalog,
+        const std::string &uid) {
     std::map<std::string, ChartPlayStats> statsByChart;
     if (uid.empty()) return statsByChart;
-
-    std::map<std::string, float> chartDifficultyById;
-    const fs::path root(chartsRoot);
-    if (fs::exists(root) && fs::is_directory(root)) {
-        for (const auto &entry : fs::directory_iterator(root)) {
-            if (!entry.is_directory()) continue;
-            ChartCatalogEntry item;
-            if (!tryBuildChartItem(entry.path(), item, nullptr)) continue;
-            chartDifficultyById[item.chart.getID()] = item.chart.getDifficulty();
-        }
-    }
 
     const auto records = ProofedRecordsDAO::readVerifiedRecordByUID(uid);
     for (const auto &record : records) {
@@ -248,60 +241,60 @@ std::map<std::string, ChartPlayStats> buildStatsByChart(const std::string &chart
         if (fields.size() < 6) continue;
 
         const bool uidFormat = isUIDRecord(fields);
-        const std::size_t chartIdx = uidFormat ? 1 : 0;
-        const std::size_t scoreIdx = uidFormat ? 4 : 3;
+        const std::size_t chartIdx    = uidFormat ? 1 : 0;
+        const std::size_t scoreIdx    = uidFormat ? 4 : 3;
         const std::size_t accuracyIdx = uidFormat ? 5 : 4;
         const std::size_t maxComboIdx = uidFormat ? 7 : 6;
-        const std::size_t noteCountIdx = uidFormat ? 8 : 7;
-        const std::size_t perfectIdx = uidFormat ? 9 : 8;
-        const std::size_t earlyIdx = uidFormat ? 10 : 9;
-        const std::size_t lateIdx = uidFormat ? 11 : 10;
+        const std::size_t noteCountIdx= uidFormat ? 8 : 7;
+        const std::size_t perfectIdx  = uidFormat ? 9 : 8;
+        const std::size_t earlyIdx    = uidFormat ? 10 : 9;
+        const std::size_t lateIdx     = uidFormat ? 11 : 10;
 
         uint32_t score = 0;
         float accuracy = 0.0f;
         try {
-            score = static_cast<uint32_t>(std::stoul(fields.at(scoreIdx)));
+            score    = static_cast<uint32_t>(std::stoul(fields.at(scoreIdx)));
             accuracy = std::stof(fields.at(accuracyIdx));
         } catch (...) {
             continue;
         }
 
-        auto &stats = statsByChart[fields.at(chartIdx)];
+        const std::string &chartID = fields.at(chartIdx);
+        auto &stats = statsByChart[chartID];
         ++stats.playCount;
-        if (score > stats.bestScore) stats.bestScore = score;
+        if (score    > stats.bestScore)    stats.bestScore    = score;
         if (accuracy > stats.bestAccuracy) stats.bestAccuracy = accuracy;
 
-        const auto diffIt = chartDifficultyById.find(fields.at(chartIdx));
-        if (diffIt != chartDifficultyById.end()) {
-            stats.bestSingleRating = std::max(stats.bestSingleRating,
-                                              singleChartEvaluation(diffIt->second, accuracy));
+        // Use already-built catalog for difficulty lookup (no extra directory scan).
+        const auto catalogIt = catalog.find(chartID);
+        if (catalogIt != catalog.end()) {
+            stats.bestSingleRating = std::max(
+                stats.bestSingleRating,
+                singleChartEvaluation(catalogIt->second.chart.getDifficulty(), accuracy));
         }
 
         if (fields.size() > noteCountIdx && fields.size() > maxComboIdx) {
             try {
-                const auto maxCombo = static_cast<uint32_t>(std::stoul(fields.at(maxComboIdx)));
+                const auto maxCombo  = static_cast<uint32_t>(std::stoul(fields.at(maxComboIdx)));
                 const auto noteCount = static_cast<uint32_t>(std::stoul(fields.at(noteCountIdx)));
                 if (noteCount > 0 && maxCombo == noteCount) stats.hasFC = true;
-            } catch (...) {
-            }
+            } catch (...) {}
         }
 
         if (fields.size() > perfectIdx && fields.size() > noteCountIdx) {
             try {
-                const auto noteCount = static_cast<uint32_t>(std::stoul(fields.at(noteCountIdx)));
+                const auto noteCount    = static_cast<uint32_t>(std::stoul(fields.at(noteCountIdx)));
                 const auto perfectCount = static_cast<uint32_t>(std::stoul(fields.at(perfectIdx)));
                 if (noteCount > 0 && perfectCount == noteCount) stats.hasAP = true;
-            } catch (...) {
-            }
+            } catch (...) {}
         }
 
         if (fields.size() > lateIdx && fields.size() > earlyIdx) {
             try {
                 const auto early = static_cast<uint32_t>(std::stoul(fields.at(earlyIdx)));
-                const auto late = static_cast<uint32_t>(std::stoul(fields.at(lateIdx)));
+                const auto late  = static_cast<uint32_t>(std::stoul(fields.at(lateIdx)));
                 if (early + late == 0) stats.hasULT = true;
-            } catch (...) {
-            }
+            } catch (...) {}
         }
     }
 
@@ -382,8 +375,7 @@ ChartCatalogMap ChartCatalogService::loadCatalogForUID(const std::string &charts
         return items;
     }
 
-    const auto statsByChart = buildStatsByChart(chartsRoot, uid);
-
+    // Single directory scan: build all catalog entries first.
     for (const auto &entry : fs::directory_iterator(root)) {
         if (!entry.is_directory()) continue;
 
@@ -394,10 +386,17 @@ ChartCatalogMap ChartCatalogService::loadCatalogForUID(const std::string &charts
             continue;
         }
 
-        const auto it = statsByChart.find(item.chart.getID());
-        if (it != statsByChart.end()) item.stats = it->second;
-
         items[item.chart.getID()] = std::move(item);
+    }
+
+    // Aggregate stats using the already-built catalog for difficulty lookups
+    // (avoids the previous second directory scan inside buildStatsByChart).
+    if (!uid.empty()) {
+        const auto statsByChart = aggregateStatsFromCatalog(items, uid);
+        for (auto &[id, entry] : items) {
+            const auto it = statsByChart.find(id);
+            if (it != statsByChart.end()) entry.stats = it->second;
+        }
     }
 
     return items;
@@ -419,26 +418,31 @@ std::vector<std::string> ChartCatalogService::sortCatalogKeys(const ChartCatalog
 
     const bool asc = (order == SortOrder::Ascending);
 
-    auto cmp = [&](const std::string &lhsID, const std::string &rhsID) {
+    if (key == ChartListSortKey::DisplayName) {
+        // Precompute lowercase names once to avoid repeated allocation per comparison.
+        std::map<std::string, std::string> lowerNames;
+        for (const auto &k : keys) {
+            lowerNames[k] = toLower(items.at(k).chart.getDisplayName());
+        }
+        std::stable_sort(keys.begin(), keys.end(), [&](const std::string &a, const std::string &b) {
+            return asc ? (lowerNames[a] < lowerNames[b]) : (lowerNames[a] > lowerNames[b]);
+        });
+        return keys;
+    }
+
+    std::stable_sort(keys.begin(), keys.end(), [&](const std::string &lhsID, const std::string &rhsID) {
         const auto &a = items.at(lhsID);
         const auto &b = items.at(rhsID);
         switch (key) {
-            case ChartListSortKey::DisplayName: {
-                const std::string an = toLower(a.chart.getDisplayName());
-                const std::string bn = toLower(b.chart.getDisplayName());
-                return asc ? (an < bn) : (an > bn);
-            }
             case ChartListSortKey::Difficulty:
                 return asc ? (a.chart.getDifficulty() < b.chart.getDifficulty())
                            : (a.chart.getDifficulty() > b.chart.getDifficulty());
             case ChartListSortKey::BestAccuracy:
                 return asc ? (a.stats.bestAccuracy < b.stats.bestAccuracy)
                            : (a.stats.bestAccuracy > b.stats.bestAccuracy);
+            default: return false;
         }
-        return false;
-    };
-
-    std::stable_sort(keys.begin(), keys.end(), cmp);
+    });
     return keys;
 }
 
