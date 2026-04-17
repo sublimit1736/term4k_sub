@@ -1447,12 +1447,14 @@ namespace ui {
             if (onRoute) onRoute(UIScene::StartMenu);
         };
 
-        auto requestExit = [state, routeToStartMenu, &screen] {
+        auto requestExit = [state, routeToStartMenu] {
             bool expected = false;
             if (!state->exitRequested.compare_exchange_strong(expected, true)) return;
             state->session.keepRunning = false;
             routeToStartMenu();
-            screen.ExitLoopClosure()();
+            // routeToStartMenu() posts Event::Custom which drives the deferred
+            // scene-swap in UIBus — no need to call ExitLoopClosure() here,
+            // which in the single-loop design would terminate the global loop.
         };
 
         InputOption searchInputOption;

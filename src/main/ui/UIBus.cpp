@@ -49,39 +49,63 @@ ftxui::Component buildSceneComponent(const UIScene scene,
     std::abort();
 }
 
-UIScene runComponentScene(ftxui::ScreenInteractive &screen, const UIScene scene) {
-    UIScene next = UIScene::StartMenu;
-    auto component = buildSceneComponent(scene, screen, [&](const UIScene route) {
-        next = route;
-        screen.ExitLoopClosure()();
-    });
-    screen.Loop(component);
-    return next;
-}
-
-UIScene runScene(ftxui::ScreenInteractive &screen, const UIScene scene) {
-
-    if (!sceneUsesComponentLoop(scene)) {
-        return UIScene::Exit;
-    }
-
-    prepareCommon();
-    if (sceneNeedsDataDirs(scene)) {
-        prepareDataDirs();
-    }
-
-    return runComponentScene(screen, scene);
-}
-
 } // namespace
 
 int UIBus::run() {
     auto screen = ftxui::ScreenInteractive::Fullscreen();
-    UIScene scene = UIScene::StartMenu;
-    while (scene != UIScene::Exit) {
-        scene = runScene(screen, scene);
-    }
 
+    // Shared state so the thin wrapper can always delegate to the live scene.
+    struct SceneHolder {
+        ftxui::Component active;
+        UIScene          pending    = UIScene::Exit;
+        bool             hasPending = false;
+    };
+    auto holder = std::make_shared<SceneHolder>();
+
+    // onRoute is invoked by scenes from within OnEvent (on the FTXUI event
+    // thread).  We defer the actual swap via PostEvent so the current component
+    // is never destroyed while it is still on the call stack.
+    std::function<void(UIScene)> onRoute = [holder, &screen](UIScene next) {
+        if (next == UIScene::Exit) {
+            screen.ExitLoopClosure()();
+            return;
+        }
+        if (!holder->hasPending) {
+            holder->pending    = next;
+            holder->hasPending = true;
+            screen.PostEvent(ftxui::Event::Custom);
+        }
+    };
+
+    // Build the initial scene.
+    prepareCommon();
+    holder->active = buildSceneComponent(UIScene::StartMenu, screen, onRoute);
+
+    // A thin persistent wrapper — always delegates render/events to the
+    // currently live scene without ever restarting the Loop.
+    auto root = ftxui::Renderer([holder] {
+        return holder->active ? holder->active->Render()
+                              : ftxui::text("") | ftxui::flex;
+    });
+
+    auto app = ftxui::CatchEvent(root, [holder, &screen, &onRoute](ftxui::Event e) {
+        // On the first Custom event after a route change, perform the deferred
+        // scene swap.  This runs on the FTXUI event thread, safely after the
+        // previous component's OnEvent has already returned.
+        if (holder->hasPending && e == ftxui::Event::Custom) {
+            holder->hasPending = false;
+            const UIScene next = holder->pending;
+            prepareCommon();
+            if (sceneNeedsDataDirs(next)) {
+                prepareDataDirs();
+            }
+            holder->active = buildSceneComponent(next, screen, onRoute);
+            return true;
+        }
+        return holder->active ? holder->active->OnEvent(e) : false;
+    });
+
+    screen.Loop(app);
     return 0;
 }
 
