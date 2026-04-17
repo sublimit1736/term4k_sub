@@ -29,4 +29,3 @@ private:
 
 inline const User Guest = User(0, "Guest", "");
 inline const User Admin = User(1, "Admin", "");
-

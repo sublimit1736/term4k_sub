@@ -41,4 +41,3 @@ private:
     static std::string userDirOverride;
     static std::string systemDirOverride;
 };
-

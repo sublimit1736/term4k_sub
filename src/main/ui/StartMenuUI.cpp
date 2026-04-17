@@ -210,6 +210,3 @@ ftxui::Component StartMenuUI::component(
 }
 
 } // namespace ui
-
-
-

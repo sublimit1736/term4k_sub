@@ -47,4 +47,3 @@ void GameplayChartData::setHolds(const std::vector<GameplayHoldNote> &value) { h
 void GameplayChartData::setEndTimeMs(const uint32_t value) { endTimeMs_ = value; }
 void GameplayChartData::setNoteCount(const uint32_t value) { noteCount_ = value; }
 void GameplayChartData::setMaxScore(const uint64_t value) { maxScore_ = value; }
-

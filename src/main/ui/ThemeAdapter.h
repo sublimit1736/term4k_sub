@@ -52,4 +52,3 @@ ftxui::Color toColor(const Rgb &rgb);
 ftxui::Color highContrastOn(const Rgb &bg);
 
 } // namespace ui
-

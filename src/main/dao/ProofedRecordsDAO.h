@@ -95,4 +95,3 @@ private:
     // Extracts idx-th whitespace-separated field from a record string (0-based).
     static std::string getField(const std::string &record, size_t idx);
 };
-

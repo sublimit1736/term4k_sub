@@ -119,4 +119,3 @@ int LoginUI::run(ftxui::ScreenInteractive &screen) {
 }
 
 } // namespace ui
-

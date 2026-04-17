@@ -481,4 +481,3 @@ std::vector<std::string> ChartCatalogService::sortCatalogKeys(const ChartCatalog
     });
     return keys;
 }
-

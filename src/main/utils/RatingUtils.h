@@ -26,4 +26,3 @@ inline double singleChartEvaluation(const float difficulty, const float accuracy
 }
 
 } // namespace rating_utils
-

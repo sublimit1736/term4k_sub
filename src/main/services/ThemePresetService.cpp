@@ -201,4 +201,3 @@ void ThemePresetService::clearThemeDirOverridesForTesting() {
     userDirOverride.clear();
     systemDirOverride.clear();
 }
-

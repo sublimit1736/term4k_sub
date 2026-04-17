@@ -62,4 +62,3 @@ private:
     uint32_t score = 0;
     float accuracy = 0.0f;
 };
-

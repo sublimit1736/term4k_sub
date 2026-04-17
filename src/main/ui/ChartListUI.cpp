@@ -1503,4 +1503,3 @@ namespace ui {
         return app;
     }
 } // namespace ui
-

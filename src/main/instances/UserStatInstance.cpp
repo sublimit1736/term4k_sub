@@ -76,4 +76,3 @@ double UserStatInstance::rating() const {
 double UserStatInstance::potential() const {
     return currentPotential;
 }
-

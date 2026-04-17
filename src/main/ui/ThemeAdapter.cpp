@@ -125,4 +125,3 @@ Rgb ThemeAdapter::quantizeTo256(const Rgb &rgb) {
 }
 
 } // namespace ui
-

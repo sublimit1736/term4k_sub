@@ -217,4 +217,3 @@ int HomePageUI::run(ftxui::ScreenInteractive &screen) {
 }
 
 } // namespace ui
-

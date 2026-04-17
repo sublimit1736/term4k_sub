@@ -182,4 +182,3 @@ private:
     bool chartClockDrivenByAudio_ = false;
     bool audioFinished_           = false;
 };
-

@@ -106,4 +106,3 @@ void GameplayStatsService::updateAccuracy() {
     }
     accuracy_ = std::clamp((accuracyPoints_ * 100.0) / static_cast<double>(chartNoteCount_), 0.0, 100.0);
 }
-

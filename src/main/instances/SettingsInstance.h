@@ -34,7 +34,3 @@ private:
     SettingsDraft draft_;
     bool loaded_ = false;
 };
-
-
-
-

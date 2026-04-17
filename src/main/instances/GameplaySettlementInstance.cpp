@@ -28,5 +28,3 @@ bool GameplaySettlementInstance::recordSaveSucceeded() const {
 GameplayFinalResult GameplaySettlementInstance::finalResult() const {
     return result_;
 }
-
-

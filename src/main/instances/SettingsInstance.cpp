@@ -99,8 +99,3 @@ void SettingsInstance::discardUnsavedChanges() {
     }
     draft_ = committed_;
 }
-
-
-
-
-

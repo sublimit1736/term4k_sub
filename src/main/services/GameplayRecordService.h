@@ -15,4 +15,3 @@ public:
                                 uint32_t timestampSec = 0
         );
 };
-

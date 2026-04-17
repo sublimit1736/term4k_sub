@@ -508,5 +508,3 @@ ftxui::Component SettingsUI::component(
 }
 
 } // namespace ui
-
-

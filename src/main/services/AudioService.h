@@ -45,5 +45,3 @@ private:
     bool paused      = false;
     float volume     = 1.0f;
 };
-
-

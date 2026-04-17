@@ -29,4 +29,3 @@ private:
     bool saveTriggered_ = false;
     bool saveSucceeded_ = false;
 };
-

@@ -93,4 +93,3 @@ void GameplayClockSnapshot::setAudioTimeMs(const uint32_t value) { audioTimeMs_ 
 void GameplayClockSnapshot::setChartTimeMs(const uint32_t value) { chartTimeMs_ = value; }
 void GameplayClockSnapshot::setChartClockDrivenByAudio(const bool value) { chartClockDrivenByAudio_ = value; }
 void GameplayClockSnapshot::setAudioFinished(const bool value) { audioFinished_ = value; }
-

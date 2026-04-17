@@ -84,5 +84,3 @@ private:
     float baseBPM                         = 0.0f;
     std::pair<uint8_t, uint8_t> baseTempo = {0, 0};
 };
-
-

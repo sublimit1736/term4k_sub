@@ -121,4 +121,3 @@ int RegisterUI::run(ftxui::ScreenInteractive &screen) {
 }
 
 } // namespace ui
-

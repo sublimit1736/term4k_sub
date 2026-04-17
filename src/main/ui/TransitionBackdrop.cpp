@@ -28,4 +28,3 @@ ftxui::Element TransitionBackdrop::render() {
 }
 
 } // namespace ui
-

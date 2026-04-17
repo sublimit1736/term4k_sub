@@ -83,4 +83,3 @@ ftxui::Element MessageOverlay::render(const ThemePalette &palette) {
 }
 
 } // namespace ui
-

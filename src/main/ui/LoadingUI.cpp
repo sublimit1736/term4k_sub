@@ -130,4 +130,3 @@ namespace ui {
         if (ticker.joinable()) ticker.join();
     }
 } // namespace ui
-

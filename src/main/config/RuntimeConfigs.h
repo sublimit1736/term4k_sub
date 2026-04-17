@@ -45,5 +45,3 @@ public:
 private:
     static std::string configDirOverride;
 };
-
-
