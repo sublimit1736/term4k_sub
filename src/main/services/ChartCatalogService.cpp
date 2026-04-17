@@ -15,22 +15,13 @@
 #include <map>
 #include <optional>
 #include <sstream>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
 
 namespace {
 
 enum class PlayableEventType : uint8_t { Tap, HoldHead, HoldTail, };
-
-struct LaneTimeKey {
-    uint8_t lane = 0;
-    uint32_t timeMs = 0;
-
-    bool operator<(const LaneTimeKey &other) const {
-        if (timeMs != other.timeMs) return timeMs < other.timeMs;
-        return lane < other.lane;
-    }
-};
 
 uint8_t hexVal(const char c) {
     if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
@@ -92,12 +83,13 @@ ConflictResolution resolveConflict(const PlayableEventType existing,
     return {existing, "keep_existing"};
 }
 
-void appendOrResolvePlayableEvent(std::map<LaneTimeKey, PlayableEventType> &events,
+void appendOrResolvePlayableEvent(std::unordered_map<uint64_t, PlayableEventType> &events,
                                   std::vector<PlayableNoteConflict> &conflicts,
                                   const uint8_t lane,
                                   const uint32_t timeMs,
                                   const PlayableEventType incomingType) {
-    const LaneTimeKey key{lane, timeMs};
+    // Pack lane (8-bit) into high 32 bits and timeMs (32-bit) into low 32 bits.
+    const uint64_t key = (static_cast<uint64_t>(lane) << 32) | timeMs;
     const auto existingIt = events.find(key);
     if (existingIt == events.end()) {
         events[key] = incomingType;
@@ -359,7 +351,7 @@ std::vector<PlayableNoteConflict> ChartCatalogService::checkChartCompliance(cons
         return conflicts;
     }
 
-    std::map<LaneTimeKey, PlayableEventType> events;
+    std::unordered_map<uint64_t, PlayableEventType> events;
     std::string line;
     while (std::getline(chartFile, line)) {
         if (line == "t4kce") break;
@@ -456,7 +448,7 @@ std::vector<std::string> ChartCatalogService::sortCatalogKeys(const ChartCatalog
 
     if (key == ChartListSortKey::DisplayName) {
         // Precompute lowercase names once to avoid repeated allocation per comparison.
-        std::map<std::string, std::string> lowerNames;
+        std::unordered_map<std::string, std::string> lowerNames;
         for (const auto &k : keys) {
             lowerNames[k] = toLower(items.at(k).chart.getDisplayName());
         }
