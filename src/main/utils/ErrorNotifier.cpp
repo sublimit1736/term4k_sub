@@ -9,7 +9,7 @@ namespace {
             const char* tag = "Info";
             if (level == ErrorNotifier::Level::Warning) tag = "Warning";
             if (level == ErrorNotifier::Level::Error) tag = "Error";
-            std::cerr << '[' << tag << "] " << message << std::endl;
+            std::cerr << '[' << tag << "] " << message << '\n';
         };
     }
 

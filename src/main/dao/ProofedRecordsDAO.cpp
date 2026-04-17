@@ -144,15 +144,16 @@ void ProofedRecordsDAO::setDataDir(const std::string &dir) {
 std::vector<uint8_t> ProofedRecordsDAO::readRawData() {
     std::ifstream f(proofList);
     if (!f) return {};
-    return std::vector<uint8_t>(std::istreambuf_iterator<char>(f),
-                                std::istreambuf_iterator<char>());
+    return {std::istreambuf_iterator<char>(f),
+            std::istreambuf_iterator<char>()};
 }
 
 // Extracts the last hash value from proof bytes (hex-decoded).
 std::vector<uint8_t> ProofedRecordsDAO::extractLastHash(const std::vector<uint8_t> &data) {
     std::string content(data.begin(), data.end());
     std::istringstream iss(content);
-    std::string line, lastLine;
+    std::string line;
+    std::string lastLine;
     while (std::getline(iss, line)){
         if (!line.empty()) lastLine = line;
     }

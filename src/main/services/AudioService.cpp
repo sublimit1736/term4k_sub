@@ -1,6 +1,7 @@
 #include "AudioService.h"
 #include "I18nService.h"
 #include "utils/ErrorNotifier.h"
+#include <algorithm>
 #include <cstdint>
 
 // miniaudio callback (out-of-class): reads PCM frames from decoder into output buffer.
@@ -88,7 +89,7 @@ void AudioService::resume() {
 
 // Sets volume with automatic clamping to [0.0, 1.0].
 void AudioService::setVolume(float vol) {
-    volume = (vol < 0.0f) ? 0.0f : (vol > 1.0f) ? 1.0f : vol;
+    volume = std::clamp(vol, 0.0f, 1.0f);
     if (initialized){
         ma_device_set_master_volume(&device, volume);
     }

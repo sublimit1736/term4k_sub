@@ -17,7 +17,7 @@ std::string ensureTrailingSlash(std::string path) {
 
 std::string getenvOr(const char *var, const std::string &fallback) {
     const char *value = std::getenv(var);
-    return (value && value[0] != '\0') ? std::string(value) : fallback;
+    return (value != nullptr && value[0] != '\0') ? std::string(value) : fallback;
 }
 
 std::string trim(const std::string &value) {
@@ -57,7 +57,7 @@ std::string ThemePresetService::systemThemesDir() {
 
     const std::string home = getenvOr("HOME", ".");
     const std::string xdgData = getenvOr("XDG_DATA_HOME", home + "/.local/share");
-    const std::string localSystemPath = ensureTrailingSlash(xdgData + "/term4k/themes");
+    std::string localSystemPath = ensureTrailingSlash(xdgData + "/term4k/themes");
 
     std::error_code ec;
     if (fs::exists(localSystemPath, ec) && fs::is_directory(localSystemPath, ec)) return localSystemPath;

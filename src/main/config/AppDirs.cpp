@@ -1,5 +1,6 @@
 #include "AppDirs.h"
 
+#include <array>
 #include <cstdlib>
 #include <filesystem>
 #include <unistd.h>
@@ -25,7 +26,7 @@ static std::string ensureTrailingSlash(std::string p) {
 // Returns an environment variable or fallback when missing/empty.
 static std::string getenv_or(const char* var, const std::string &fallback) {
     const char* val = std::getenv(var);
-    return (val && val[0] != '\0') ? std::string(val) : fallback;
+    return (val != nullptr && val[0] != '\0') ? std::string(val) : fallback;
 }
 
 // Creates a directory if missing (including parents).
@@ -38,10 +39,10 @@ static void ensureDir(const std::string &path) {
 // -- AppDirs::exeDir -----------------------------------------------------------
 
 std::string AppDirs::exeDir() {
-    char buf[4096]    = {};
-    const ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    std::array<char, 4096> buf{};
+    const ssize_t len = readlink("/proc/self/exe", buf.data(), buf.size() - 1);
     if (len > 0){
-        std::string path(buf, static_cast<std::size_t>(len));
+        std::string path(buf.data(), static_cast<std::size_t>(len));
         const auto pos = path.rfind('/');
         if (pos != std::string::npos) return ensureTrailingSlash(path.substr(0, pos));
     }

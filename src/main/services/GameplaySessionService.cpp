@@ -71,8 +71,8 @@ void GameplaySessionService::advanceChartTimeMs(const uint32_t chartTimeMs) {
     clock_.updateChartTime(chartTimeMs);
     loadWindowAllLanes();
 
-    for (uint8_t lane = 0; lane < lanes_.size(); ++lane){
-        autoJudgeByTime(lane);
+    for (std::size_t lane = 0; lane < lanes_.size(); ++lane){
+        autoJudgeByTime(static_cast<uint8_t>(lane));
     }
 
     settleIfReady();
@@ -233,8 +233,8 @@ void GameplaySessionService::loadWindowForLane(const uint8_t lane) {
 }
 
 void GameplaySessionService::loadWindowAllLanes() {
-    for (uint8_t lane = 0; lane < lanes_.size(); ++lane){
-        loadWindowForLane(lane);
+    for (std::size_t lane = 0; lane < lanes_.size(); ++lane){
+        loadWindowForLane(static_cast<uint8_t>(lane));
     }
 }
 

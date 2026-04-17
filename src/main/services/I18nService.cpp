@@ -84,7 +84,7 @@ bool I18nService::ensureLocaleLoaded(const std::string &preferredLocale) {
     if (devDir.empty()){
         // Last-resort fallback for ad-hoc local runs without installed resources.
         candidates.push_back("src/resources/i18n/" + locale + ".json");
-        if (locale != "en_US") candidates.push_back("src/resources/i18n/en_US.json");
+        if (locale != "en_US") candidates.emplace_back("src/resources/i18n/en_US.json");
     }
 
     for (const std::string &path: candidates){

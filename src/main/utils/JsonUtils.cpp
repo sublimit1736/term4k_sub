@@ -24,7 +24,7 @@ const std::map<std::string, std::string> &JsonUtils::values() const {
 }
 
 void JsonUtils::skipWhitespace(const std::string &s, std::size_t &pos) {
-    while (pos < s.size() && std::isspace(static_cast<unsigned char>(s[pos]))) ++pos;
+    while (pos < s.size() && std::isspace(static_cast<unsigned char>(s[pos])) != 0) ++pos;
 }
 
 bool JsonUtils::parseJsonString(const std::string &s, std::size_t &pos, std::string &out) {

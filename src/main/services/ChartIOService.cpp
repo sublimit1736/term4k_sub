@@ -33,7 +33,7 @@ namespace {
     std::string resolveChartPath(const char* fileName) {
         if (fileName == nullptr || fileName[0] == '\0') return "";
 
-        const std::string input(fileName);
+        std::string input(fileName);
         if (!input.empty() && input.front() == '/') return input; // Already an absolute path
 
         AppDirs::init();
