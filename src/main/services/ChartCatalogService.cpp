@@ -161,15 +161,15 @@ bool tryBuildChartItem(const fs::path &folder,
 
     // Missing any required fixed file means this folder is not a valid chart package.
     if (!fs::exists(metadataPath) || !fs::is_regular_file(metadataPath)) {
-        if (failure) *failure = makeFailure(folder, ChartDetectionIssue::MissingMeta);
+        if (failure != nullptr) *failure = makeFailure(folder, ChartDetectionIssue::MissingMeta);
         return false;
     }
     if (!fs::exists(chartPath) || !fs::is_regular_file(chartPath)) {
-        if (failure) *failure = makeFailure(folder, ChartDetectionIssue::MissingChart);
+        if (failure != nullptr) *failure = makeFailure(folder, ChartDetectionIssue::MissingChart);
         return false;
     }
     if (!fs::exists(musicPath) || !fs::is_regular_file(musicPath)) {
-        if (failure) *failure = makeFailure(folder, ChartDetectionIssue::MissingMusic);
+        if (failure != nullptr) *failure = makeFailure(folder, ChartDetectionIssue::MissingMusic);
         return false;
     }
 
@@ -178,7 +178,7 @@ bool tryBuildChartItem(const fs::path &folder,
         ErrorNotifier::notify("ChartCatalogService::tryBuildChartItem",
                               I18nService::instance().get("error.metadata_file_open_failed") + ": " +
                                   metadataPath.string());
-        if (failure) {
+        if (failure != nullptr) {
             *failure = makeFailure(folder, ChartDetectionIssue::MetadataOpenFailed);
         }
         return false;
@@ -190,11 +190,11 @@ bool tryBuildChartItem(const fs::path &folder,
     Chart chart = Chart::deserializeString(ss.str());
     // New rule: folder name must match metadata id; mismatches are ignored.
     if (chart.getID().empty()) {
-        if (failure) *failure = makeFailure(folder, ChartDetectionIssue::MissingID);
+        if (failure != nullptr) *failure = makeFailure(folder, ChartDetectionIssue::MissingID);
         return false;
     }
     if (chart.getID() != folder.filename().string()) {
-        if (failure) {
+        if (failure != nullptr) {
             *failure = makeFailure(folder, ChartDetectionIssue::FolderIDMismatch, chart.getID());
         }
         return false;
@@ -296,7 +296,7 @@ std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
             try {
                 noteCount = static_cast<uint32_t>(std::stoul(fields.at(noteCountIdx)));
                 hasNoteCount = (noteCount > 0);
-            } catch (...) {}
+            } catch (...) { /* best-effort parse; skip record field on failure */ }
         }
 
         bool recordFC = false;
@@ -304,7 +304,7 @@ std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
             try {
                 const auto maxCombo = static_cast<uint32_t>(std::stoul(fields.at(maxComboIdx)));
                 recordFC = (maxCombo == noteCount);
-            } catch (...) {}
+            } catch (...) { /* best-effort parse; skip record field on failure */ }
         }
 
         bool recordAP = false;
@@ -312,7 +312,7 @@ std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
             try {
                 const auto perfectCount = static_cast<uint32_t>(std::stoul(fields.at(perfectIdx)));
                 recordAP = (perfectCount == noteCount);
-            } catch (...) {}
+            } catch (...) { /* best-effort parse; skip record field on failure */ }
         }
 
         bool recordULT = false;
@@ -321,7 +321,7 @@ std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
                 const auto early = static_cast<uint32_t>(std::stoul(fields.at(earlyIdx)));
                 const auto late  = static_cast<uint32_t>(std::stoul(fields.at(lateIdx)));
                 recordULT = (early == 0 && late == 0);
-            } catch (...) {}
+            } catch (...) { /* best-effort parse; skip record field on failure */ }
         }
 
         AchievementTier recordTier = AchievementTier::None;
@@ -400,7 +400,7 @@ std::vector<PlayableNoteConflict> ChartCatalogService::checkChartCompliance(cons
 ChartCatalogMap ChartCatalogService::loadCatalogForUID(const std::string &chartsRoot,
                                                        const std::string &uid,
                                                        std::vector<ChartDetectionFailure> *failures) {
-    if (failures) failures->clear();
+    if (failures != nullptr) failures->clear();
 
     ChartCatalogMap items;
     const fs::path root(chartsRoot);
@@ -417,8 +417,8 @@ ChartCatalogMap ChartCatalogService::loadCatalogForUID(const std::string &charts
 
         ChartCatalogEntry item;
         ChartDetectionFailure failure;
-        if (!tryBuildChartItem(entry.path(), item, failures ? &failure : nullptr)) {
-            if (failures) failures->push_back(std::move(failure));
+        if (!tryBuildChartItem(entry.path(), item, failures != nullptr ? &failure : nullptr)) {
+            if (failures != nullptr) failures->push_back(std::move(failure));
             continue;
         }
 

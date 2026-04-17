@@ -113,7 +113,7 @@ namespace {
     }
 
     uint64_t calculateMaxScore(const uint32_t noteCount) {
-        const uint64_t n = static_cast<uint64_t>(noteCount);
+        const auto n = static_cast<uint64_t>(noteCount);
         return (n * n + 5ULL * n) / 2ULL;
     }
 
