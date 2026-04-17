@@ -356,30 +356,30 @@ std::vector<std::string> ProofedRecordsDAO::readVerifiedRecordByUser(const std::
 }
 
 // Reads all records by chart ID (without chain verification).
-std::vector<std::string> ProofedRecordsDAO::readAllRecordByChart(const std::string &chartID) {
+std::vector<std::string> ProofedRecordsDAO::readAllRecordByChart(const std::string &chartId) {
     std::vector<std::string> result;
     for (const auto &rec: readAllRecord()){
-        if (getField(rec, chartFieldIndex(rec)) == chartID) result.push_back(rec);
+        if (getField(rec, chartFieldIndex(rec)) == chartId) result.push_back(rec);
     }
     return result;
 }
 
 // Reads verified records by chart ID (truncate first, then filter).
-std::vector<std::string> ProofedRecordsDAO::readVerifiedRecordByChart(const std::string &chartID) {
+std::vector<std::string> ProofedRecordsDAO::readVerifiedRecordByChart(const std::string &chartId) {
     std::vector<std::string> result;
     for (const auto &rec: readVerifiedRecord()){
-        if (getField(rec, chartFieldIndex(rec)) == chartID) result.push_back(rec);
+        if (getField(rec, chartFieldIndex(rec)) == chartId) result.push_back(rec);
     }
     return result;
 }
 
 // Reads all records by username and chart ID (without chain verification).
 std::vector<std::string> ProofedRecordsDAO::readAllRecordByUserAndChart(const std::string &username,
-                                                                        const std::string &chartID
+                                                                        const std::string &chartId
     ) {
     std::vector<std::string> result;
     for (const auto &rec: readAllRecord()){
-        if (getField(rec, userFieldIndex(rec)) == username && getField(rec, chartFieldIndex(rec)) == chartID)
+        if (getField(rec, userFieldIndex(rec)) == username && getField(rec, chartFieldIndex(rec)) == chartId)
             result.
                 push_back(rec);
     }
@@ -388,11 +388,11 @@ std::vector<std::string> ProofedRecordsDAO::readAllRecordByUserAndChart(const st
 
 // Reads verified records by username and chart ID (truncate first, then filter).
 std::vector<std::string> ProofedRecordsDAO::readVerifiedRecordByUserAndChart(const std::string &username,
-                                                                             const std::string &chartID
+                                                                             const std::string &chartId
     ) {
     std::vector<std::string> result;
     for (const auto &rec: readVerifiedRecord()){
-        if (getField(rec, userFieldIndex(rec)) == username && getField(rec, chartFieldIndex(rec)) == chartID)
+        if (getField(rec, userFieldIndex(rec)) == username && getField(rec, chartFieldIndex(rec)) == chartId)
             result.
                 push_back(rec);
     }

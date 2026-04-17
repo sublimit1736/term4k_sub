@@ -137,7 +137,6 @@ std::string issueI18nKey(const ChartDetectionIssue issue) {
         case ChartDetectionIssue::FolderIDMismatch:
             return "chartdetect.issue.folder_id_mismatch";
     }
-    return "chartdetect.issue.unknown";
 }
 
 ChartDetectionFailure makeFailure(const fs::path &folder,

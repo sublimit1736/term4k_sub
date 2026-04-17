@@ -1,6 +1,5 @@
 #pragma once
 
-#include "entities/GameplayChartData.h"
 #include "entities/GameplayResult.h"
 #include "services/GameplayClockService.h"
 #include "services/GameplayStatsService.h"

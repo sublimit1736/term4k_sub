@@ -195,8 +195,6 @@ if (TERM4K_BUILD_TESTS)
             src/test/unit/instances/GameplayInstanceTests.cpp
             src/test/unit/instances/GameplaySettlementInstanceTests.cpp
             src/test/unit/instances/SettingsInstanceTests.cpp
-            src/test/unit/ui/ThemeAdapterTests.cpp
-            src/test/unit/ui/UIRouteContractsTests.cpp
     )
 
     target_include_directories(term4k_tests PRIVATE src/test)

@@ -63,8 +63,9 @@ const std::array<std::string, 4> kIcons = {"", "", "", ""};
 } // namespace
 
 
-ftxui::Component StartMenuUI::component(ftxui::ScreenInteractive &screen,
-                                        std::function<void(UIScene)> onRoute) {
+ftxui::Component StartMenuUI::component(
+    std::function<void(UIScene)> onRoute
+    ) {
     using namespace ftxui;
 
     I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);

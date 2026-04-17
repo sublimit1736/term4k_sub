@@ -3,8 +3,6 @@
 #include "utils/LiteDBUtils.h"
 #include "TestSupport.h"
 
-#include <cstdint>
-
 using namespace test_support;
 
 TEST_CASE (

@@ -62,8 +62,9 @@ bool isBindableCharacter(const ftxui::Event &event, char *out) {
 } // namespace
 
 
-ftxui::Component SettingsUI::component(ftxui::ScreenInteractive &screen,
-                                       std::function<void(UIScene)> onRoute) {
+ftxui::Component SettingsUI::component(
+    std::function<void(UIScene)> onRoute
+    ) {
     using namespace ftxui;
 
     I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);

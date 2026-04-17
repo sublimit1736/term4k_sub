@@ -70,7 +70,7 @@ namespace ui {
         const auto &frames     = spinnerFrames(resolveSpinnerGlyphMode());
         std::size_t frameIndex = 0;
 
-        std::atomic<bool> ticking{true};
+        std::atomic ticking{true};
         const auto started = std::chrono::steady_clock::now();
         auto holder        = Container::Vertical({});
 
@@ -92,7 +92,7 @@ namespace ui {
             }
 
             // Fallback dim strategy with unified backdrop color.
-            const Element shade    = text(std::string(280, '.')) | color(ftxui::Color::RGB(30, 30, 30));
+            const Element shade    = text(std::string(280, '.')) | color(Color::RGB(30, 30, 30));
             const Element backdrop = vbox({
                                               shade, shade, shade, shade, shade, shade, shade, shade, shade, shade,
                                               shade, shade, shade, shade, shade, shade, shade, shade, shade, shade
@@ -102,7 +102,7 @@ namespace ui {
             return dbox({backdrop, popup}) | flex;
         });
 
-        std::atomic<bool> startedPrepare{false};
+        std::atomic startedPrepare{false};
         std::thread ticker([&] {
             while (ticking){
                 if (!startedPrepare && onShown) {

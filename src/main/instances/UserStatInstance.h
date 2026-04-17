@@ -5,7 +5,6 @@
 
 #include <optional>
 #include <string>
-#include <vector>
 
 class UserStatInstance {
 public:

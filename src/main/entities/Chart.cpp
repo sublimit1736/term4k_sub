@@ -111,8 +111,8 @@ std::string Chart::serializeString() const {
     json.set("BPM", BPM);
     json.set("keyCount", std::to_string(keyCount));
     json.set("baseBPM", std::to_string(baseBPM));
-    json.set("baseTempo", std::to_string(static_cast<int>(baseTempo.first)) + "," +
-                          std::to_string(static_cast<int>(baseTempo.second)));
+    json.set("baseTempo", std::to_string(baseTempo.first) + "," +
+                          std::to_string(baseTempo.second));
     json.set("difficulty", std::to_string(difficulty));
     json.set("previewBegin", std::to_string(previewBegin));
     json.set("previewEnd", std::to_string(previewEnd));
@@ -177,7 +177,7 @@ void Chart::deserializeFromString(const std::string &s) {
         std::string s = str;
         // Trim left
         s.erase(s.begin(),
-                std::find_if(s.begin(), s.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+                std::ranges::find_if(s, [](unsigned char ch) { return !std::isspace(ch); }));
         // Trim right
         s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(),
                 s.end());

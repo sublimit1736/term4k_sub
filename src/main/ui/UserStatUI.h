@@ -14,8 +14,9 @@ namespace ui {
 
 class UserStatUI {
 public:
-    static ftxui::Component component(ftxui::ScreenInteractive &screen,
-                                      std::function<void(UIScene)> onRoute);
+    static ftxui::Component component(
+        std::function<void(UIScene)> onRoute
+        );
 };
 
 } // namespace ui

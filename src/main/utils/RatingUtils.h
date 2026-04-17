@@ -12,7 +12,7 @@ namespace rating_utils {
 inline double normalizeAccuracy(const float accuracy) {
     if (accuracy > 1.0f) return static_cast<double>(accuracy) / 100.0;
     if (accuracy < 0.0f) return 0.0;
-    return static_cast<double>(accuracy);
+    return accuracy;
 }
 
 // Evaluates a single chart play: difficulty * (a - a^2 + a^4), where a is the

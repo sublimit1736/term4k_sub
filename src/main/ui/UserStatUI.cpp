@@ -70,8 +70,9 @@ namespace ui {
     } // namespace
 
 
-    ftxui::Component UserStatUI::component(ftxui::ScreenInteractive &screen,
-                                           std::function<void(UIScene)> onRoute) {
+    ftxui::Component UserStatUI::component(
+        std::function<void(UIScene)> onRoute
+        ) {
         using namespace ftxui;
 
         I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
@@ -98,7 +99,7 @@ namespace ui {
             std::size_t historyDataRevision = 0;
             int historyCacheOffset = -1;
             std::size_t historyCacheRevision = static_cast<std::size_t>(-1);
-            ftxui::Elements historyRowsCache;
+            Elements historyRowsCache;
         };
 
         auto state = std::make_shared<UserStatState>();
@@ -179,7 +180,7 @@ namespace ui {
             }
 
             Element logoutBtn = text(" [ " + tr("ui.user_info.logout") + " ] ")
-                                | color(ftxui::Color::Red)
+                                | color(Color::Red)
                                 | bold;
             Element tabBar = hbox({
                                       makeTabLabel(state->palette, tr("ui.user_info.tab.info"), state->activeTab == 0),

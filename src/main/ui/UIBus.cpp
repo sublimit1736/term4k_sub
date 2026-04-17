@@ -14,7 +14,6 @@
 #include <ftxui/component/screen_interactive.hpp>
 
 #include <cassert>
-#include <cstdlib>
 #include <functional>
 
 namespace ui {
@@ -35,13 +34,13 @@ ftxui::Component buildSceneComponent(const UIScene scene,
                                      std::function<void(UIScene)> onRoute) {
     switch (scene) {
     case UIScene::StartMenu:
-        return StartMenuUI::component(screen, std::move(onRoute));
+        return StartMenuUI::component(std::move(onRoute));
     case UIScene::ChartList:
         return ChartListUI::component(screen, std::move(onRoute));
     case UIScene::Settings:
-        return SettingsUI::component(screen, std::move(onRoute));
+        return SettingsUI::component(std::move(onRoute));
     case UIScene::UserStat:
-        return UserStatUI::component(screen, std::move(onRoute));
+        return UserStatUI::component(std::move(onRoute));
     case UIScene::Exit:
         break;
     }

@@ -48,7 +48,7 @@ std::vector<uint8_t> LiteDBUtils::hexDecode(const std::string &hex) {
             ErrorNotifier::notifyUnknown("LiteDBUtils::hexDecode");
             return {};
         }
-        result.push_back(static_cast<uint8_t>((hexVal(hex[i]) << 4) | hexVal(hex[i + 1])));
+        result.push_back(static_cast<uint8_t>(hexVal(hex[i]) << 4) | hexVal(hex[i + 1]));
     }
     return result;
 }
@@ -83,7 +83,7 @@ void LiteDBUtils::generateKey(size_t length) {
     key.resize(length);
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> dis(0, 255);
+    std::uniform_int_distribution dis(0, 255);
     for (auto &byte: key){
         byte = static_cast<uint8_t>(dis(gen));
     }
@@ -98,7 +98,7 @@ void LiteDBUtils::saveKey() {
 bool LiteDBUtils::loadKey() {
     std::ifstream f(keyFile, std::ios::binary);
     if (!f) return false;
-    key.assign(std::istreambuf_iterator<char>(f),
+    key.assign(std::istreambuf_iterator(f),
                std::istreambuf_iterator<char>());
     return !key.empty();
 }
