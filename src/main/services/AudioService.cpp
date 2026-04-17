@@ -13,11 +13,7 @@ void AudioService::data_callback(ma_device* pDevice, void* pOutput, const void* 
     ma_data_source_read_pcm_frames(pDecoder, pOutput, frameCount, nullptr);
 }
 
-AudioService::AudioService() {
-    initialized = false;
-    paused      = false;
-    volume      = 1.0;
-}
+AudioService::AudioService() = default;
 
 AudioService::~AudioService() {
     stop();
@@ -26,7 +22,7 @@ AudioService::~AudioService() {
 // Loads audio file and initializes playback device.
 bool AudioService::loadSong(const char* filename) {
     if (initialized) stop();
-    ma_result result = ma_decoder_init_file(filename, nullptr, &decoder);
+    const auto result = ma_decoder_init_file(filename, nullptr, &decoder);
     if (result != MA_SUCCESS){
         ErrorNotifier::notify(I18nService::instance().get("error.decoder_init_failed"));
         initialized = false;

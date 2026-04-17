@@ -74,7 +74,7 @@ std::string ThemePresetService::normalizeThemeId(const std::string &themeId) {
 
     std::string out;
     out.reserve(normalized.size());
-    for (char ch : normalized) {
+    for (const char ch : normalized) {
         const bool isAlnum = std::isalnum(static_cast<unsigned char>(ch)) != 0;
         if (isAlnum || ch == '_' || ch == '-') out.push_back(ch);
     }

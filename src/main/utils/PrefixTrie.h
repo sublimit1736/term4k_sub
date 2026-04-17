@@ -34,7 +34,7 @@ private:
 
     static std::size_t commonPrefixLength(const std::string &a, const std::string &b);
 
-    const Node *descendFrom(const Node* startNode, const std::string &suffix) const;
+    static const Node *descendFrom(const Node* startNode, const std::string &suffix);
 
     const Node *findNodeByPrefix(const std::string &normalizedPrefix) const;
 

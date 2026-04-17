@@ -7,8 +7,8 @@
 
 Chart::Chart() = default;
 
-Chart::Chart(std::string i, std::string d, std::string a, std::string c, std::string b, const float df,
-             const uint32_t pb, const uint32_t pe, const uint16_t kc, const float bb,
+Chart::Chart(std::string i, std::string d, std::string a, std::string c, std::string b, float df,
+             uint32_t pb, uint32_t pe, uint16_t kc, float bb,
              std::pair<uint8_t, uint8_t> bt
     ) : id(std::move(i)), displayName(std::move(d)), artist(std::move(a)), charter(std::move(c)), BPM(std::move(b)),
         difficulty(df), previewBegin(pb), previewEnd(pe), keyCount(kc), baseBPM(bb), baseTempo(bt) {}
@@ -173,13 +173,13 @@ void Chart::deserializeFromString(const std::string &s) {
     }
 
     // Helper lambda to trim leading/trailing whitespace.
-    auto trim = [](const std::string &str)-> std::string {
+    auto trim = [](const std::string &str) {
         std::string s = str;
         // Trim left
         s.erase(s.begin(),
-                std::ranges::find_if(s, [](unsigned char ch) { return !std::isspace(ch); }));
+                std::ranges::find_if(s, [](unsigned char ch) { return std::isspace(ch) == 0; }));
         // Trim right
-        s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(),
+        s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) { return std::isspace(ch) == 0; }).base(),
                 s.end());
         return s;
     };

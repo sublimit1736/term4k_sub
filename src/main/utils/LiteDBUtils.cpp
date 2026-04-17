@@ -150,7 +150,7 @@ std::vector<uint8_t> LiteDBUtils::aesDecrypt(const std::vector<uint8_t> &ciphert
 
     const uint8_t* iv   = ciphertext.data();
     const uint8_t* data = ciphertext.data() + 16;
-    int dataLen         = static_cast<int>(ciphertext.size() - 16);
+    const int dataLen   = static_cast<int>(ciphertext.size() - 16);
 
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     if (ctx == nullptr) return {};

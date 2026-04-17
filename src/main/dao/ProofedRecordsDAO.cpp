@@ -30,8 +30,8 @@ namespace {
         std::vector<std::string> records;
         records.reserve(recLines.size());
         for (const auto &line: recLines){
-            std::vector<uint8_t> encrypted = LiteDBUtils::hexDecode(line);
-            std::vector<uint8_t> decrypted = LiteDBUtils::aesDecrypt(encrypted);
+            const auto encrypted = LiteDBUtils::hexDecode(line);
+            auto decrypted       = LiteDBUtils::aesDecrypt(encrypted);
             if (decrypted.empty()) continue;
             LiteDBUtils::xorObfuscate(decrypted);
             records.emplace_back(decrypted.begin(), decrypted.end());
@@ -64,8 +64,8 @@ namespace {
         }
         std::vector<uint8_t> prevHash = LiteDBUtils::slowHash(buildGenesisData());
         for (const auto &record: plainRecords){
-            std::vector<uint8_t> recordBytes(record.begin(), record.end());
-            std::vector<uint8_t> recordHash = LiteDBUtils::sha256(recordBytes);
+            const std::vector<uint8_t> recordBytes(record.begin(), record.end());
+            const auto recordHash           = LiteDBUtils::sha256(recordBytes);
             std::vector<uint8_t> combined   = prevHash;
             combined.insert(combined.end(), recordHash.begin(), recordHash.end());
             const std::vector<uint8_t> expectedHash = LiteDBUtils::slowHash(combined);
@@ -80,12 +80,12 @@ namespace {
         const size_t limit            = std::min(recLines.size(), hashLines.size());
         size_t verifiedCount          = 0;
         for (size_t i = 0; i < limit; ++i){
-            std::vector<uint8_t> encrypted = LiteDBUtils::hexDecode(recLines[i]);
-            std::vector<uint8_t> decrypted = LiteDBUtils::aesDecrypt(encrypted);
+            const auto encrypted = LiteDBUtils::hexDecode(recLines[i]);
+            auto decrypted       = LiteDBUtils::aesDecrypt(encrypted);
             if (decrypted.empty()) break;
             LiteDBUtils::xorObfuscate(decrypted);
 
-            std::vector<uint8_t> recordHash = LiteDBUtils::sha256(decrypted);
+            const auto recordHash           = LiteDBUtils::sha256(decrypted);
             std::vector<uint8_t> combined   = prevHash;
             combined.insert(combined.end(), recordHash.begin(), recordHash.end());
             const std::vector<uint8_t> expectedHash = LiteDBUtils::slowHash(combined);
@@ -150,7 +150,7 @@ std::vector<uint8_t> ProofedRecordsDAO::readRawData() {
 
 // Extracts the last hash value from proof bytes (hex-decoded).
 std::vector<uint8_t> ProofedRecordsDAO::extractLastHash(const std::vector<uint8_t> &data) {
-    std::string content(data.begin(), data.end());
+    const std::string content(data.begin(), data.end());
     std::istringstream iss(content);
     std::string line;
     std::string lastLine;
@@ -192,7 +192,7 @@ bool ProofedRecordsDAO::addRecord(const std::string &serial_record) {
     // Chained hash: slowHash(prevHash + recordHash)
     std::vector<uint8_t> chainInput = prevHash;
     chainInput.insert(chainInput.end(), recordHash.begin(), recordHash.end());
-    std::vector<uint8_t> newHash = LiteDBUtils::slowHash(chainInput);
+    const auto newHash = LiteDBUtils::slowHash(chainInput);
 
     // Encrypt record: XOR obfuscation + AES-256-CBC.
     std::vector<uint8_t> plain(serial_record.begin(), serial_record.end());
@@ -242,8 +242,8 @@ std::vector<std::string> ProofedRecordsDAO::readAllRecord() {
     std::string line;
     while (std::getline(recFile, line)){
         if (line.empty()) continue;
-        std::vector<uint8_t> encrypted = LiteDBUtils::hexDecode(line);
-        std::vector<uint8_t> decrypted = LiteDBUtils::aesDecrypt(encrypted);
+        const auto encrypted = LiteDBUtils::hexDecode(line);
+        auto decrypted       = LiteDBUtils::aesDecrypt(encrypted);
         if (decrypted.empty()) continue;
         LiteDBUtils::xorObfuscate(decrypted);
         records.emplace_back(decrypted.begin(), decrypted.end());
@@ -281,7 +281,7 @@ bool ProofedRecordsDAO::verifyChain() {
         // Compare expected hash with stored hash.
         if (expectedHash != LiteDBUtils::hexDecode(hashes[i])) return false;
 
-        prevHash = expectedHash;
+        prevHash = std::move(expectedHash);
     }
 
     return true;
@@ -304,20 +304,20 @@ std::vector<std::string> ProofedRecordsDAO::readVerifiedRecord() {
     std::vector<uint8_t> prevHash = LiteDBUtils::slowHash(buildGenesisData());
 
     std::vector<std::string> result;
-    size_t limit = std::min(records.size(), hashes.size());
+    const auto limit = std::min(records.size(), hashes.size());
     for (size_t i = 0; i < limit; ++i){
         // Recompute expected chained hash.
         const std::vector<uint8_t> recordBytes(records[i].begin(), records[i].end());
-        std::vector<uint8_t> recordHash = LiteDBUtils::sha256(recordBytes);
+        const auto recordHash           = LiteDBUtils::sha256(recordBytes);
         std::vector<uint8_t> chainInput = prevHash;
         chainInput.insert(chainInput.end(), recordHash.begin(), recordHash.end());
-        std::vector<uint8_t> expectedHash = LiteDBUtils::slowHash(chainInput);
+        auto expectedHash = LiteDBUtils::slowHash(chainInput);
 
         // Stored hash mismatch means chain break; truncate here.
         if (expectedHash != LiteDBUtils::hexDecode(hashes[i])) break;
 
         result.push_back(records[i]);
-        prevHash = expectedHash;
+        prevHash = std::move(expectedHash);
     }
     return result;
 }

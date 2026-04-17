@@ -11,7 +11,7 @@ public:
     Chart();
 
     // Full-argument constructor.
-    Chart(std::string i, std::string d, std::string a, std::string c, std::string b, const float df,
+    Chart(std::string i, std::string d, std::string a, std::string c, std::string b, float df,
           uint32_t pb                    = 0, uint32_t pe = 0, uint16_t kc = 0, float bb = 0.0f,
           std::pair<uint8_t, uint8_t> bt = {0, 0}
         );

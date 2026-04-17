@@ -198,9 +198,9 @@ namespace ui {
                     const auto &verified        = state->adminStats.playerStats(AdminRecordScope::VerifiedOnly);
                     const auto &all             = state->adminStats.playerStats(AdminRecordScope::AllRecords);
                     std::size_t verifiedRecords = 0;
-                    for (const auto &item: verified) verifiedRecords += item.second.records.order.size();
+                    for (const auto &[_, stats]: verified) verifiedRecords += stats.records.order.size();
                     std::size_t allRecords = 0;
-                    for (const auto &item: all) allRecords += item.second.records.order.size();
+                    for (const auto &[_, stats]: all) allRecords += stats.records.order.size();
                     body = vbox({
                                     text(tr("ui.user_info.admin_badge")) | bold | color(toColor(state->palette.accentPrimary)),
                                     separator(),

@@ -28,7 +28,7 @@ bool GameplaySessionService::openChart(const std::string &chartFilePath, const u
 
     for (uint8_t lane = 0; lane < keyCount && lane < RuntimeConfigs::keyBindings.size(); ++lane){
         const uint8_t key = RuntimeConfigs::keyBindings[lane];
-        if (keyToLane_.find(key) == keyToLane_.end()){
+        if (!keyToLane_.contains(key)){
             keyToLane_[key] = lane;
         }
     }
@@ -285,15 +285,12 @@ void GameplaySessionService::cleanupResolvedFront(const uint8_t lane) {
 
     while (state.pendingHoldPos < state.holdLoadPos){
         const std::size_t idx = state.holdOrder[state.pendingHoldPos];
-        if (!holds_[idx].resolved && !holds_[idx].headPerfect) break;
-        if (!holds_[idx].resolved && holds_[idx].headPerfect) break;
+        if (!holds_[idx].resolved) break;
         ++state.pendingHoldPos;
     }
 
-    state.activeHoldIndices.erase(
-                                  std::remove_if(state.activeHoldIndices.begin(), state.activeHoldIndices.end(),
-                                                 [&](const std::size_t idx) { return holds_[idx].resolved; }),
-                                  state.activeHoldIndices.end());
+    std::erase_if(state.activeHoldIndices,
+                  [&](const std::size_t idx) { return holds_[idx].resolved; });
 }
 
 void GameplaySessionService::autoJudgeByTime(const uint8_t lane) {

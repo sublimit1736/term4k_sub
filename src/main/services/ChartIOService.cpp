@@ -84,12 +84,12 @@ bool ChartIOService::readChart(const char* fileName, ChartBuffer &chartBuffer,
             // Need at least 2 chars to parse note type.
             if (itemHandle.size() < 2) continue;
 
-            uint8_t itemType = parseHexField2(itemHandle, 0);
+            const auto itemType = parseHexField2(itemHandle, 0);
 
             if (itemType == tap){
                 // tap: type(2h) + track(2h) + t1(8h) = 12 chars
                 if (itemHandle.size() < 12) continue;
-                uint8_t track = parseHexField2(itemHandle, 2);
+                const auto track = parseHexField2(itemHandle, 2);
                 if (track >= keyCount){
                     ErrorNotifier::notify(
                                           I18nService::instance().get("error.tap_track_out_of_range") +
@@ -97,7 +97,7 @@ bool ChartIOService::readChart(const char* fileName, ChartBuffer &chartBuffer,
                                           ", keyCount=" + std::to_string(keyCount) + ")");
                     continue;
                 }
-                uint32_t t1            = applyTimingConfig(parseHexField(itemHandle, 4));
+                const auto t1          = applyTimingConfig(parseHexField(itemHandle, 4));
                 uint8_t mappedKey      = 0;
                 const uint32_t payload = getMappedKey(track, mappedKey)
                                              ? static_cast<uint32_t>(mappedKey)
@@ -107,7 +107,7 @@ bool ChartIOService::readChart(const char* fileName, ChartBuffer &chartBuffer,
             else if (itemType == hold){
                 // hold: type(2h) + track(2h) + t1(8h) + t2(8h) = 20 chars
                 if (itemHandle.size() < 20) continue;
-                uint8_t track = parseHexField2(itemHandle, 2);
+                const auto track = parseHexField2(itemHandle, 2);
                 if (track >= keyCount){
                     ErrorNotifier::notify(
                                           I18nService::instance().get("error.hold_track_out_of_range") +
@@ -115,8 +115,8 @@ bool ChartIOService::readChart(const char* fileName, ChartBuffer &chartBuffer,
                                           ", keyCount=" + std::to_string(keyCount) + ")");
                     continue;
                 }
-                uint32_t t1            = applyTimingConfig(parseHexField(itemHandle, 4));
-                uint32_t t2            = applyTimingConfig(parseHexField(itemHandle, 12));
+                const auto t1          = applyTimingConfig(parseHexField(itemHandle, 4));
+                const auto t2          = applyTimingConfig(parseHexField(itemHandle, 12));
                 uint8_t mappedKey      = 0;
                 const uint32_t payload = getMappedKey(track, mappedKey)
                                              ? static_cast<uint32_t>(mappedKey)
@@ -127,25 +127,25 @@ bool ChartIOService::readChart(const char* fileName, ChartBuffer &chartBuffer,
             else if (itemType == changeBPMNote){
                 // changeBPM: type(2h) + float(8h) + timestamp(8h) = 18 chars
                 if (itemHandle.size() < 18) continue;
-                uint32_t floatBits = parseHexField(itemHandle, 2);
-                uint32_t t         = applyTimingConfig(parseHexField(itemHandle, 10));
-                chartBuffer[t]     = ChartEvent{changeBPM, floatBits};
+                const auto floatBits = parseHexField(itemHandle, 2);
+                const auto t         = applyTimingConfig(parseHexField(itemHandle, 10));
+                chartBuffer[t]       = ChartEvent{changeBPM, floatBits};
             }
             else if (itemType == changeTempoNote){
                 // changeTempo: type(2h) + a(2h) + b(2h) + timestamp(8h) = 14 chars
                 if (itemHandle.size() < 14) continue;
-                uint8_t a       = parseHexField2(itemHandle, 2);
-                uint8_t b       = parseHexField2(itemHandle, 4);
-                uint32_t t      = applyTimingConfig(parseHexField(itemHandle, 6));
-                uint32_t packed = (static_cast<uint32_t>(a) << 8) | b;
-                chartBuffer[t]  = ChartEvent{changeTempo, packed};
+                const auto a      = parseHexField2(itemHandle, 2);
+                const auto b      = parseHexField2(itemHandle, 4);
+                const auto t      = applyTimingConfig(parseHexField(itemHandle, 6));
+                const auto packed = (static_cast<uint32_t>(a) << 8) | b;
+                chartBuffer[t]    = ChartEvent{changeTempo, packed};
             }
             else if (itemType == changeStreamSpeedNote){
                 // changeStreamSpeed: type(2h) + float(8h) + timestamp(8h) = 18 chars
                 if (itemHandle.size() < 18) continue;
-                uint32_t floatBits = parseHexField(itemHandle, 2);
-                uint32_t t         = applyTimingConfig(parseHexField(itemHandle, 10));
-                chartBuffer[t]     = ChartEvent{changeStreamSpeed, floatBits};
+                const auto floatBits = parseHexField(itemHandle, 2);
+                const auto t         = applyTimingConfig(parseHexField(itemHandle, 10));
+                chartBuffer[t]       = ChartEvent{changeStreamSpeed, floatBits};
             }
         }
         return true;

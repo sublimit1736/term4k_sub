@@ -20,7 +20,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-enum class PlayableEventType { Tap, HoldHead, HoldTail, };
+enum class PlayableEventType : uint8_t { Tap, HoldHead, HoldTail, };
 
 struct LaneTimeKey {
     uint8_t lane = 0;
@@ -226,7 +226,7 @@ double singleChartEvaluation(const float difficulty, const float accuracy) {
 std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
         const ChartCatalogMap &catalog,
         const std::string &uid) {
-    enum class AchievementTier { None = 0, FC = 1, AP = 2, ULT = 3 };
+    enum class AchievementTier : uint8_t { None = 0, FC = 1, AP = 2, ULT = 3 };
 
     auto currentTier = [](const ChartPlayStats &stats) {
         if (stats.hasULT) return AchievementTier::ULT;

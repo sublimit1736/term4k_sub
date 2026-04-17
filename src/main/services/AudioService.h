@@ -37,7 +37,6 @@ private:
     // Stops playback and releases audio resources.
     void stop();
 
-private:
     ma_decoder decoder{};
     ma_device device{};
     ma_device_config config{};

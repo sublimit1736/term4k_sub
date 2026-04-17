@@ -250,7 +250,7 @@ namespace ui {
 
             std::vector<LeaderboardEntry> all;
             all.reserve(bestByUid.size());
-            for (const auto &it: bestByUid) all.push_back(it.second);
+            for (const auto &[_, entry]: bestByUid) all.push_back(entry);
 
             std::stable_sort(all.begin(), all.end(), [&](const LeaderboardEntry &a, const LeaderboardEntry &b) {
                 if (byAccuracy){

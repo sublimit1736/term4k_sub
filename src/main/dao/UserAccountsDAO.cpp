@@ -91,7 +91,7 @@ bool UserAccountsDAO::addUser(const std::string &username, const std::string &pa
     // Compute salted slow hash to avoid plaintext or fast-hash storage.
     std::vector<uint8_t> toHash = salt;
     toHash.insert(toHash.end(), password.begin(), password.end());
-    std::vector<uint8_t> hashed = LiteDBUtils::slowHash(toHash);
+    const auto hashed = LiteDBUtils::slowHash(toHash);
 
     // File format: username uid saltHex hashHex
     std::ofstream out(accountList, std::ios::app);

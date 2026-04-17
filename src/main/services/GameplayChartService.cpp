@@ -16,9 +16,9 @@
 #include <vector>
 
 namespace {
-    enum class PlayableType { Tap, HoldHead, HoldTail, };
+    enum class PlayableType : uint8_t { Tap, HoldHead, HoldTail, };
 
-    enum class ConflictAction { KeepExisting, KeepIncoming, DropBoth, };
+    enum class ConflictAction : uint8_t { KeepExisting, KeepIncoming, DropBoth, };
 
     struct LaneTimeKey {
         uint8_t lane    = 0;
