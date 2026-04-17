@@ -53,7 +53,7 @@ bool UserStatInstance::refresh(const std::string &chartsRoot) {
         evaluations.push_back(rating_utils::singleChartEvaluation(it->second.chart.getDifficulty(), it->second.accuracy));
     }
 
-    std::sort(evaluations.begin(), evaluations.end(), std::greater<>());
+    std::ranges::sort(evaluations, std::greater<>());
     // Statistics logic: take top-50 evaluations and compute sum/average.
     const std::size_t b50Count = std::min<std::size_t>(50, evaluations.size());
     for (std::size_t i = 0; i < b50Count; ++i){

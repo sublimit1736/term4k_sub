@@ -104,7 +104,7 @@ namespace {
             rows.push_back({key, parsed.timestamp});
         }
 
-        std::stable_sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) {
+        std::ranges::stable_sort(rows, [](const Row &a, const Row &b) {
             return a.timestamp > b.timestamp;
         });
         out.order.reserve(rows.size());

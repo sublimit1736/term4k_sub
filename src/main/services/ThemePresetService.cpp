@@ -115,8 +115,9 @@ std::vector<std::string> ThemePresetService::listThemeIds() {
         }
     }
 
-    std::sort(ids.begin(), ids.end());
-    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    std::ranges::sort(ids);
+    const auto [first, last] = std::ranges::unique(ids);
+    ids.erase(first, last);
     return ids;
 }
 

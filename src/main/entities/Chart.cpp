@@ -158,8 +158,7 @@ void Chart::deserializeFromString(const std::string &s) {
         const std::string tempo = json.get("baseTempo", "");
         if (!tempo.empty()){
             try{
-                auto comma = tempo.find(',');
-                if (comma != std::string::npos){
+                if (const auto comma = tempo.find(','); comma != std::string::npos){
                     baseTempo.first  = static_cast<uint8_t>(std::stoul(tempo.substr(0, comma)));
                     baseTempo.second = static_cast<uint8_t>(std::stoul(tempo.substr(comma + 1)));
                 }
@@ -262,8 +261,7 @@ void Chart::deserializeFromString(const std::string &s) {
         }
         else if (key == "baseTempo"){
             try{
-                auto comma = value.find(',');
-                if (comma != std::string::npos){
+                if (const auto comma = value.find(','); comma != std::string::npos){
                     baseTempo.first  = static_cast<uint8_t>(std::stoul(value.substr(0, comma)));
                     baseTempo.second = static_cast<uint8_t>(std::stoul(value.substr(comma + 1)));
                 }

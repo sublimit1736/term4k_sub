@@ -460,13 +460,13 @@ std::vector<std::string> ChartCatalogService::sortCatalogKeys(const ChartCatalog
         for (const auto &k : keys) {
             lowerNames[k] = toLower(items.at(k).chart.getDisplayName());
         }
-        std::stable_sort(keys.begin(), keys.end(), [&](const std::string &a, const std::string &b) {
+        std::ranges::stable_sort(keys, [&](const std::string &a, const std::string &b) {
             return asc ? (lowerNames[a] < lowerNames[b]) : (lowerNames[a] > lowerNames[b]);
         });
         return keys;
     }
 
-    std::stable_sort(keys.begin(), keys.end(), [&](const std::string &lhsID, const std::string &rhsID) {
+    std::ranges::stable_sort(keys, [&](const std::string &lhsID, const std::string &rhsID) {
         const auto &a = items.at(lhsID);
         const auto &b = items.at(rhsID);
         switch (key) {

@@ -90,7 +90,7 @@ namespace {
         for (auto &[uid, parsedRecords]: parsedByUid){
             const auto catalogById = ChartCatalogService::loadCatalogForUID(chartsRoot, uid);
 
-            std::stable_sort(parsedRecords.begin(), parsedRecords.end(),
+            std::ranges::stable_sort(parsedRecords,
                              [](const ParsedRecord &a, const ParsedRecord &b) {
                                  return a.timestamp > b.timestamp;
                              });
@@ -115,7 +115,7 @@ namespace {
                 byChart.order.push_back(key);
             }
 
-            std::sort(evaluations.begin(), evaluations.end(), std::greater<>());
+            std::ranges::sort(evaluations, std::greater<>());
             // B50 takes top 50 single-chart evaluations; potential is their average.
             const std::size_t b50Count = std::min<std::size_t>(50, evaluations.size());
             stats.b50.reserve(b50Count);

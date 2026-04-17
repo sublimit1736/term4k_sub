@@ -106,8 +106,9 @@ std::vector<std::size_t> PrefixTrie::searchByPrefixIncremental(const std::string
 
     std::vector<std::size_t> result;
     collectIndices(node, result);
-    std::sort(result.begin(), result.end());
-    result.erase(std::unique(result.begin(), result.end()), result.end());
+    std::ranges::sort(result);
+    const auto [first, last] = std::ranges::unique(result);
+    result.erase(first, last);
     return result;
 }
 

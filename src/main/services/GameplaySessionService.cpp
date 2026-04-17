@@ -361,10 +361,10 @@ void GameplaySessionService::rebuildLaneOrders() {
     }
 
     for (auto &lane: lanes_){
-        std::sort(lane.tapOrder.begin(), lane.tapOrder.end(), [&](const std::size_t lhs, const std::size_t rhs) {
+        std::ranges::sort(lane.tapOrder, [&](const std::size_t lhs, const std::size_t rhs) {
             return taps_[lhs].timeMs<taps_[rhs].timeMs;
         });
-        std::sort(lane.holdOrder.begin(), lane.holdOrder.end(), [&](const std::size_t lhs, const std::size_t rhs) {
+        std::ranges::sort(lane.holdOrder, [&](const std::size_t lhs, const std::size_t rhs) {
             return holds_[lhs].headTimeMs<holds_[rhs].headTimeMs;
         });
     }

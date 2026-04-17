@@ -99,7 +99,7 @@ bool I18nService::ensureLocaleLoaded(const std::string &preferredLocale) {
 // -- I18n::get / operator() -------------------------------------------------
 
 std::string I18nService::get(const std::string &key) const {
-    auto it = translations.find(key);
+    const auto it = translations.find(key);
     return (it != translations.end()) ? it->second : key;
 }
 

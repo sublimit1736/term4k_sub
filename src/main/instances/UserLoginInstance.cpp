@@ -28,10 +28,10 @@ void UserLoginInstance::logout() {
     AuthenticatedUserService::logout();
 }
 
-bool UserLoginInstance::isLoggedIn() const {
+bool UserLoginInstance::isLoggedIn() {
     return AuthenticatedUserService::hasLoggedInUser();
 }
 
-std::optional<User> UserLoginInstance::currentUser() const {
+std::optional<User> UserLoginInstance::currentUser() {
     return AuthenticatedUserService::currentUser();
 }

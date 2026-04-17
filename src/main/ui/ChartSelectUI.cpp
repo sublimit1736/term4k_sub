@@ -252,7 +252,7 @@ namespace ui {
             all.reserve(bestByUid.size());
             for (const auto &[_, entry]: bestByUid) all.push_back(entry);
 
-            std::stable_sort(all.begin(), all.end(), [&](const LeaderboardEntry &a, const LeaderboardEntry &b) {
+            std::ranges::stable_sort(all, [&](const LeaderboardEntry &a, const LeaderboardEntry &b) {
                 if (byAccuracy){
                     if (a.accuracy != b.accuracy) return a.accuracy > b.accuracy;
                     if (a.score != b.score) return a.score > b.score;

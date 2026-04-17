@@ -7,15 +7,15 @@
 
 class UserLoginInstance {
 public:
-    bool registerUser(const std::string &username, const std::string &password,
+    static bool registerUser(const std::string &username, const std::string &password,
                       std::string* outErrorMessage = nullptr
         );
 
-    bool login(const std::string &username, const std::string &password);
+    static bool login(const std::string &username, const std::string &password);
 
-    void logout();
+    static void logout();
 
-    bool isLoggedIn() const;
+    static bool isLoggedIn();
 
-    std::optional<User> currentUser() const;
+    static std::optional<User> currentUser();
 };
