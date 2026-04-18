@@ -5,6 +5,8 @@
 #include "dao/ProofedRecordsDAO.h"
 #include "services/I18nService.h"
 #include "ui/ChartListUI.h"
+#include "ui/GameplaySettlementUI.h"
+#include "ui/GameplayUI.h"
 #include "ui/SettingsUI.h"
 #include "ui/StartMenuUI.h"
 #include "ui/ThemeAdapter.h"
@@ -18,6 +20,10 @@
 #include <optional>
 
 namespace ui {
+
+GameplayRouteParams   UIBus::pendingGameplay;
+SettlementRouteParams UIBus::pendingSettlement;
+
 namespace {
 
 void prepareCommon() {
@@ -42,6 +48,10 @@ ftxui::Component buildSceneComponent(const UIScene scene,
         return SettingsUI::component(std::move(onRoute));
     case UIScene::UserStat:
         return UserStatUI::component(std::move(onRoute));
+    case UIScene::Gameplay:
+        return GameplayUI::component(screen, UIBus::pendingGameplay, std::move(onRoute));
+    case UIScene::GameplaySettlement:
+        return GameplaySettlementUI::component(UIBus::pendingSettlement, std::move(onRoute));
     case UIScene::Exit:
         break;
     }

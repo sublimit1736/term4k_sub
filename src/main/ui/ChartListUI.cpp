@@ -539,6 +539,7 @@ namespace ui {
             const std::array<SortKeyOption, 3> &sortKeys;
             const std::function<std::string(const std::string &)> &tr;
             const std::function<void()> &requestExit;
+            const std::function<void()> &requestStartGame;
             ftxui::Component &container;
         };
 
@@ -561,8 +562,7 @@ namespace ui {
                 if (event == ftxui::Event::Return || event == ftxui::Event::Character('y') ||
                     event == ftxui::Event::Character('Y')) {
                     ctx.uiState.showStartConfirm = false;
-                    ctx.uiState.actionStatus =
-                        ctx.tr("ui.chart_select.action.start_placeholder") + ctx.uiState.pendingStartName;
+                    ctx.requestStartGame();
                     return true;
                 }
 
@@ -1457,6 +1457,34 @@ namespace ui {
             // which in the single-loop design would terminate the global loop.
         };
 
+        auto requestStartGame = [state, onRoute] {
+            if (state->routed) return;
+
+            const auto &ids = state->chartList.filteredOrderedChartIDs();
+            if (ids.empty()) return;
+            const std::size_t idx = std::min(state->uiState.selectedIndex, ids.size() - 1);
+            const std::string &chartID = ids[idx];
+
+            const auto it = state->chartList.items().find(chartID);
+            if (it == state->chartList.items().end()) return;
+
+            const auto &entry = it->second;
+            GameplayRouteParams gp;
+            gp.chartFilePath = entry.chartFilePath;
+            gp.musicFilePath = entry.musicFilePath;
+            gp.chartID       = chartID;
+            gp.songName      = entry.chart.getDisplayName().empty()
+                                   ? chartID
+                                   : entry.chart.getDisplayName();
+            gp.keyCount      = entry.chart.getKeyCount();
+            gp.difficulty    = entry.chart.getDifficulty();
+
+            UIBus::pendingGameplay = gp;
+            state->routed = true;
+            state->session.keepRunning = false;
+            onRoute(UIScene::Gameplay);
+        };
+
         InputOption searchInputOption;
         searchInputOption.placeholder = tr("ui.chart_select.search_placeholder");
         searchInputOption.transform   = [state](const InputState &inputState) {
@@ -1485,8 +1513,9 @@ namespace ui {
 
         const std::function<std::string(const std::string &)> trFn = tr;
         const std::function<void()> requestExitFn = requestExit;
+        const std::function<void()> requestStartGameFn = requestStartGame;
 
-        auto app = CatchEvent(root, [state, trFn, requestExitFn, container](const Event &event) mutable {
+        auto app = CatchEvent(root, [state, trFn, requestExitFn, requestStartGameFn, container](const Event &event) mutable {
             if (MessageOverlay::handleEvent(event)) {
                 return true;
             }
@@ -1499,6 +1528,7 @@ namespace ui {
                 state->sortKeys,
                 trFn,
                 requestExitFn,
+                requestStartGameFn,
                 container,
             };
 
