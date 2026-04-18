@@ -1,7 +1,7 @@
 #include "ui/StartMenuUI.h"
 
-#include "utils/RuntimeConfigs.h"
-#include "services/I18nService.h"
+#include "platform/RuntimeConfig.h"
+#include "platform/I18n.h"
 #include "ui/MessageOverlay.h"
 #include "ui/TransitionBackdrop.h"
 #include "ui/UIColors.h"
@@ -68,9 +68,9 @@ ftxui::Component StartMenuUI::component(
     ) {
     using namespace ftxui;
 
-    I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
+    I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
     auto tr = [](const std::string &key) {
-        return I18nService::instance().get(key);
+        return I18n::instance().get(key);
     };
 
     auto state = std::make_shared<StartMenuState>();

@@ -1,11 +1,11 @@
 #include "ui/SettingsUI.h"
 
-#include "utils/RuntimeConfigs.h"
-#include "entities/SettingsDraft.h"
-#include "models/SettingsInstance.h"
-#include "services/AuthenticatedUserService.h"
-#include "services/I18nService.h"
-#include "services/SettingsService.h"
+#include "platform/RuntimeConfig.h"
+#include "data/SettingsDraft.h"
+#include "scenes/SettingsScene.h"
+#include "account/UserContext.h"
+#include "platform/I18n.h"
+#include "platform/SettingsIO.h"
 #include "ui/MessageOverlay.h"
 #include "ui/TransitionBackdrop.h"
 #include "ui/UIColors.h"
@@ -67,12 +67,12 @@ ftxui::Component SettingsUI::component(
     ) {
     using namespace ftxui;
 
-    I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
-    auto tr = [](const std::string &key) { return I18nService::instance().get(key); };
+    I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
+    auto tr = [](const std::string &key) { return I18n::instance().get(key); };
 
     struct SettingsState {
         ThemePalette palette;
-        SettingsInstance instance;
+        SettingsScene instance;
         SettingsDraft draft;
         SettingsDraft committed;
         std::vector<std::string> themeIds;
@@ -150,12 +150,12 @@ ftxui::Component SettingsUI::component(
 
     auto saveAndRefresh = [state, tr]() {
         state->instance.setDraft(state->draft);
-        const auto user = AuthenticatedUserService::currentUser();
+        const auto user = UserContext::currentUser();
         const std::string username = user.has_value() ? user->getUsername() : "local";
         if (state->instance.saveDraftForUser(username)) {
             state->committed = state->draft;
-            SettingsService::applyToRuntime(state->committed);
-            I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
+            SettingsIO::applyToRuntime(state->committed);
+            I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
             state->palette = ThemeAdapter::resolveFromRuntime();
             state->status = tr("ui.settings.action.saved");
             return true;

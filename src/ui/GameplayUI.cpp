@@ -1,12 +1,12 @@
 #include "ui/GameplayUI.h"
 
-#include "utils/RuntimeConfigs.h"
-#include "entities/GameplayChartData.h"
-#include "services/GameplaySessionService.h"
-#include "models/GameplaySettlementInstance.h"
-#include "services/AudioService.h"
-#include "services/GameplayChartService.h"
-#include "services/I18nService.h"
+#include "platform/RuntimeConfig.h"
+#include "data/GameplayChartData.h"
+#include "gameplay/GameplaySession.h"
+#include "scenes/GameplaySettlement.h"
+#include "audio/AudioPlayer.h"
+#include "gameplay/GameplayChartParser.h"
+#include "platform/I18n.h"
 #include "ui/ThemeAdapter.h"
 #include "ui/UIColors.h"
 
@@ -285,7 +285,7 @@ ftxui::Element renderNoteField(
 
     // Key label row
     {
-        const auto &bindings = RuntimeConfigs::keyBindings;
+        const auto &bindings = RuntimeConfig::keyBindings;
         Elements cells;
         cells.push_back(text("│") | color(toColor(palette.borderNormal)));
         for (int l = 0; l < keyCount; ++l) {
@@ -502,8 +502,8 @@ ftxui::Element renderBottomBar(
 // ── Component state ───────────────────────────────────────────────────────────
 struct GameplayState {
     ThemePalette     palette;
-    GameplaySessionService gameplay;
-    AudioService     audio;
+    GameplaySession gameplay;
+    AudioPlayer     audio;
     GameplayChartData chartData;
 
     GameplayRouteParams params;
@@ -536,7 +536,7 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
     using namespace ftxui;
 
     auto tr = [](const std::string &key) {
-        return I18nService::instance().get(key);
+        return I18n::instance().get(key);
     };
 
     auto state = std::make_shared<GameplayState>();
@@ -545,7 +545,7 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
 
     // Load chart data for note-field rendering
     const bool chartOk =
-        GameplayChartService::parseChart(params.chartFilePath, params.keyCount, state->chartData);
+        GameplayChartParser::parseChart(params.chartFilePath, params.keyCount, state->chartData);
     const bool sessionOk =
         state->gameplay.openChart(params.chartFilePath, params.keyCount);
 
@@ -578,7 +578,7 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
     state->lanePressed.assign(static_cast<std::size_t>(params.keyCount), false);
 
     // Load and start audio
-    state->audio.setVolume(RuntimeConfigs::musicVolume);
+    state->audio.setVolume(RuntimeConfig::musicVolume);
     const bool audioOk = state->audio.loadSong(params.musicFilePath.c_str());
     if (audioOk) {
         state->gameplay.setChartClockDrivenByAudio(true);
@@ -604,10 +604,10 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
     });
 
     // ── Key → lane map (pre-built for fast lookup) ──────────────────────────
-    // Build reverse map: key code → lane index from RuntimeConfigs::keyBindings
+    // Build reverse map: key code → lane index from RuntimeConfig::keyBindings
     std::unordered_map<uint8_t, int> keyToLane;
     {
-        const auto &bindings = RuntimeConfigs::keyBindings;
+        const auto &bindings = RuntimeConfig::keyBindings;
         for (int l = 0; l < static_cast<int>(params.keyCount) &&
                         l < static_cast<int>(bindings.size()); ++l) {
             const uint8_t kc = bindings[static_cast<std::size_t>(l)];
@@ -623,7 +623,7 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
         const GameplaySnapshot snap = state->gameplay.snapshot();
 
         const uint32_t displayTimeMs = snap.getCurrentChartTimeMs() +
-                                        static_cast<uint32_t>(std::max(0, RuntimeConfigs::chartDisplayOffsetMs));
+                                        static_cast<uint32_t>(std::max(0, RuntimeConfig::chartDisplayOffsetMs));
 
         Element noteField = renderNoteField(
             state->chartData, displayTimeMs, state->params.keyCount,
@@ -632,9 +632,9 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
         Element stats = renderStatsPanel(
             snap, state->palette, tr,
             state->totalDurationMs,
-            RuntimeConfigs::showEarlyLate,
-            RuntimeConfigs::showAPIndicator,
-            RuntimeConfigs::showFCIndicator);
+            RuntimeConfig::showEarlyLate,
+            RuntimeConfig::showAPIndicator,
+            RuntimeConfig::showFCIndicator);
 
         Element topBar = renderTopBar(
             state->params.songName,
@@ -728,7 +728,7 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
                         sp.difficulty     = state->params.difficulty;
 
                         // Save record via settlement instance
-                        GameplaySettlementInstance settlement;
+                        GameplaySettlement settlement;
                         sp.saveSucceeded  = settlement.onEnterSettlement(
                             state->gameplay,
                             state->params.chartID,

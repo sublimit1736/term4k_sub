@@ -1,7 +1,7 @@
 #include "ui/GameplaySettlementUI.h"
 
-#include "utils/RuntimeConfigs.h"
-#include "services/I18nService.h"
+#include "platform/RuntimeConfig.h"
+#include "platform/I18n.h"
 #include "ui/ThemeAdapter.h"
 #include "ui/UIColors.h"
 
@@ -157,7 +157,7 @@ ftxui::Component GameplaySettlementUI::component(const SettlementRouteParams &pa
     using namespace ftxui;
 
     auto tr = [](const std::string &key) {
-        return I18nService::instance().get(key);
+        return I18n::instance().get(key);
     };
 
     auto state = std::make_shared<SettlementState>();

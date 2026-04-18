@@ -1,11 +1,11 @@
 #include "ui/ChartListUI.h"
 
-#include "utils/AppDirs.h"
-#include "utils/RuntimeConfigs.h"
-#include "dao/ProofedRecordsDAO.h"
-#include "models/ChartListInstance.h"
-#include "services/AuthenticatedUserService.h"
-#include "services/I18nService.h"
+#include "platform/AppDirs.h"
+#include "platform/RuntimeConfig.h"
+#include "account/RecordStore.h"
+#include "scenes/ChartListScene.h"
+#include "account/UserContext.h"
+#include "platform/I18n.h"
 #include "ui/MessageOverlay.h"
 #include "ui/TransitionBackdrop.h"
 #include "ui/UIBus.h"
@@ -103,7 +103,7 @@ namespace ui {
         }
 
         struct ChartLoadResult {
-            ChartListInstance chartList;
+            ChartListScene chartList;
             std::unordered_map<std::string, std::string> fileSizeCache;
         };
 
@@ -224,7 +224,7 @@ namespace ui {
         };
 
         void tryFinalizeLoadSession(ChartListLoadSession &session,
-                                    ChartListInstance &chartList,
+                                    ChartListScene &chartList,
                                     std::unordered_map<std::string, std::string> &fileSizeCache,
                                     std::vector<std::string> &allVerifiedRecords,
                                     const std::array<SearchModeOption, 3> &searchModes,
@@ -255,7 +255,7 @@ namespace ui {
         }
 
         std::vector<std::string> collectVisibleChartIds(ChartListLoadSession &session,
-                                                        ChartListInstance &chartList,
+                                                        ChartListScene &chartList,
                                                         const std::string &searchQuery,
                                                         std::string &appliedSearch,
                                                         std::size_t &selectedIndex) {
@@ -279,7 +279,7 @@ namespace ui {
 
         SelectedChartSnapshot resolveSelectedSnapshot(const std::vector<std::string> &ids,
                                                       std::size_t &selectedIndex,
-                                                      const ChartListInstance &chartList) {
+                                                      const ChartListScene &chartList) {
             SelectedChartSnapshot snapshot;
             if (ids.empty()) return snapshot;
 
@@ -323,7 +323,7 @@ namespace ui {
                                              const std::string &pendingStartName);
 
         RightPanelState buildRightPanelState(const SelectedChartSnapshot &selection,
-                                             const ChartListInstance &chartList,
+                                             const ChartListScene &chartList,
                                              const bool loadCompleted) {
             RightPanelState panelState{};
             if (!selection.hasSelection) return panelState;
@@ -360,7 +360,7 @@ namespace ui {
         ftxui::Elements buildChartListRows(const ThemePalette &palette,
                                            const std::function<std::string(const std::string &)> &tr,
                                            const std::vector<std::string> &ids,
-                                           const ChartListInstance &chartList,
+                                           const ChartListScene &chartList,
                                            const std::unordered_map<std::string, std::string> &fileSizeCache,
                                            const std::size_t selectedIndex) {
             using namespace ftxui;
@@ -429,7 +429,7 @@ namespace ui {
                                              const bool focusSearch,
                                              const ftxui::Element &searchInputElement,
                                              const std::vector<std::string> &ids,
-                                             const ChartListInstance &chartList,
+                                             const ChartListScene &chartList,
                                              const std::unordered_map<std::string, std::string> &fileSizeCache,
                                              const std::size_t selectedIndex) {
             using namespace ftxui;
@@ -534,7 +534,7 @@ namespace ui {
         struct ChartListEventContext {
             ChartListLoadSession &session;
             ChartListUiState &uiState;
-            ChartListInstance &chartList;
+            ChartListScene &chartList;
             const std::array<SearchModeOption, 3> &searchModes;
             const std::array<SortKeyOption, 3> &sortKeys;
             const std::function<std::string(const std::string &)> &tr;
@@ -687,7 +687,7 @@ namespace ui {
         ftxui::Element renderChartListFrame(const ThemePalette &palette,
                                             const std::function<std::string(const std::string &)> &tr,
                                             ChartListLoadSession &session,
-                                            ChartListInstance &chartList,
+                                            ChartListScene &chartList,
                                             std::vector<std::string> &allVerifiedRecords,
                                             std::unordered_map<std::string, std::string> &fileSizeCache,
                                             ChartListUiState &uiState,
@@ -1305,7 +1305,7 @@ namespace ui {
         std::thread startRecordLoaderThread(ChartListLoadStartContext &ctx) {
             return std::thread([session = &ctx.session, screen = &ctx.screen] {
                 try {
-                    auto records = AuthenticatedUserService::loadAllVerifiedRecords();
+                    auto records = UserContext::loadAllVerifiedRecords();
                     // Set totals now that loading is complete (avoids a separate pre-read of proof.db).
                     const std::size_t count = records.size();
                     session->totalRecordLines.store(count, std::memory_order_relaxed);
@@ -1359,7 +1359,7 @@ namespace ui {
         struct ChartListComponentState {
             ThemePalette palette;
             std::string statsUID;
-            ChartListInstance chartList;
+            ChartListScene chartList;
             std::vector<std::string> allVerifiedRecords;
             std::unordered_map<std::string, std::string> fileSizeCache;
             ChartListLoadSession session;
@@ -1407,9 +1407,9 @@ namespace ui {
                                             const std::function<void(UIScene)> &onRoute) {
         using namespace ftxui;
 
-        I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
+        I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
         auto tr = [](const std::string &key) {
-            return I18nService::instance().get(key);
+            return I18n::instance().get(key);
         };
 
         auto state = std::make_shared<ChartListComponentState>();
@@ -1417,10 +1417,10 @@ namespace ui {
         state->uiState.actionStatus = tr("ui.chart_select.action.idle");
 
         AppDirs::init();
-        ProofedRecordsDAO::setDataDir(AppDirs::dataDir());
+        RecordStore::setDataDir(AppDirs::dataDir());
 
-        if (const auto currentUser = AuthenticatedUserService::currentUser();
-            currentUser.has_value() && !AuthenticatedUserService::isGuestUser()){
+        if (const auto currentUser = UserContext::currentUser();
+            currentUser.has_value() && !UserContext::isGuestUser()){
             state->statsUID = std::to_string(currentUser->getUID());
         }
         else{

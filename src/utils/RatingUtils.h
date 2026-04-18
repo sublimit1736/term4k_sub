@@ -1,7 +1,7 @@
 #pragma once
 
-// Shared rating maths used by ChartCatalogService, UserStatInstance, and
-// AdminStatInstance.  Keeping the formula in a single place guarantees
+// Shared rating maths used by ChartCatalog, UserStatScene, and
+// AdminStatScene.  Keeping the formula in a single place guarantees
 // all three computation sites stay in sync.
 
 namespace rating_utils {

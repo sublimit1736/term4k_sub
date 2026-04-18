@@ -63,38 +63,38 @@ else ()
 endif ()
 
 set(TERM4K_CORE_SOURCES
-        src/services/AudioService.cpp
-        src/services/ChartIOService.cpp
-        src/services/ChartCatalogService.cpp
-        src/entities/Chart.cpp
-        src/entities/GameplayChartData.cpp
-        src/entities/GameplayResult.cpp
-        src/entities/SettingsDraft.cpp
+        src/audio/AudioPlayer.cpp
+        src/chart/ChartFileReader.cpp
+        src/chart/ChartCatalog.cpp
+        src/data/Chart.cpp
+        src/data/GameplayChartData.cpp
+        src/data/GameplayResult.cpp
+        src/data/SettingsDraft.cpp
         src/utils/JsonUtils.cpp
-        src/entities/Rating.cpp
-        src/entities/User.cpp
-        src/dao/ProofedRecordsDAO.cpp
-        src/dao/UserAccountsDAO.cpp
+        src/data/Rating.cpp
+        src/data/User.cpp
+        src/account/RecordStore.cpp
+        src/account/UserStore.cpp
         src/utils/LiteDBUtils.cpp
         src/utils/PrefixTrie.cpp
-        src/services/I18nService.cpp
-        src/services/AuthenticatedUserService.cpp
-        src/services/UserLoginService.cpp
-        src/services/GameplayChartService.cpp
-        src/services/GameplayStatsService.cpp
-        src/services/GameplayClockService.cpp
-        src/services/GameplaySessionService.cpp
-        src/services/GameplayRecordService.cpp
-        src/services/SettingsService.cpp
-        src/services/ThemePresetService.cpp
-        src/models/ChartListInstance.cpp
-        src/models/UserStatInstance.cpp
-        src/models/AdminStatInstance.cpp
-        src/models/GameplaySettlementInstance.cpp
-        src/models/SettingsInstance.cpp
+        src/platform/I18n.cpp
+        src/account/UserContext.cpp
+        src/account/UserSession.cpp
+        src/gameplay/GameplayChartParser.cpp
+        src/gameplay/GameplayStats.cpp
+        src/gameplay/GameplayClock.cpp
+        src/gameplay/GameplaySession.cpp
+        src/gameplay/GameplayRecordWriter.cpp
+        src/platform/SettingsIO.cpp
+        src/platform/ThemeStore.cpp
+        src/scenes/ChartListScene.cpp
+        src/scenes/UserStatScene.cpp
+        src/scenes/AdminStatScene.cpp
+        src/scenes/GameplaySettlement.cpp
+        src/scenes/SettingsScene.cpp
         src/utils/ErrorNotifier.cpp
-        src/utils/AppDirs.cpp
-        src/utils/RuntimeConfigs.cpp
+        src/platform/AppDirs.cpp
+        src/platform/RuntimeConfig.cpp
         src/ui/ThemeAdapter.cpp)
 
 add_library(term4k_core STATIC ${TERM4K_CORE_SOURCES})
@@ -179,22 +179,22 @@ if (TERM4K_BUILD_TESTS)
             tests/unit/utils/PrefixTrieTests.cpp
             tests/unit/utils/ErrorNotifierTests.cpp
             tests/unit/utils/LiteDBUtilsTests.cpp
-            tests/unit/utils/AppDirsTests.cpp
-            tests/unit/utils/RuntimeConfigsTests.cpp
-            tests/unit/services/I18nTests.cpp
-            tests/unit/services/ChartIOTests.cpp
-            tests/unit/services/ChartCatalogServiceTests.cpp
-            tests/unit/services/SongPlayerTests.cpp
-            tests/unit/services/UserServiceTests.cpp
-            tests/unit/services/AuthenticatedUserServiceTests.cpp
-            tests/unit/services/GameplayRecordServiceTests.cpp
-            tests/unit/services/ThemePresetServiceTests.cpp
-            tests/unit/models/ChartListInstanceTests.cpp
-            tests/unit/models/UserStatInstanceTests.cpp
-            tests/unit/models/AdminStatInstanceTests.cpp
-            tests/unit/models/GameplaySessionServiceTests.cpp
-            tests/unit/models/GameplaySettlementInstanceTests.cpp
-            tests/unit/models/SettingsInstanceTests.cpp
+            tests/unit/platform/AppDirsTests.cpp
+            tests/unit/platform/RuntimeConfigTests.cpp
+            tests/unit/platform/I18nTests.cpp
+            tests/unit/chart/ChartFileReaderTests.cpp
+            tests/unit/chart/ChartCatalogTests.cpp
+            tests/unit/audio/AudioPlayerTests.cpp
+            tests/unit/account/UserSessionTests.cpp
+            tests/unit/account/UserContextTests.cpp
+            tests/unit/gameplay/GameplayRecordWriterTests.cpp
+            tests/unit/platform/ThemeStoreTests.cpp
+            tests/unit/scenes/ChartListSceneTests.cpp
+            tests/unit/scenes/UserStatSceneTests.cpp
+            tests/unit/scenes/AdminStatSceneTests.cpp
+            tests/unit/gameplay/GameplaySessionTests.cpp
+            tests/unit/scenes/GameplaySettlementTests.cpp
+            tests/unit/scenes/SettingsSceneTests.cpp
     )
 
     target_include_directories(term4k_tests PRIVATE tests)
@@ -230,36 +230,36 @@ install(CODE
 
 # Development package: public headers -> /usr/include/term4k/
 set(TERM4K_PUBLIC_HEADERS
-        src/utils/AppDirs.h
-        src/utils/RuntimeConfigs.h
-        src/services/ChartIOService.h
-        src/services/ChartCatalogService.h
-        src/services/I18nService.h
-        src/services/AuthenticatedUserService.h
-        src/services/UserLoginService.h
-        src/services/AudioService.h
-        src/services/GameplayChartService.h
-        src/services/GameplayStatsService.h
-        src/services/GameplayClockService.h
-        src/services/GameplaySessionService.h
-        src/services/GameplayRecordService.h
-        src/services/SettingsService.h
-        src/services/ThemePresetService.h
-        src/models/ChartListInstance.h
-        src/models/UserStatInstance.h
-        src/models/AdminStatInstance.h
-        src/models/GameplaySettlementInstance.h
-        src/models/SettingsInstance.h
-        src/dao/ProofedRecordsDAO.h
-        src/dao/UserAccountsDAO.h
+        src/platform/AppDirs.h
+        src/platform/RuntimeConfig.h
+        src/chart/ChartFileReader.h
+        src/chart/ChartCatalog.h
+        src/platform/I18n.h
+        src/account/UserContext.h
+        src/account/UserSession.h
+        src/audio/AudioPlayer.h
+        src/gameplay/GameplayChartParser.h
+        src/gameplay/GameplayStats.h
+        src/gameplay/GameplayClock.h
+        src/gameplay/GameplaySession.h
+        src/gameplay/GameplayRecordWriter.h
+        src/platform/SettingsIO.h
+        src/platform/ThemeStore.h
+        src/scenes/ChartListScene.h
+        src/scenes/UserStatScene.h
+        src/scenes/AdminStatScene.h
+        src/scenes/GameplaySettlement.h
+        src/scenes/SettingsScene.h
+        src/account/RecordStore.h
+        src/account/UserStore.h
         src/utils/LiteDBUtils.h
-        src/entities/Chart.h
-        src/entities/GameplayResult.h
-        src/entities/SettingsDraft.h
+        src/data/Chart.h
+        src/data/GameplayResult.h
+        src/data/SettingsDraft.h
         src/utils/JsonUtils.h
-        src/entities/Rating.h
-        src/entities/User.h
-        src/entities/GameplayChartData.h
+        src/data/Rating.h
+        src/data/User.h
+        src/data/GameplayChartData.h
         src/utils/ErrorNotifier.h
 )
 

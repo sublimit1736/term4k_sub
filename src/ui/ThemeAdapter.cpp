@@ -1,7 +1,7 @@
 #include "ui/ThemeAdapter.h"
 
-#include "utils/RuntimeConfigs.h"
-#include "services/ThemePresetService.h"
+#include "platform/RuntimeConfig.h"
+#include "platform/ThemeStore.h"
 
 #include <algorithm>
 #include <array>
@@ -58,10 +58,10 @@ uint8_t nearestCubeChannel(uint8_t c) {
 
 ThemePalette ThemeAdapter::resolveFromRuntime() {
     const bool trueColor = terminalSupportsTrueColor();
-    const std::string themeId = RuntimeConfigs::theme;
+    const std::string themeId = RuntimeConfig::theme;
 
     JsonUtils theme;
-    if (!ThemePresetService::loadThemeById(themeId, theme)) {
+    if (!ThemeStore::loadThemeById(themeId, theme)) {
         ThemePalette fallback;
         fallback.themeId = themeId.empty() ? "tomorrow-night" : themeId;
         fallback.trueColor = trueColor;

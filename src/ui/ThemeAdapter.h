@@ -33,7 +33,7 @@ struct ThemePalette {
 
 class ThemeAdapter {
 public:
-    // Resolves RuntimeConfigs::theme from preset files and returns a terminal-ready palette.
+    // Resolves RuntimeConfig::theme from preset files and returns a terminal-ready palette.
     static ThemePalette resolveFromRuntime();
 
     // Converts #RRGGBB into terminal color. In non-truecolor terminals, colors are quantized.

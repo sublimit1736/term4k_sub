@@ -1,11 +1,11 @@
 #include "ui/UserStatUI.h"
-#include "utils/AppDirs.h"
-#include "utils/RuntimeConfigs.h"
-#include "dao/ProofedRecordsDAO.h"
-#include "models/AdminStatInstance.h"
-#include "models/UserStatInstance.h"
-#include "services/AuthenticatedUserService.h"
-#include "services/I18nService.h"
+#include "platform/AppDirs.h"
+#include "platform/RuntimeConfig.h"
+#include "account/RecordStore.h"
+#include "scenes/AdminStatScene.h"
+#include "scenes/UserStatScene.h"
+#include "account/UserContext.h"
+#include "platform/I18n.h"
 #include "ui/MessageOverlay.h"
 #include "ui/TransitionBackdrop.h"
 #include "ui/UIColors.h"
@@ -76,11 +76,11 @@ namespace ui {
         ) {
         using namespace ftxui;
 
-        I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
-        auto tr = [](const std::string &key) { return I18nService::instance().get(key); };
+        I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
+        auto tr = [](const std::string &key) { return I18n::instance().get(key); };
 
         AppDirs::init();
-        ProofedRecordsDAO::setDataDir(AppDirs::dataDir());
+        RecordStore::setDataDir(AppDirs::dataDir());
 
         struct UserStatState {
             ThemePalette palette;
@@ -88,8 +88,8 @@ namespace ui {
             bool hasUser = false;
             bool isGuest = true;
             std::optional<User> current;
-            UserStatInstance userStats;
-            AdminStatInstance adminStats;
+            UserStatScene userStats;
+            AdminStatScene adminStats;
             std::string username;
             std::string password;
             std::string authStatus;
@@ -107,12 +107,12 @@ namespace ui {
         state->palette = ThemeAdapter::resolveFromRuntime();
 
         auto refreshSession = [state] {
-            state->hasUser = AuthenticatedUserService::hasLoggedInUser();
-            state->isAdmin = AuthenticatedUserService::isAdminUser();
-            state->isGuest = AuthenticatedUserService::isGuestUser() || !state->hasUser;
-            state->current = AuthenticatedUserService::currentUser();
+            state->hasUser = UserContext::hasLoggedInUser();
+            state->isAdmin = UserContext::isAdminUser();
+            state->isGuest = UserContext::isGuestUser() || !state->hasUser;
+            state->current = UserContext::currentUser();
 
-            I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
+            I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
             state->palette = ThemeAdapter::resolveFromRuntime();
 
             if (state->isAdmin){

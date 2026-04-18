@@ -1,9 +1,9 @@
 #include "ui/UIBus.h"
 
-#include "utils/AppDirs.h"
-#include "utils/RuntimeConfigs.h"
-#include "dao/ProofedRecordsDAO.h"
-#include "services/I18nService.h"
+#include "platform/AppDirs.h"
+#include "platform/RuntimeConfig.h"
+#include "account/RecordStore.h"
+#include "platform/I18n.h"
 #include "ui/ChartListUI.h"
 #include "ui/GameplaySettlementUI.h"
 #include "ui/GameplayUI.h"
@@ -27,13 +27,13 @@ SettlementRouteParams UIBus::pendingSettlement;
 namespace {
 
 void prepareCommon() {
-    I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
+    I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
     (void)ThemeAdapter::resolveFromRuntime();
 }
 
 void prepareDataDirs() {
     AppDirs::init();
-    ProofedRecordsDAO::setDataDir(AppDirs::dataDir());
+    RecordStore::setDataDir(AppDirs::dataDir());
 }
 
 ftxui::Component buildSceneComponent(const UIScene scene,
