@@ -74,7 +74,35 @@ enum class CellType { Empty, TapNote, HoldHead, HoldBody, HoldTail };
 struct NoteCell {
     CellType type        = CellType::Empty;
     bool     lanePressed = false;
+    // Sub-row precision level for tap notes (1–8).
+    // Maps to the lower-block Unicode character ▁▂▃▄▅▆▇█.
+    // The TOP EDGE of the filled region represents the note's position within
+    // the character cell: level 8 (█) = top of cell, level 1 (▁) = near bottom.
+    int subLevel = 8;
 };
+
+// Lower-block characters by fill level (index 0 = empty / not used for notes,
+// 1–8 = ▁ ▂ ▃ ▄ ▅ ▆ ▇ █).
+static const char* const kLowerBlockUtf8[] = {
+    nullptr,  // 0: unused
+    "▁",      // U+2581  lower one-eighth block
+    "▂",      // U+2582  lower one-quarter block
+    "▃",      // U+2583  lower three-eighths block
+    "▄",      // U+2584  lower half block
+    "▅",      // U+2585  lower five-eighths block
+    "▆",      // U+2586  lower three-quarters block
+    "▇",      // U+2587  lower seven-eighths block
+    "█",      // U+2588  full block
+};
+
+// Build a 4-column-wide tap-note bar string for the given sub-level.
+std::string tapNoteBar(const int subLevel) {
+    std::string bar;
+    bar.reserve(4 * 4);  // up to 4 bytes per UTF-8 char × 4 columns
+    const char* blk = kLowerBlockUtf8[subLevel];
+    for (int i = 0; i < 4; ++i) bar += blk;
+    return bar;
+}
 
 // Render a single note-field cell (4 chars wide).
 ftxui::Element renderCell(const NoteCell &cell, const ThemePalette &palette) {
@@ -83,7 +111,8 @@ ftxui::Element renderCell(const NoteCell &cell, const ThemePalette &palette) {
     constexpr int kCellW = 4;
 
     if (cell.type == CellType::TapNote) {
-        Element e = text("████") | color(toColor(palette.accentPrimary)) | bold;
+        const std::string bar = tapNoteBar(cell.subLevel);
+        Element e = text(bar) | color(toColor(palette.accentPrimary)) | bold;
         if (cell.lanePressed) e = e | bgcolor(toColor(palette.accentPrimary)) | color(highContrastOn(palette.accentPrimary));
         return e | size(WIDTH, EQUAL, kCellW);
     }
@@ -130,11 +159,32 @@ std::vector<std::vector<NoteCell>> buildNoteGrid(
     const double msPerRow =
         static_cast<double>(kDisplayWindowMs) / std::max(kFieldHeight - 1, 1);
 
-    // Helper: time-delta → row (clamped)
-    auto rowForDelta = [&](const double deltaMs) -> int {
-        // Row 0 = far future (+kDisplayWindowMs), row kFieldHeight-1 = now (delta=0)
-        const double r = (kFieldHeight - 1) * (1.0 - deltaMs / kDisplayWindowMs);
-        return static_cast<int>(std::lround(r));
+    // Helper: time-delta in ms → exact floating-point row position.
+    // Row 0 = top (far future, delta = kDisplayWindowMs),
+    // row kFieldHeight-1 = bottom (present, delta = 0).
+    auto exactRowFor = [&](const double deltaMs) -> double {
+        return (kFieldHeight - 1) * (1.0 - deltaMs / kDisplayWindowMs);
+    };
+
+    // Helper: time-delta → integer row using floor (sub-row precision for tap notes).
+    auto rowFloor = [&](const double deltaMs) -> int {
+        return static_cast<int>(std::floor(exactRowFor(deltaMs)));
+    };
+
+    // Helper: time-delta → integer row using round (used for hold head/tail).
+    auto rowRound = [&](const double deltaMs) -> int {
+        return static_cast<int>(std::lround(exactRowFor(deltaMs)));
+    };
+
+    // Helper: time-delta → sub-row level in [1, 8].
+    // frac = fractional distance of the note from the top of its character cell.
+    // level 8 (█) = note at top of cell; level 1 (▁) = note near bottom of cell.
+    // The TOP EDGE of the lower-block character sits at exactly the note's position.
+    auto subLevelFor = [&](const double deltaMs) -> int {
+        const double r    = exactRowFor(deltaMs);
+        const double frac = r - std::floor(r);  // 0.0 (top of cell) .. <1.0 (bottom)
+        const int level   = static_cast<int>(std::round(8.0 * (1.0 - frac)));
+        return std::max(1, std::min(8, level));
     };
 
     // ── Tap notes ──
@@ -146,11 +196,14 @@ std::vector<std::vector<NoteCell>> buildNoteGrid(
                              static_cast<double>(displayTimeMs);
         if (delta < -msPerRow || delta > kDisplayWindowMs + msPerRow) continue;
 
-        const int row = rowForDelta(delta);
+        const int row = rowFloor(delta);
         if (row < 0 || row >= kFieldHeight) continue;
 
         auto &cell = grid[static_cast<std::size_t>(row)][static_cast<std::size_t>(lane)];
-        if (cell.type == CellType::Empty) cell.type = CellType::TapNote;
+        if (cell.type == CellType::Empty) {
+            cell.type     = CellType::TapNote;
+            cell.subLevel = subLevelFor(delta);
+        }
     }
 
     // ── Hold notes ──
@@ -166,8 +219,8 @@ std::vector<std::vector<NoteCell>> buildNoteGrid(
         if (headDelta > kDisplayWindowMs + msPerRow) continue;
         if (tailDelta < -msPerRow)                   continue;
 
-        const int headRow = rowForDelta(headDelta);
-        const int tailRow = rowForDelta(tailDelta);
+        const int headRow = rowRound(headDelta);
+        const int tailRow = rowRound(tailDelta);
 
         // headRow < tailRow because head is further in future
         const int topRow = std::min(headRow, tailRow);
