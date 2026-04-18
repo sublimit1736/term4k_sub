@@ -9,6 +9,7 @@
 #include "ui/MessageOverlay.h"
 #include "ui/TransitionBackdrop.h"
 #include "ui/UIColors.h"
+#include "ui/ThemeAdapter.h"
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <algorithm>

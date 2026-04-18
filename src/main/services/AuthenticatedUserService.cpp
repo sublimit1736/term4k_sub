@@ -115,12 +115,6 @@ namespace {
     }
 }
 
-void AuthenticatedUserService::setCurrentUser(const User &user, const bool isAdmin, const bool isGuest) {
-    currentUserSession = user;
-    isAdminSession     = isAdmin;
-    isGuestSession     = isGuest;
-}
-
 bool AuthenticatedUserService::syncFromUserLoginService() {
     const auto user = UserLoginService::currentUser();
     if (!user.has_value()){

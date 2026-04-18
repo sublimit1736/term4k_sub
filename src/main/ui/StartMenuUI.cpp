@@ -4,7 +4,7 @@
 #include "services/I18nService.h"
 #include "ui/MessageOverlay.h"
 #include "ui/TransitionBackdrop.h"
-#include "ui/ThemeAdapter.h"
+#include "ui/UIColors.h"
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>

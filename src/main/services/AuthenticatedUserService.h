@@ -9,8 +9,6 @@
 
 class AuthenticatedUserService {
 public:
-    static void setCurrentUser(const User &user, bool isAdmin, bool isGuest);
-
     static bool syncFromUserLoginService();
 
     static void logout();
