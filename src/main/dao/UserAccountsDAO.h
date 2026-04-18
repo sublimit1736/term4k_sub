@@ -31,5 +31,3 @@ private:
     // Extracts the idx-th whitespace-separated field (0-based).
     static std::string getField(const std::string &line, size_t idx);
 };
-
-

@@ -54,13 +54,13 @@ void Rating::deserializeFromString(const std::string &s) {
         username         = json.get("username", username);
 
         try{ UID = static_cast<uint32_t>(std::stoul(json.get("UID", std::to_string(UID)))); }
-        catch (...){}
+        catch (const std::exception &ex){ ErrorNotifier::notifyException("Rating::deserializeFromString", ex); }
         try{ score = static_cast<uint32_t>(std::stoul(json.get("score", std::to_string(score)))); }
-        catch (...){}
+        catch (const std::exception &ex){ ErrorNotifier::notifyException("Rating::deserializeFromString", ex); }
         try{ accuracy = std::stof(json.get("accuracy", std::to_string(accuracy))); }
-        catch (...){}
+        catch (const std::exception &ex){ ErrorNotifier::notifyException("Rating::deserializeFromString", ex); }
         try{ timeStamp = static_cast<uint32_t>(std::stoul(json.get("timeStamp", std::to_string(timeStamp)))); }
-        catch (...){}
+        catch (const std::exception &ex){ ErrorNotifier::notifyException("Rating::deserializeFromString", ex); }
         return;
     }
 
@@ -83,11 +83,11 @@ void Rating::deserializeFromString(const std::string &s) {
         chartDisplayName = fields[1];
         username         = fields[2];
         try{ score = static_cast<uint32_t>(std::stoul(fields[3])); }
-        catch (...){}
+        catch (const std::exception &ex){ ErrorNotifier::notifyException("Rating::deserializeFromString legacy", ex); }
         try{ accuracy = std::stof(fields[4]); }
-        catch (...){}
+        catch (const std::exception &ex){ ErrorNotifier::notifyException("Rating::deserializeFromString legacy", ex); }
         try{ timeStamp = static_cast<uint32_t>(std::stoul(fields[5])); }
-        catch (...){}
+        catch (const std::exception &ex){ ErrorNotifier::notifyException("Rating::deserializeFromString legacy", ex); }
         UID = 0;
     }
 }

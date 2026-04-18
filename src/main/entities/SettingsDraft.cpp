@@ -64,4 +64,3 @@ bool SettingsDraft::operator==(const SettingsDraft &other) const {
 bool SettingsDraft::operator!=(const SettingsDraft &other) const {
     return !(*this == other);
 }
-

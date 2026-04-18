@@ -90,7 +90,3 @@ private:
     ChartEndTimingMode chartEndTimingMode_ = ChartEndTimingMode::AfterChartEnd;
     std::vector<uint8_t> keyBindings_;
 };
-
-
-
-

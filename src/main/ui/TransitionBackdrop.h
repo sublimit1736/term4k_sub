@@ -10,4 +10,3 @@ namespace ui {
         static ftxui::Element render();
     };
 } // namespace ui
-

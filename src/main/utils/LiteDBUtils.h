@@ -36,5 +36,3 @@ private:
     static std::string keyFile;
     static std::vector<uint8_t> key;
 };
-
-

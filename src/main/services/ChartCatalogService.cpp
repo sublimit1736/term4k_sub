@@ -15,22 +15,13 @@
 #include <map>
 #include <optional>
 #include <sstream>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
 
 namespace {
 
-enum class PlayableEventType { Tap, HoldHead, HoldTail, };
-
-struct LaneTimeKey {
-    uint8_t lane = 0;
-    uint32_t timeMs = 0;
-
-    bool operator<(const LaneTimeKey &other) const {
-        if (timeMs != other.timeMs) return timeMs < other.timeMs;
-        return lane < other.lane;
-    }
-};
+enum class PlayableEventType : uint8_t { Tap, HoldHead, HoldTail, };
 
 uint8_t hexVal(const char c) {
     if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
@@ -92,12 +83,13 @@ ConflictResolution resolveConflict(const PlayableEventType existing,
     return {existing, "keep_existing"};
 }
 
-void appendOrResolvePlayableEvent(std::map<LaneTimeKey, PlayableEventType> &events,
+void appendOrResolvePlayableEvent(std::unordered_map<uint64_t, PlayableEventType> &events,
                                   std::vector<PlayableNoteConflict> &conflicts,
                                   const uint8_t lane,
                                   const uint32_t timeMs,
                                   const PlayableEventType incomingType) {
-    const LaneTimeKey key{lane, timeMs};
+    // Pack lane (8-bit) into high 32 bits and timeMs (32-bit) into low 32 bits.
+    const uint64_t key = (static_cast<uint64_t>(lane) << 32) | timeMs;
     const auto existingIt = events.find(key);
     if (existingIt == events.end()) {
         events[key] = incomingType;
@@ -161,15 +153,15 @@ bool tryBuildChartItem(const fs::path &folder,
 
     // Missing any required fixed file means this folder is not a valid chart package.
     if (!fs::exists(metadataPath) || !fs::is_regular_file(metadataPath)) {
-        if (failure) *failure = makeFailure(folder, ChartDetectionIssue::MissingMeta);
+        if (failure != nullptr) *failure = makeFailure(folder, ChartDetectionIssue::MissingMeta);
         return false;
     }
     if (!fs::exists(chartPath) || !fs::is_regular_file(chartPath)) {
-        if (failure) *failure = makeFailure(folder, ChartDetectionIssue::MissingChart);
+        if (failure != nullptr) *failure = makeFailure(folder, ChartDetectionIssue::MissingChart);
         return false;
     }
     if (!fs::exists(musicPath) || !fs::is_regular_file(musicPath)) {
-        if (failure) *failure = makeFailure(folder, ChartDetectionIssue::MissingMusic);
+        if (failure != nullptr) *failure = makeFailure(folder, ChartDetectionIssue::MissingMusic);
         return false;
     }
 
@@ -178,7 +170,7 @@ bool tryBuildChartItem(const fs::path &folder,
         ErrorNotifier::notify("ChartCatalogService::tryBuildChartItem",
                               I18nService::instance().get("error.metadata_file_open_failed") + ": " +
                                   metadataPath.string());
-        if (failure) {
+        if (failure != nullptr) {
             *failure = makeFailure(folder, ChartDetectionIssue::MetadataOpenFailed);
         }
         return false;
@@ -190,11 +182,11 @@ bool tryBuildChartItem(const fs::path &folder,
     Chart chart = Chart::deserializeString(ss.str());
     // New rule: folder name must match metadata id; mismatches are ignored.
     if (chart.getID().empty()) {
-        if (failure) *failure = makeFailure(folder, ChartDetectionIssue::MissingID);
+        if (failure != nullptr) *failure = makeFailure(folder, ChartDetectionIssue::MissingID);
         return false;
     }
     if (chart.getID() != folder.filename().string()) {
-        if (failure) {
+        if (failure != nullptr) {
             *failure = makeFailure(folder, ChartDetectionIssue::FolderIDMismatch, chart.getID());
         }
         return false;
@@ -226,7 +218,7 @@ double singleChartEvaluation(const float difficulty, const float accuracy) {
 std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
         const ChartCatalogMap &catalog,
         const std::string &uid) {
-    enum class AchievementTier { None = 0, FC = 1, AP = 2, ULT = 3 };
+    enum class AchievementTier : uint8_t { None = 0, FC = 1, AP = 2, ULT = 3 };
 
     auto currentTier = [](const ChartPlayStats &stats) {
         if (stats.hasULT) return AchievementTier::ULT;
@@ -296,7 +288,7 @@ std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
             try {
                 noteCount = static_cast<uint32_t>(std::stoul(fields.at(noteCountIdx)));
                 hasNoteCount = (noteCount > 0);
-            } catch (...) {}
+            } catch (...) { /* best-effort parse; skip record field on failure */ }
         }
 
         bool recordFC = false;
@@ -304,7 +296,7 @@ std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
             try {
                 const auto maxCombo = static_cast<uint32_t>(std::stoul(fields.at(maxComboIdx)));
                 recordFC = (maxCombo == noteCount);
-            } catch (...) {}
+            } catch (...) { /* best-effort parse; skip record field on failure */ }
         }
 
         bool recordAP = false;
@@ -312,7 +304,7 @@ std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
             try {
                 const auto perfectCount = static_cast<uint32_t>(std::stoul(fields.at(perfectIdx)));
                 recordAP = (perfectCount == noteCount);
-            } catch (...) {}
+            } catch (...) { /* best-effort parse; skip record field on failure */ }
         }
 
         bool recordULT = false;
@@ -321,7 +313,7 @@ std::map<std::string, ChartPlayStats> aggregateStatsFromCatalog(
                 const auto early = static_cast<uint32_t>(std::stoul(fields.at(earlyIdx)));
                 const auto late  = static_cast<uint32_t>(std::stoul(fields.at(lateIdx)));
                 recordULT = (early == 0 && late == 0);
-            } catch (...) {}
+            } catch (...) { /* best-effort parse; skip record field on failure */ }
         }
 
         AchievementTier recordTier = AchievementTier::None;
@@ -359,7 +351,7 @@ std::vector<PlayableNoteConflict> ChartCatalogService::checkChartCompliance(cons
         return conflicts;
     }
 
-    std::map<LaneTimeKey, PlayableEventType> events;
+    std::unordered_map<uint64_t, PlayableEventType> events;
     std::string line;
     while (std::getline(chartFile, line)) {
         if (line == "t4kce") break;
@@ -400,7 +392,7 @@ std::vector<PlayableNoteConflict> ChartCatalogService::checkChartCompliance(cons
 ChartCatalogMap ChartCatalogService::loadCatalogForUID(const std::string &chartsRoot,
                                                        const std::string &uid,
                                                        std::vector<ChartDetectionFailure> *failures) {
-    if (failures) failures->clear();
+    if (failures != nullptr) failures->clear();
 
     ChartCatalogMap items;
     const fs::path root(chartsRoot);
@@ -417,8 +409,8 @@ ChartCatalogMap ChartCatalogService::loadCatalogForUID(const std::string &charts
 
         ChartCatalogEntry item;
         ChartDetectionFailure failure;
-        if (!tryBuildChartItem(entry.path(), item, failures ? &failure : nullptr)) {
-            if (failures) failures->push_back(std::move(failure));
+        if (!tryBuildChartItem(entry.path(), item, failures != nullptr ? &failure : nullptr)) {
+            if (failures != nullptr) failures->push_back(std::move(failure));
             continue;
         }
 
@@ -456,17 +448,17 @@ std::vector<std::string> ChartCatalogService::sortCatalogKeys(const ChartCatalog
 
     if (key == ChartListSortKey::DisplayName) {
         // Precompute lowercase names once to avoid repeated allocation per comparison.
-        std::map<std::string, std::string> lowerNames;
+        std::unordered_map<std::string, std::string> lowerNames;
         for (const auto &k : keys) {
             lowerNames[k] = toLower(items.at(k).chart.getDisplayName());
         }
-        std::stable_sort(keys.begin(), keys.end(), [&](const std::string &a, const std::string &b) {
+        std::ranges::stable_sort(keys, [&](const std::string &a, const std::string &b) {
             return asc ? (lowerNames[a] < lowerNames[b]) : (lowerNames[a] > lowerNames[b]);
         });
         return keys;
     }
 
-    std::stable_sort(keys.begin(), keys.end(), [&](const std::string &lhsID, const std::string &rhsID) {
+    std::ranges::stable_sort(keys, [&](const std::string &lhsID, const std::string &rhsID) {
         const auto &a = items.at(lhsID);
         const auto &b = items.at(rhsID);
         switch (key) {
@@ -481,4 +473,3 @@ std::vector<std::string> ChartCatalogService::sortCatalogKeys(const ChartCatalog
     });
     return keys;
 }
-

@@ -85,4 +85,3 @@ private:
     uint32_t noteCount_ = 0;
     uint64_t maxScore_  = 0;
 };
-

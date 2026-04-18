@@ -59,5 +59,3 @@ private:
     // Parses 2 hex chars (uint8 field) from string offset.
     static uint8_t parseHexField2(const std::string &str, int start);
 };
-
-

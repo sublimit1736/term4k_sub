@@ -15,7 +15,7 @@ std::size_t PrefixTrie::commonPrefixLength(const std::string &a, const std::stri
 std::string PrefixTrie::normalize(const std::string &text) {
     std::string out;
     out.reserve(text.size());
-    for (unsigned char ch: text){
+    for (const unsigned char ch: text){
         out.push_back(static_cast<char>(std::tolower(ch)));
     }
     return out;
@@ -29,9 +29,9 @@ void PrefixTrie::collectIndices(const Node* node, std::vector<std::size_t> &out)
     }
 }
 
-const PrefixTrie::Node *PrefixTrie::descendFrom(const Node* startNode, const std::string &suffix) const {
+const PrefixTrie::Node *PrefixTrie::descendFrom(const Node* startNode, const std::string &suffix) {
     const Node* node = startNode;
-    for (char ch: suffix){
+    for (const char ch: suffix){
         if (node == nullptr) return nullptr;
         auto it = node->children.find(ch);
         if (it == node->children.end()) return nullptr;
@@ -47,7 +47,7 @@ const PrefixTrie::Node *PrefixTrie::findNodeByPrefix(const std::string &normaliz
 void PrefixTrie::insert(const std::string &word, std::size_t index) {
     const std::string key = normalize(word);
     Node* node            = &rootNode;
-    for (char ch: key){
+    for (const char ch: key){
         auto &child = node->children[ch];
         if (!child){
             child         = std::make_unique<Node>();
@@ -60,8 +60,7 @@ void PrefixTrie::insert(const std::string &word, std::size_t index) {
 
 std::vector<std::size_t> PrefixTrie::searchByPrefix(const std::string &prefix) const {
     SearchCursor cursor;
-    const auto result = searchByPrefixIncremental(prefix, cursor);
-    return result;
+    return searchByPrefixIncremental(prefix, cursor);
 }
 
 std::vector<std::size_t> PrefixTrie::searchByPrefixIncremental(const std::string &prefix, SearchCursor &cursor) const {
@@ -107,8 +106,9 @@ std::vector<std::size_t> PrefixTrie::searchByPrefixIncremental(const std::string
 
     std::vector<std::size_t> result;
     collectIndices(node, result);
-    std::sort(result.begin(), result.end());
-    result.erase(std::unique(result.begin(), result.end()), result.end());
+    std::ranges::sort(result);
+    const auto [first, last] = std::ranges::unique(result);
+    result.erase(first, last);
     return result;
 }
 

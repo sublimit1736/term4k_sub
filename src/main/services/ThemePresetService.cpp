@@ -17,7 +17,7 @@ std::string ensureTrailingSlash(std::string path) {
 
 std::string getenvOr(const char *var, const std::string &fallback) {
     const char *value = std::getenv(var);
-    return (value && value[0] != '\0') ? std::string(value) : fallback;
+    return (value != nullptr && value[0] != '\0') ? std::string(value) : fallback;
 }
 
 std::string trim(const std::string &value) {
@@ -57,7 +57,7 @@ std::string ThemePresetService::systemThemesDir() {
 
     const std::string home = getenvOr("HOME", ".");
     const std::string xdgData = getenvOr("XDG_DATA_HOME", home + "/.local/share");
-    const std::string localSystemPath = ensureTrailingSlash(xdgData + "/term4k/themes");
+    std::string localSystemPath = ensureTrailingSlash(xdgData + "/term4k/themes");
 
     std::error_code ec;
     if (fs::exists(localSystemPath, ec) && fs::is_directory(localSystemPath, ec)) return localSystemPath;
@@ -74,7 +74,7 @@ std::string ThemePresetService::normalizeThemeId(const std::string &themeId) {
 
     std::string out;
     out.reserve(normalized.size());
-    for (char ch : normalized) {
+    for (const char ch : normalized) {
         const bool isAlnum = std::isalnum(static_cast<unsigned char>(ch)) != 0;
         if (isAlnum || ch == '_' || ch == '-') out.push_back(ch);
     }
@@ -115,8 +115,9 @@ std::vector<std::string> ThemePresetService::listThemeIds() {
         }
     }
 
-    std::sort(ids.begin(), ids.end());
-    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    std::ranges::sort(ids);
+    const auto [first, last] = std::ranges::unique(ids);
+    ids.erase(first, last);
     return ids;
 }
 
@@ -201,4 +202,3 @@ void ThemePresetService::clearThemeDirOverridesForTesting() {
     userDirOverride.clear();
     systemDirOverride.clear();
 }
-

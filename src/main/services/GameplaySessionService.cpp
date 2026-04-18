@@ -28,7 +28,7 @@ bool GameplaySessionService::openChart(const std::string &chartFilePath, const u
 
     for (uint8_t lane = 0; lane < keyCount && lane < RuntimeConfigs::keyBindings.size(); ++lane){
         const uint8_t key = RuntimeConfigs::keyBindings[lane];
-        if (keyToLane_.find(key) == keyToLane_.end()){
+        if (!keyToLane_.contains(key)){
             keyToLane_[key] = lane;
         }
     }
@@ -71,8 +71,8 @@ void GameplaySessionService::advanceChartTimeMs(const uint32_t chartTimeMs) {
     clock_.updateChartTime(chartTimeMs);
     loadWindowAllLanes();
 
-    for (uint8_t lane = 0; lane < lanes_.size(); ++lane){
-        autoJudgeByTime(lane);
+    for (std::size_t lane = 0; lane < lanes_.size(); ++lane){
+        autoJudgeByTime(static_cast<uint8_t>(lane));
     }
 
     settleIfReady();
@@ -233,8 +233,8 @@ void GameplaySessionService::loadWindowForLane(const uint8_t lane) {
 }
 
 void GameplaySessionService::loadWindowAllLanes() {
-    for (uint8_t lane = 0; lane < lanes_.size(); ++lane){
-        loadWindowForLane(lane);
+    for (std::size_t lane = 0; lane < lanes_.size(); ++lane){
+        loadWindowForLane(static_cast<uint8_t>(lane));
     }
 }
 
@@ -285,15 +285,12 @@ void GameplaySessionService::cleanupResolvedFront(const uint8_t lane) {
 
     while (state.pendingHoldPos < state.holdLoadPos){
         const std::size_t idx = state.holdOrder[state.pendingHoldPos];
-        if (!holds_[idx].resolved && !holds_[idx].headPerfect) break;
-        if (!holds_[idx].resolved && holds_[idx].headPerfect) break;
+        if (!holds_[idx].resolved) break;
         ++state.pendingHoldPos;
     }
 
-    state.activeHoldIndices.erase(
-                                  std::remove_if(state.activeHoldIndices.begin(), state.activeHoldIndices.end(),
-                                                 [&](const std::size_t idx) { return holds_[idx].resolved; }),
-                                  state.activeHoldIndices.end());
+    std::erase_if(state.activeHoldIndices,
+                  [&](const std::size_t idx) { return holds_[idx].resolved; });
 }
 
 void GameplaySessionService::autoJudgeByTime(const uint8_t lane) {
@@ -364,10 +361,10 @@ void GameplaySessionService::rebuildLaneOrders() {
     }
 
     for (auto &lane: lanes_){
-        std::sort(lane.tapOrder.begin(), lane.tapOrder.end(), [&](const std::size_t lhs, const std::size_t rhs) {
+        std::ranges::sort(lane.tapOrder, [&](const std::size_t lhs, const std::size_t rhs) {
             return taps_[lhs].timeMs<taps_[rhs].timeMs;
         });
-        std::sort(lane.holdOrder.begin(), lane.holdOrder.end(), [&](const std::size_t lhs, const std::size_t rhs) {
+        std::ranges::sort(lane.holdOrder, [&](const std::size_t lhs, const std::size_t rhs) {
             return holds_[lhs].headTimeMs<holds_[rhs].headTimeMs;
         });
     }

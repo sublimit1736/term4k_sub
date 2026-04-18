@@ -8,12 +8,12 @@
 namespace {
     std::string trim(std::string value) {
         std::size_t begin = 0;
-        while (begin < value.size() && std::isspace(static_cast<unsigned char>(value[begin]))){
+        while (begin < value.size() && std::isspace(static_cast<unsigned char>(value[begin])) != 0){
             ++begin;
         }
 
         std::size_t end = value.size();
-        while (end > begin && std::isspace(static_cast<unsigned char>(value[end - 1]))){
+        while (end > begin && std::isspace(static_cast<unsigned char>(value[end - 1])) != 0){
             --end;
         }
         return value.substr(begin, end - begin);

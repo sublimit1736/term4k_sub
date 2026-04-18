@@ -9,6 +9,7 @@
 #include "ui/MessageOverlay.h"
 #include "ui/TransitionBackdrop.h"
 #include "ui/UIColors.h"
+#include "ui/ThemeAdapter.h"
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <algorithm>
@@ -198,9 +199,9 @@ namespace ui {
                     const auto &verified        = state->adminStats.playerStats(AdminRecordScope::VerifiedOnly);
                     const auto &all             = state->adminStats.playerStats(AdminRecordScope::AllRecords);
                     std::size_t verifiedRecords = 0;
-                    for (const auto &item: verified) verifiedRecords += item.second.records.order.size();
+                    for (const auto &[_, stats]: verified) verifiedRecords += stats.records.order.size();
                     std::size_t allRecords = 0;
-                    for (const auto &item: all) allRecords += item.second.records.order.size();
+                    for (const auto &[_, stats]: all) allRecords += stats.records.order.size();
                     body = vbox({
                                     text(tr("ui.user_info.admin_badge")) | bold | color(toColor(state->palette.accentPrimary)),
                                     separator(),
@@ -410,4 +411,3 @@ namespace ui {
         return app;
     }
 } // namespace ui
-

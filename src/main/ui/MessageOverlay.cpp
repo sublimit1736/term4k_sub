@@ -1,6 +1,6 @@
 #include "ui/MessageOverlay.h"
 
-#include "ui/ThemeAdapter.h"
+#include "ui/UIColors.h"
 
 #include <deque>
 #include <mutex>
@@ -83,4 +83,3 @@ ftxui::Element MessageOverlay::render(const ThemePalette &palette) {
 }
 
 } // namespace ui
-

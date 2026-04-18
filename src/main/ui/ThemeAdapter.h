@@ -47,9 +47,4 @@ private:
     static Rgb quantizeTo256(const Rgb &rgb);
 };
 
-// Shared color helpers used by UI renderers.
-ftxui::Color toColor(const Rgb &rgb);
-ftxui::Color highContrastOn(const Rgb &bg);
-
 } // namespace ui
-

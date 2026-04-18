@@ -12,4 +12,3 @@ public:
 
     static bool saveDraftForUser(const SettingsDraft &draft, const std::string &username);
 };
-

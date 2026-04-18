@@ -8,7 +8,7 @@
 #include "services/SettingsService.h"
 #include "ui/MessageOverlay.h"
 #include "ui/TransitionBackdrop.h"
-#include "ui/ThemeAdapter.h"
+#include "ui/UIColors.h"
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
@@ -170,7 +170,7 @@ ftxui::Component SettingsUI::component(
     };
 
     auto cycleTheme = [state](const int delta) {
-        auto it = std::find(state->themeIds.begin(), state->themeIds.end(), state->draft.getTheme());
+        auto it = std::ranges::find(state->themeIds, state->draft.getTheme());
         int index = (it == state->themeIds.end()) ? 0 : static_cast<int>(std::distance(state->themeIds.begin(), it));
         index = (index + delta + static_cast<int>(state->themeIds.size())) % static_cast<int>(state->themeIds.size());
         state->draft.setTheme(state->themeIds[static_cast<std::size_t>(index)]);
@@ -508,5 +508,3 @@ ftxui::Component SettingsUI::component(
 }
 
 } // namespace ui
-
-

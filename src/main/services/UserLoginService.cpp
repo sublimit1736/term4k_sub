@@ -24,7 +24,7 @@ namespace {
     }
 
     bool isIllegalUsernameCharacter(const unsigned char ch) {
-        return std::iscntrl(ch) || std::isspace(ch) || ch == '/' || ch == '\\' || ch == ':' || ch == '*' ||
+        return std::iscntrl(ch) != 0 || std::isspace(ch) != 0 || ch == '/' || ch == '\\' || ch == ':' || ch == '*' ||
                ch == '?' || ch == '"' || ch == '<' || ch == '>' || ch == '|';
     }
 
@@ -34,13 +34,13 @@ namespace {
             return false;
         }
 
-        for (char ch: username){
-            if (isIllegalUsernameCharacter(static_cast<unsigned char>(ch))){
-                if (outErrorMessage != nullptr){
-                    *outErrorMessage = I18nService::instance().get("error.username_illegal_chars");
-                }
-                return false;
+        if (!std::ranges::all_of(username, [](char ch) {
+            return !isIllegalUsernameCharacter(static_cast<unsigned char>(ch));
+        })){
+            if (outErrorMessage != nullptr){
+                *outErrorMessage = I18nService::instance().get("error.username_illegal_chars");
             }
+            return false;
         }
 
         return true;

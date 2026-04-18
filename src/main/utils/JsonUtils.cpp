@@ -11,12 +11,12 @@ void JsonUtils::set(const std::string &key, const std::string &value) {
 }
 
 std::string JsonUtils::get(const std::string &key, const std::string &defaultValue) const {
-    auto it = entries.find(key);
+    const auto it = entries.find(key);
     return (it != entries.end()) ? it->second : defaultValue;
 }
 
 bool JsonUtils::has(const std::string &key) const {
-    return entries.find(key) != entries.end();
+    return entries.contains(key);
 }
 
 const std::map<std::string, std::string> &JsonUtils::values() const {
@@ -24,7 +24,7 @@ const std::map<std::string, std::string> &JsonUtils::values() const {
 }
 
 void JsonUtils::skipWhitespace(const std::string &s, std::size_t &pos) {
-    while (pos < s.size() && std::isspace(static_cast<unsigned char>(s[pos]))) ++pos;
+    while (pos < s.size() && std::isspace(static_cast<unsigned char>(s[pos])) != 0) ++pos;
 }
 
 bool JsonUtils::parseJsonString(const std::string &s, std::size_t &pos, std::string &out) {
@@ -113,7 +113,7 @@ bool JsonUtils::loadFlatObjectFromFile(const std::string &filePath, JsonUtils &o
 std::string JsonUtils::escapeJsonString(const std::string &s) {
     std::string out;
     out.reserve(s.size());
-    for (char ch: s){
+    for (const char ch: s){
         switch (ch){
             case '"': out += "\\\"";
                 break;
@@ -135,10 +135,10 @@ std::string JsonUtils::escapeJsonString(const std::string &s) {
 std::string JsonUtils::stringifyFlatObject(const JsonUtils &json) {
     std::string out = "{";
     bool first      = true;
-    for (const auto &kv: json.values()){
+    for (const auto &[key, value]: json.values()){
         if (!first) out += ",";
         first = false;
-        out   += "\"" + escapeJsonString(kv.first) + "\":\"" + escapeJsonString(kv.second) + "\"";
+        out   += "\"" + escapeJsonString(key) + "\":\"" + escapeJsonString(value) + "\"";
     }
     out += "}";
     return out;

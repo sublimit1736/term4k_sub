@@ -110,8 +110,8 @@ namespace ui {
         struct ChartListLoadSession {
             std::atomic<std::size_t> chartsLoaded{0};
             std::atomic<std::size_t> recordsLoaded{0};
-            std::size_t totalChartFiles = 0;
-            std::size_t totalRecordLines = 0;
+            std::atomic<std::size_t> totalChartFiles{0};
+            std::atomic<std::size_t> totalRecordLines{0};
             std::mutex loadMutex;
             std::vector<std::string> progressiveIDs;
             std::optional<ChartLoadResult> pendingChartResult;
@@ -287,7 +287,7 @@ namespace ui {
             snapshot.hasSelection = true;
             snapshot.index = selectedIndex;
             snapshot.chartId = ids[selectedIndex];
-            snapshot.hasEntry = chartList.items().find(snapshot.chartId) != chartList.items().end();
+            snapshot.hasEntry = chartList.items().contains(snapshot.chartId);
             return snapshot;
         }
 
@@ -467,9 +467,15 @@ namespace ui {
                     const std::size_t loaded = std::min(chartsLoaded, totalChartFiles) +
                                                std::min(recordsLoaded, totalRecordLines);
                     const std::size_t total = totalChartFiles + totalRecordLines;
-                    const int percent = total == 0 ? 100 : static_cast<int>((loaded * 100) / total);
-                    const std::string progressText =
-                        buildProgressBar(percent) + "  " + std::to_string(percent) + "%";
+                    std::string progressText;
+                    if (total == 0) {
+                        // Totals not yet known — show discovered count with an empty bar.
+                        progressText = buildProgressBar(0) + "  " +
+                                       std::to_string(chartsLoaded + recordsLoaded);
+                    } else {
+                        const int percent = static_cast<int>((loaded * 100) / total);
+                        progressText = buildProgressBar(percent) + "  " + std::to_string(percent) + "%";
+                    }
 
                     bottomBar = hbox({
                         filler(),
@@ -764,9 +770,9 @@ namespace ui {
                 session.loadCompleted,
                 loadFailureMessage,
                 session.chartsLoaded.load(),
-                session.totalChartFiles,
+                session.totalChartFiles.load(),
                 session.recordsLoaded.load(),
-                session.totalRecordLines,
+                session.totalRecordLines.load(),
                 selectedText,
                 searchModeText + " | " + sortTextWithArrow + " | " + uiState.actionStatus);
 
@@ -844,9 +850,9 @@ namespace ui {
 
             std::vector<LeaderboardEntry> all;
             all.reserve(bestByUid.size());
-            for (const auto &it: bestByUid) all.push_back(it.second);
+            for (const auto &[_, entry]: bestByUid) all.push_back(entry);
 
-            std::stable_sort(all.begin(), all.end(), [&](const LeaderboardEntry &a, const LeaderboardEntry &b) {
+            std::ranges::stable_sort(all, [&](const LeaderboardEntry &a, const LeaderboardEntry &b) {
                 if (byAccuracy){
                     if (a.accuracy != b.accuracy) return a.accuracy > b.accuracy;
                     if (a.score != b.score) return a.score > b.score;
@@ -1237,7 +1243,6 @@ namespace ui {
             ChartListLoadSession &session;
             ftxui::ScreenInteractive &screen;
             const std::string &chartsRoot;
-            const std::string &dataDir;
             const std::string &statsUID;
             std::thread &chartLoader;
             std::thread &recordLoader;
@@ -1254,6 +1259,10 @@ namespace ui {
                     std::vector<std::string> ids =
                         discoverChartIDs(chartsRoot, session->chartsLoaded, screen, session->keepRunning);
                     if (!session->keepRunning.load(std::memory_order_relaxed)) return;
+
+                    // Set the total now that discovery is complete (avoids a separate pre-scan).
+                    session->totalChartFiles.store(ids.size(), std::memory_order_relaxed);
+                    session->chartsLoaded.store(ids.size(), std::memory_order_relaxed);
 
                     {
                         std::scoped_lock lock(session->loadMutex);
@@ -1297,7 +1306,10 @@ namespace ui {
             return std::thread([session = &ctx.session, screen = &ctx.screen] {
                 try {
                     auto records = AuthenticatedUserService::loadAllVerifiedRecords();
-                    session->recordsLoaded = session->totalRecordLines;
+                    // Set totals now that loading is complete (avoids a separate pre-read of proof.db).
+                    const std::size_t count = records.size();
+                    session->totalRecordLines.store(count, std::memory_order_relaxed);
+                    session->recordsLoaded.store(count, std::memory_order_relaxed);
                     {
                         std::scoped_lock lock(session->loadMutex);
                         session->pendingRecords = std::move(records);
@@ -1321,9 +1333,6 @@ namespace ui {
         }
 
         void startChartListLoadSession(ChartListLoadStartContext &ctx) {
-            ctx.session.totalChartFiles = countChartFiles(ctx.chartsRoot);
-            ctx.session.totalRecordLines = countVerifiedRecordLines(ctx.dataDir);
-
             std::thread startedChartLoader;
             std::thread startedRecordLoader;
             try {
@@ -1423,7 +1432,6 @@ namespace ui {
             state->session,
             screen,
             AppDirs::chartsDir(),
-            AppDirs::dataDir(),
             state->statsUID,
             state->chartLoader,
             state->recordLoader,
@@ -1439,12 +1447,14 @@ namespace ui {
             if (onRoute) onRoute(UIScene::StartMenu);
         };
 
-        auto requestExit = [state, routeToStartMenu, &screen] {
+        auto requestExit = [state, routeToStartMenu] {
             bool expected = false;
             if (!state->exitRequested.compare_exchange_strong(expected, true)) return;
             state->session.keepRunning = false;
             routeToStartMenu();
-            screen.ExitLoopClosure()();
+            // routeToStartMenu() posts Event::Custom which drives the deferred
+            // scene-swap in UIBus — no need to call ExitLoopClosure() here,
+            // which in the single-loop design would terminate the global loop.
         };
 
         InputOption searchInputOption;
@@ -1503,4 +1513,3 @@ namespace ui {
         return app;
     }
 } // namespace ui
-

@@ -27,6 +27,5 @@ private:
     std::string password;
 };
 
-const User Guest = User(0, "Guest", "");
-const User Admin = User(1, "Admin", "");
-
+inline const User Guest = User(0, "Guest", "");
+inline const User Admin = User(1, "Admin", "");

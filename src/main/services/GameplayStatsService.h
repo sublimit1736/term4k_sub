@@ -40,5 +40,3 @@ private:
     uint32_t chartNoteCount_ = 0;
     uint64_t chartMaxScore_  = 0;
 };
-
-

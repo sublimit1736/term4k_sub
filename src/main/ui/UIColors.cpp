@@ -14,4 +14,3 @@ ftxui::Color highContrastOn(const Rgb &bg) {
 }
 
 } // namespace ui
-

@@ -104,7 +104,7 @@ namespace {
             rows.push_back({key, parsed.timestamp});
         }
 
-        std::stable_sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) {
+        std::ranges::stable_sort(rows, [](const Row &a, const Row &b) {
             return a.timestamp > b.timestamp;
         });
         out.order.reserve(rows.size());
@@ -113,12 +113,6 @@ namespace {
         }
         return out;
     }
-}
-
-void AuthenticatedUserService::setCurrentUser(const User &user, const bool isAdmin, const bool isGuest) {
-    currentUserSession = user;
-    isAdminSession     = isAdmin;
-    isGuestSession     = isGuest;
 }
 
 bool AuthenticatedUserService::syncFromUserLoginService() {

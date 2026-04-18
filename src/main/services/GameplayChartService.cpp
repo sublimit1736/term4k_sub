@@ -2,7 +2,6 @@
 
 #include "config/AppDirs.h"
 #include "config/RuntimeConfigs.h"
-#include "services/ChartCatalogService.h"
 #include "services/ChartIOService.h"
 #include "services/I18nService.h"
 #include "utils/ErrorNotifier.h"
@@ -11,24 +10,14 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
-#include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace {
-    enum class PlayableType { Tap, HoldHead, HoldTail, };
+    enum class PlayableType : uint8_t { Tap, HoldHead, HoldTail, };
 
-    enum class ConflictAction { KeepExisting, KeepIncoming, DropBoth, };
-
-    struct LaneTimeKey {
-        uint8_t lane    = 0;
-        uint32_t timeMs = 0;
-
-        bool operator<(const LaneTimeKey &other) const {
-            if (timeMs != other.timeMs) return timeMs < other.timeMs;
-            return lane < other.lane;
-        }
-    };
+    enum class ConflictAction : uint8_t { KeepExisting, KeepIncoming, DropBoth, };
 
     struct RawTapNote {
         uint8_t lane    = 0;
@@ -113,7 +102,7 @@ namespace {
     }
 
     uint64_t calculateMaxScore(const uint32_t noteCount) {
-        const uint64_t n = static_cast<uint64_t>(noteCount);
+        const auto n = static_cast<uint64_t>(noteCount);
         return (n * n + 5ULL * n) / 2ULL;
     }
 
@@ -138,11 +127,12 @@ namespace {
     void upsertPlayableEvent(const uint8_t lane,
                              const uint32_t timeMs,
                              const EventRef incoming,
-                             std::map<LaneTimeKey, EventRef> &events,
+                             std::unordered_map<uint64_t, EventRef> &events,
                              std::vector<RawTapNote> &rawTaps,
                              std::vector<RawHoldNote> &rawHolds
         ) {
-        const LaneTimeKey key{lane, timeMs};
+        // Pack lane (8-bit) into high 32 bits and timeMs (32-bit) into low 32 bits.
+        const uint64_t key = (static_cast<uint64_t>(lane) << 32) | timeMs;
         const auto it = events.find(key);
         if (it == events.end()){
             events[key] = incoming;
@@ -177,8 +167,6 @@ bool GameplayChartService::parseChart(const std::string &chartFilePath,
     const std::string resolvedPath = resolveChartPath(chartFilePath);
     if (resolvedPath.empty()) return false;
 
-    ChartCatalogService::checkChartCompliance(resolvedPath, keyCount);
-
     std::ifstream chartFile(resolvedPath, std::ios::in);
     if (!chartFile.is_open()){
         ErrorNotifier::notify("GameplayInstance::openChart",
@@ -196,7 +184,7 @@ bool GameplayChartService::parseChart(const std::string &chartFilePath,
 
     std::vector<RawTapNote> rawTaps;
     std::vector<RawHoldNote> rawHolds;
-    std::map<LaneTimeKey, EventRef> events;
+    std::unordered_map<uint64_t, EventRef> events;
 
     std::string line;
     while (std::getline(chartFile, line)){

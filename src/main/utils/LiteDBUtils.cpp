@@ -124,12 +124,13 @@ std::vector<uint8_t> LiteDBUtils::aesEncrypt(const std::vector<uint8_t> &plainte
     }
 
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
-    if (!ctx) return {};
+    if (ctx == nullptr) return {};
 
     std::vector<uint8_t> out(16 + plaintext.size() + 16);
     std::copy(iv.begin(), iv.end(), out.begin());
 
-    int len = 0, finalLen = 0;
+    int len = 0;
+    int finalLen = 0;
     if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, key.data(), iv.data()) != 1 ||
         EVP_EncryptUpdate(ctx, out.data() + 16, &len,
                           plaintext.data(), static_cast<int>(plaintext.size())) != 1 ||
@@ -149,13 +150,14 @@ std::vector<uint8_t> LiteDBUtils::aesDecrypt(const std::vector<uint8_t> &ciphert
 
     const uint8_t* iv   = ciphertext.data();
     const uint8_t* data = ciphertext.data() + 16;
-    int dataLen         = static_cast<int>(ciphertext.size() - 16);
+    const int dataLen   = static_cast<int>(ciphertext.size() - 16);
 
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
-    if (!ctx) return {};
+    if (ctx == nullptr) return {};
 
     std::vector<uint8_t> out(dataLen + 16);
-    int len = 0, finalLen = 0;
+    int len = 0;
+    int finalLen = 0;
     if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, key.data(), iv) != 1 ||
         EVP_DecryptUpdate(ctx, out.data(), &len, data, dataLen) != 1 ||
         EVP_DecryptFinal_ex(ctx, out.data() + len, &finalLen) != 1){

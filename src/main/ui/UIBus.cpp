@@ -15,6 +15,7 @@
 
 #include <cassert>
 #include <functional>
+#include <optional>
 
 namespace ui {
 namespace {
@@ -49,41 +50,51 @@ ftxui::Component buildSceneComponent(const UIScene scene,
     std::abort();
 }
 
-UIScene runComponentScene(ftxui::ScreenInteractive &screen, const UIScene scene) {
-    UIScene next = UIScene::StartMenu;
-    auto component = buildSceneComponent(scene, screen, [&](const UIScene route) {
-        next = route;
-        screen.ExitLoopClosure()();
-    });
-    screen.Loop(component);
-    return next;
-}
-
-UIScene runScene(ftxui::ScreenInteractive &screen, const UIScene scene) {
-
-    if (!sceneUsesComponentLoop(scene)) {
-        return UIScene::Exit;
-    }
-
-    prepareCommon();
-    if (sceneNeedsDataDirs(scene)) {
-        prepareDataDirs();
-    }
-
-    return runComponentScene(screen, scene);
-}
-
 } // namespace
 
 int UIBus::run() {
     auto screen = ftxui::ScreenInteractive::Fullscreen();
-    UIScene scene = UIScene::StartMenu;
-    while (scene != UIScene::Exit) {
-        scene = runScene(screen, scene);
-    }
 
+    struct SceneHolder {
+        ftxui::Component        active;
+        std::optional<UIScene>  pending;
+    };
+    auto holder = std::make_shared<SceneHolder>();
+
+    std::function<void(UIScene)> onRoute = [holder, &screen](UIScene next) {
+        if (next == UIScene::Exit) {
+            screen.ExitLoopClosure()();
+            return;
+        }
+        if (!holder->pending) {
+            holder->pending = next;
+            screen.PostEvent(ftxui::Event::Custom);
+        }
+    };
+
+    prepareCommon();
+    holder->active = buildSceneComponent(UIScene::StartMenu, screen, onRoute);
+
+    auto app = ftxui::CatchEvent(
+        ftxui::Renderer([holder] {
+            return holder->active ? holder->active->Render()
+                                  : ftxui::text("") | ftxui::flex;
+        }),
+        [holder, &screen, &onRoute](ftxui::Event e) {
+            if (holder->pending && e == ftxui::Event::Custom) {
+                const UIScene next = *std::exchange(holder->pending, std::nullopt);
+                prepareCommon();
+                if (sceneNeedsDataDirs(next)) {
+                    prepareDataDirs();
+                }
+                holder->active = buildSceneComponent(next, screen, onRoute);
+                return true;
+            }
+            return holder->active ? holder->active->OnEvent(e) : false;
+        });
+
+    screen.Loop(app);
     return 0;
 }
 
 } // namespace ui
-

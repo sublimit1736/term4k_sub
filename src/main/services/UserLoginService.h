@@ -40,5 +40,3 @@ public:
     // Returns current user object; empty optional when not logged in.
     static std::optional<User> currentUser();
 };
-
-

@@ -48,5 +48,3 @@ bool SettingsService::saveDraftForUser(const SettingsDraft &draft, const std::st
     applyToRuntime(before);
     return false;
 }
-
-
