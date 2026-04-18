@@ -147,6 +147,8 @@ if (TERM4K_ENABLE_TUI)
             src/main/ui/ChartListUI.cpp
             src/main/ui/SettingsUI.cpp
             src/main/ui/UserStatUI.cpp
+            src/main/ui/GameplayUI.cpp
+            src/main/ui/GameplaySettlementUI.cpp
             src/main/ui/UIColors.cpp
             src/main/ui/UIBus.cpp
     )

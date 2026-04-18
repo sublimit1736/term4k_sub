@@ -1,5 +1,6 @@
 #pragma once
 #include "miniaudio.h"
+#include <atomic>
 #include <cstdint>
 
 // Audio playback service for loading and controlling songs.
@@ -30,6 +31,14 @@ public:
     // Stops playback and releases current audio resources.
     void stopSong();
 
+    // Returns the current playback position in milliseconds.
+    // Thread-safe: may be called from any thread.
+    uint32_t positionMs() const;
+
+    // Returns true once the audio stream has reached the end.
+    // Thread-safe: may be called from any thread.
+    bool isFinished() const;
+
 private:
     // miniaudio data callback (called from device thread).
     static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
@@ -43,4 +52,5 @@ private:
     bool initialized = false;
     bool paused      = false;
     float volume     = 1.0f;
+    std::atomic<bool> finished_{false};
 };

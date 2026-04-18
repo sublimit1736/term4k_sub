@@ -6,11 +6,23 @@
 
 // miniaudio callback (out-of-class): reads PCM frames from decoder into output buffer.
 void AudioService::data_callback(ma_device* pDevice, void* pOutput, const void* /*pInput*/, ma_uint32 frameCount) {
-    auto* pDecoder = static_cast<ma_decoder *>(pDevice->pUserData);
-    if (pDecoder == nullptr){
-        return;
+    auto* svc = static_cast<AudioService*>(pDevice->pUserData);
+    if (svc == nullptr) return;
+
+    ma_uint64 framesRead = 0;
+    const ma_result result = ma_data_source_read_pcm_frames(&svc->decoder, pOutput, frameCount, &framesRead);
+
+    if (framesRead < frameCount) {
+        const ma_uint32 frameSize = ma_get_bytes_per_frame(svc->decoder.outputFormat,
+                                                            svc->decoder.outputChannels);
+        auto* dst = static_cast<ma_uint8*>(pOutput) + framesRead * frameSize;
+        ma_silence_pcm_frames(dst, frameCount - framesRead, svc->decoder.outputFormat,
+                               svc->decoder.outputChannels);
     }
-    ma_data_source_read_pcm_frames(pDecoder, pOutput, frameCount, nullptr);
+
+    if (result == MA_AT_END || framesRead == 0) {
+        svc->finished_.store(true, std::memory_order_relaxed);
+    }
 }
 
 AudioService::AudioService() = default;
@@ -35,7 +47,7 @@ bool AudioService::loadSong(const char* filename) {
     config.playback.channels = decoder.outputChannels;
     config.sampleRate        = decoder.outputSampleRate;
     config.dataCallback      = data_callback;
-    config.pUserData         = &decoder;
+    config.pUserData         = this;
 
     if (ma_device_init(nullptr, &config, &device) != MA_SUCCESS){
         ErrorNotifier::notify(I18nService::instance().get("error.device_init_failed"));
@@ -48,6 +60,7 @@ bool AudioService::loadSong(const char* filename) {
 
     initialized = true;
     paused      = false;
+    finished_.store(false, std::memory_order_relaxed);
     return true;
 }
 
@@ -109,12 +122,26 @@ void AudioService::stopSong() {
     stop();
 }
 
-// Stops playback and releases audio resources.
 void AudioService::stop() {
     if (initialized){
         ma_device_uninit(&device);
         ma_decoder_uninit(&decoder);
         initialized = false;
         paused      = false;
+        finished_.store(false, std::memory_order_relaxed);
     }
+}
+
+uint32_t AudioService::positionMs() const {
+    if (!initialized) return 0;
+    ma_uint64 cursor = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    if (ma_data_source_get_cursor_in_pcm_frames(const_cast<ma_decoder*>(&decoder), &cursor) != MA_SUCCESS) return 0;
+    const ma_uint32 sampleRate = decoder.outputSampleRate;
+    if (sampleRate == 0) return 0;
+    return static_cast<uint32_t>((cursor * 1000ull) / sampleRate);
+}
+
+bool AudioService::isFinished() const {
+    return finished_.load(std::memory_order_relaxed);
 }
