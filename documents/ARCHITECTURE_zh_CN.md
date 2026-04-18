@@ -2,7 +2,7 @@
 
 [返回 README](../README.md) | [English Version](./ARCHITECTURE.md)
 
-本文档说明 `term4k` 当前各大模块的职责分工、结构联系、包含关系，以及 `src/main` 下各类（class/type）的作用。
+本文档说明 `term4k` 当前各大模块的职责分工、结构联系、包含关系，以及 `src` 下各类（class/type）的作用。
 
 > 说明范围：依据当前代码目录与 `CMakeLists.txt` 中 `TERM4K_CORE_SOURCES` / 公共头文件清单整理。
 
@@ -11,9 +11,9 @@
 项目整体采用分层结构：
 
 ```text
-Instance 场景编排层 (instances/*)
+Model 场景编排层 (models/*)
     -> Service 业务服务层 (services/*)
-        -> DAO + Config + Utils + Entities (dao/*, config/*, utils/*, entities/*)
+        -> DAO + Utils + Entities (dao/*, utils/*, entities/*)
 ```
 
 典型运行链路：
@@ -22,30 +22,29 @@ Instance 场景编排层 (instances/*)
 2. Service 执行业务逻辑与计算。
 3. DAO 负责持久化读写。
 4. Entities 作为跨层数据载体。
-5. Config/Utils 提供全局配置与通用能力。
+5. Utils 提供全局配置与通用能力。
 
 ## 2）目录包含关系与结构联系
 
 ```text
-src/main/
-  config/      全局路径与运行配置来源
+src/
   dao/         持久化存储访问
   entities/    数据模型与游戏快照
-  instances/   场景级编排对象
+  models/      场景级编排对象
   services/    核心业务逻辑
   utils/       通用工具组件
 ```
 
 模块关系重点：
 
-- `instances/*` 主要组合调用 `services/*`。
-- `services/*` 依赖 `entities/*`、`dao/*`、`utils/*`、`config/*`。
+- `models/*` 主要组合调用 `services/*`。
+- `services/*` 依赖 `entities/*`、`dao/*`、`utils/*`。
 - `dao/*` 使用 `utils/LiteDBUtils` 提供密钥、哈希、加密能力。
-- `config/AppDirs` 与 `config/RuntimeConfigs` 为多个服务提供路径与配置上下文。
+- `utils/AppDirs` 与 `utils/RuntimeConfigs` 为多个服务提供路径与配置上下文。
 
 ## 3）大模块职责
 
-- **游玩链路**：`GameplayInstance` + `GameplaySessionService` + `Gameplay*Service` + `Gameplay*Result` 负责谱面解析、时钟推进、判定计分与结算。
+- **游玩链路**：`GameplaySessionService` + `Gameplay*Service` + `Gameplay*Result` 负责谱面解析、时钟推进、判定计分与结算。
 - **曲目目录链路**：`ChartCatalogService` + `ChartListInstance` + `PrefixTrie` 负责曲目发现、排序、搜索与合规检查。
 - **账户会话链路**：`UserAccountsDAO`、`UserLoginService`、`AuthenticatedUserService`、`UserLoginInstance` 负责注册登录与会话身份状态。
 - **成绩记录链路**：`GameplayRecordService` 与 `ProofedRecordsDAO` 负责成绩入库与链式校验。
@@ -53,22 +52,14 @@ src/main/
 
 ## 4）各类作用（逐模块）
 
-### 4.1 config
-
-| 类 / 类型 | 作用 |
-|---|---|
-| `AppDirs` | 检测系统/用户模式并初始化、提供 data/charts/config/locale 目录路径。 |
-| `ChartEndTimingMode` | 结算时机枚举（`AfterAudioEnd` / `AfterChartEnd`）。 |
-| `RuntimeConfigs` | 全局运行时配置中心：默认值、按用户加载/保存、测试目录覆盖。 |
-
-### 4.2 dao
+### 4.1 dao
 
 | 类 | 作用 |
 |---|---|
 | `ProofedRecordsDAO` | 防篡改成绩数据库访问层，维护哈希链并提供按条件查询。 |
 | `UserAccountsDAO` | 用户账户文件访问层，负责加盐密码校验与 UID 查询。 |
 
-### 4.3 entities
+### 4.2 entities
 
 | 类 / 类型 | 作用 |
 |---|---|
@@ -84,7 +75,7 @@ src/main/
 | `Rating` | 历史成绩记录模型，支持序列化。 |
 | `User` | 用户模型（UID、用户名、密码）。 |
 
-### 4.4 instances
+### 4.3 models
 
 | 类 / 类型 | 作用 |
 |---|---|
@@ -95,11 +86,10 @@ src/main/
 | `AdminRecordScope` | 管理端记录范围枚举（仅验证 / 全量）。 |
 | `AdminPlayerStats` | 管理端按玩家聚合统计数据结构。 |
 | `AdminStatInstance` | 管理统计场景编排，支持按用户/曲目查询。 |
-| `GameplayInstance` | 游玩场景门面，封装 `GameplaySessionService`。 |
 | `GameplaySettlementInstance` | 结算场景状态机，保证结果保存触发一次。 |
 | `SettingsInstance` | 设置场景状态管理（已提交/草稿、脏检查、保存/丢弃）。 |
 
-### 4.5 services
+### 4.4 services
 
 | 类 / 类型 | 作用 |
 |---|---|
@@ -126,10 +116,13 @@ src/main/
 | `PlayableNoteConflict` | 可演奏音符冲突检查结果（同轨同刻冲突）。 |
 | `ChartCatalogService` | 曲目扫描、用户统计聚合、排序与合规检查服务。 |
 
-### 4.6 utils
+### 4.5 utils
 
 | 类 | 作用 |
 |---|---|
+| `AppDirs` | 检测系统/用户模式并初始化、提供 data/charts/config/locale 目录路径。 |
+| `ChartEndTimingMode` | 结算时机枚举（`AfterAudioEnd` / `AfterChartEnd`）。 |
+| `RuntimeConfigs` | 全局运行时配置中心：默认值、按用户加载/保存、测试目录覆盖。 |
 | `LiteDBUtils` | 轻量存储安全工具：密钥文件、哈希/慢哈希、AES、Hex 编解码。 |
 | `PrefixTrie` | 前缀检索索引，支持增量游标优化的实时搜索。 |
 | `JsonUtils` | 扁平 JSON 键值对象的解析/加载/序列化工具。 |
@@ -138,15 +131,15 @@ src/main/
 ## 5）典型依赖示例
 
 - **曲目浏览**：`ChartListInstance` -> `ChartCatalogService` + `PrefixTrie` + `Chart`。
-- **游玩流程**：`GameplayInstance` -> `GameplaySessionService` -> (`GameplayChartService`、`GameplayClockService`、`GameplayStatsService`) -> `GameplayFinalResult`。
+- **游玩流程**：`GameplaySessionService` -> (`GameplayChartService`、`GameplayClockService`、`GameplayStatsService`) -> `GameplayFinalResult`。
 - **结果保存**：`GameplaySettlementInstance` -> `GameplayRecordService` -> `AuthenticatedUserService` + `ProofedRecordsDAO`。
 - **登录流程**：`UserLoginInstance` -> `UserLoginService` -> `UserAccountsDAO`。
 - **设置流程**：`SettingsInstance` -> `SettingsService` -> `RuntimeConfigs`（并按用户持久化）。
 
 ## 6）当前架构特征
 
-- 层级边界较明确，依赖方向基本单向（Instance -> Service -> Data/Utility）。
-- 业务服务多为静态工具风格，`Instance` 负责场景状态承接。
+- 层级边界较明确，依赖方向基本单向（Model -> Service -> Data/Utility）。
+- 业务服务多为静态工具风格，`Model` 负责场景状态承接。
 - 领域逻辑与数据层已具备可扩展结构，可被 headless 程序或外部前端复用。
 
 

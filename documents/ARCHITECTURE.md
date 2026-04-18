@@ -2,7 +2,7 @@
 
 [Back to README](../README.md) | [中文版本](./ARCHITECTURE_zh_CN.md)
 
-This document explains the major modules in `term4k`, their relationships, containment hierarchy, and the role of each class currently exposed under `src/main`.
+This document explains the major modules in `term4k`, their relationships, containment hierarchy, and the role of each class currently exposed under `src`.
 
 > Scope note: this description is based on the current code layout and headers listed in `CMakeLists.txt` (`TERM4K_CORE_SOURCES` + public headers).
 
@@ -11,9 +11,9 @@ This document explains the major modules in `term4k`, their relationships, conta
 The project follows a layered style:
 
 ```text
-Instance layer (instances/*)
+Model layer (models/*)
     -> Service layer (services/*)
-        -> DAO + Config + Utils + Entities (dao/*, config/*, utils/*, entities/*)
+        -> DAO + Utils + Entities (dao/*, utils/*, entities/*)
 ```
 
 Typical runtime flow:
@@ -22,30 +22,29 @@ Typical runtime flow:
 2. Services execute use cases and calculations.
 3. DAOs read/write persistent data.
 4. Entities carry structured data across layers.
-5. Config/Utils provide shared runtime infrastructure.
+5. Utils provide shared runtime infrastructure.
 
 ## 2) Directory Containment and Relationships
 
 ```text
-src/main/
-  config/      global runtime path and setting sources
+src/
   dao/         persistent storage access
   entities/    data models and gameplay snapshots
-  instances/   scene-level orchestration objects
+  models/      scene-level orchestration objects
   services/    business logic and domain services
   utils/       cross-cutting helper components
 ```
 
 Cross-module relationship highlights:
 
-- `instances/*` classes mainly compose `services/*` classes.
-- `services/*` classes depend on `entities/*`, `dao/*`, `utils/*`, and `config/*`.
+- `models/*` classes mainly compose `services/*` classes.
+- `services/*` classes depend on `entities/*`, `dao/*`, and `utils/*`.
 - `dao/*` uses `utils/LiteDBUtils` for key management, hashing, and crypto helpers.
-- `config/AppDirs` and `config/RuntimeConfigs` provide global path/config state used by multiple services.
+- `utils/AppDirs` and `utils/RuntimeConfigs` provide global path/config state used by multiple services.
 
 ## 3) Major Module Responsibilities
 
-- **Gameplay pipeline**: `GameplayInstance` + `GameplaySessionService` + `Gameplay*Service` + `Gameplay*Result` entities manage chart parsing, timing, judgement, and final settlement.
+- **Gameplay pipeline**: `GameplaySessionService` + `Gameplay*Service` + `Gameplay*Result` entities manage chart parsing, timing, judgement, and final settlement.
 - **Chart catalog pipeline**: `ChartCatalogService` + `ChartListInstance` + `PrefixTrie` support chart discovery, sorting, search, and conflict checks.
 - **Account/session pipeline**: `UserAccountsDAO`, `UserLoginService`, `AuthenticatedUserService`, and `UserLoginInstance` manage register/login/session state.
 - **Record pipeline**: `GameplayRecordService` and `ProofedRecordsDAO` persist score results and verify chain integrity.
@@ -53,22 +52,14 @@ Cross-module relationship highlights:
 
 ## 4) Class-by-Class Responsibilities
 
-### 4.1 config
-
-| Class / Type | Responsibility |
-|---|---|
-| `AppDirs` | Detects runtime mode (system/user), initializes and exposes data/charts/config/locale directories. |
-| `ChartEndTimingMode` | Enum for gameplay completion timing strategy (`AfterAudioEnd` or `AfterChartEnd`). |
-| `RuntimeConfigs` | Global runtime settings hub: defaults, per-user load/save, and test-time config dir override. |
-
-### 4.2 dao
+### 4.1 dao
 
 | Class | Responsibility |
 |---|---|
 | `ProofedRecordsDAO` | Anti-tamper score record storage with hash-chain verification and filtered read APIs. |
 | `UserAccountsDAO` | User account file DAO with salted password hash verification and UID lookup. |
 
-### 4.3 entities
+### 4.2 entities
 
 | Class / Type | Responsibility |
 |---|---|
@@ -84,7 +75,7 @@ Cross-module relationship highlights:
 | `Rating` | Historical score/rating record model with serialization support. |
 | `User` | User identity model (UID, username, password). |
 
-### 4.4 instances
+### 4.3 models
 
 | Class / Type | Responsibility |
 |---|---|
@@ -95,11 +86,10 @@ Cross-module relationship highlights:
 | `AdminRecordScope` | Admin query scope enum (`VerifiedOnly`, `AllRecords`). |
 | `AdminPlayerStats` | Aggregated per-player record/stats container for admin views. |
 | `AdminStatInstance` | Admin statistics orchestration over verified/all record scopes with user/chart queries. |
-| `GameplayInstance` | Scene-level gameplay facade over `GameplaySessionService`. |
 | `GameplaySettlementInstance` | Settlement scene guard: one-time result capture and save trigger. |
 | `SettingsInstance` | Settings editing state manager (committed vs draft, save/discard, dirty checking). |
 
-### 4.5 services
+### 4.4 services
 
 | Class / Type | Responsibility |
 |---|---|
@@ -126,10 +116,13 @@ Cross-module relationship highlights:
 | `PlayableNoteConflict` | Compliance check result for same-lane/same-time playable-note conflicts. |
 | `ChartCatalogService` | Chart directory scanning, per-user catalog assembly, sorting, and compliance checks. |
 
-### 4.6 utils
+### 4.5 utils
 
 | Class | Responsibility |
 |---|---|
+| `AppDirs` | Detects runtime mode (system/user), initializes and exposes data/charts/config/locale directories. |
+| `ChartEndTimingMode` | Enum for gameplay completion timing strategy (`AfterAudioEnd` or `AfterChartEnd`). |
+| `RuntimeConfigs` | Global runtime settings hub: defaults, per-user load/save, and test-time config dir override. |
 | `LiteDBUtils` | Key file lifecycle, hash/slow-hash, AES helpers, and hex conversion for lightweight storage protection. |
 | `PrefixTrie` | Prefix-search index with incremental cursor optimization for interactive filtering. |
 | `JsonUtils` | Flat JSON key-value parse/load/stringify helper. |
@@ -138,15 +131,15 @@ Cross-module relationship highlights:
 ## 5) Practical Dependency Examples
 
 - **Chart browse**: `ChartListInstance` -> `ChartCatalogService` + `PrefixTrie` + `Chart`.
-- **Gameplay**: `GameplayInstance` -> `GameplaySessionService` -> (`GameplayChartService`, `GameplayClockService`, `GameplayStatsService`) -> `GameplayFinalResult`.
+- **Gameplay**: `GameplaySessionService` -> (`GameplayChartService`, `GameplayClockService`, `GameplayStatsService`) -> `GameplayFinalResult`.
 - **Result save**: `GameplaySettlementInstance` -> `GameplayRecordService` -> `AuthenticatedUserService` + `ProofedRecordsDAO`.
 - **Login**: `UserLoginInstance` -> `UserLoginService` -> `UserAccountsDAO`.
 - **Settings**: `SettingsInstance` -> `SettingsService` -> `RuntimeConfigs` (+ per-user persistence).
 
 ## 6) Current Architecture Characteristics
 
-- Layer boundaries are explicit and mostly one-way (Instance -> Service -> Data/Utility).
-- Most business services are static utility style; instance objects act as scene state holders.
+- Layer boundaries are explicit and mostly one-way (Model -> Service -> Data/Utility).
+- Most business services are static utility style; model objects act as scene state holders.
 - Domain/gameplay and persistence modules are structured for headless embedding and extension.
 
 

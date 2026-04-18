@@ -1,0 +1,413 @@
+#include "ui/UserStatUI.h"
+#include "utils/AppDirs.h"
+#include "utils/RuntimeConfigs.h"
+#include "dao/ProofedRecordsDAO.h"
+#include "models/AdminStatInstance.h"
+#include "models/UserStatInstance.h"
+#include "services/AuthenticatedUserService.h"
+#include "services/I18nService.h"
+#include "ui/MessageOverlay.h"
+#include "ui/TransitionBackdrop.h"
+#include "ui/UIColors.h"
+#include "ui/ThemeAdapter.h"
+#include <ftxui/component/component.hpp>
+#include <ftxui/component/screen_interactive.hpp>
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <ctime>
+#include <iomanip>
+#include <memory>
+#include <sstream>
+#include <string>
+
+namespace ui {
+    namespace {
+        ftxui::Element makeInfoRow(const ThemePalette &palette,
+                                   const std::string &label,
+                                   const std::string &value) {
+            using namespace ftxui;
+            return hbox({
+                            text(label) | color(toColor(palette.textMuted)),
+                            filler(),
+                            text(value) | bold,
+                        });
+        }
+
+        ftxui::Element makeTabLabel(const ThemePalette &palette,
+                                    const std::string &label,
+                                    const bool active) {
+            using namespace ftxui;
+            auto tab = text(" " + label + " ") | bold;
+            if (active) {
+                return tab | color(highContrastOn(palette.accentPrimary)) |
+                       bgcolor(toColor(palette.accentPrimary));
+            }
+            return tab | color(toColor(palette.textMuted));
+        }
+
+        std::string formatDouble(const double value) {
+            char buf[64];
+            std::snprintf(buf, sizeof(buf), "%.3f", value);
+            return {buf};
+        }
+
+        std::string formatFloat2(const float value) {
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "%.2f%%", value >= 0.0f && value <= 1.0f ? value * 100.0f : value);
+            return {buf};
+        }
+
+        std::string formatTimestamp(const uint32_t ts) {
+            const auto t = static_cast<std::time_t>(ts);
+            std::tm* tm_ptr     = std::localtime(&t);
+            if (!tm_ptr) return std::to_string(ts);
+            std::ostringstream oss;
+            oss << std::put_time(tm_ptr, "%Y-%m-%d %H:%M:%S");
+            return oss.str();
+        }
+
+        enum class AuthMode { Login, Register };
+    } // namespace
+
+
+    ftxui::Component UserStatUI::component(
+        std::function<void(UIScene)> onRoute
+        ) {
+        using namespace ftxui;
+
+        I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
+        auto tr = [](const std::string &key) { return I18nService::instance().get(key); };
+
+        AppDirs::init();
+        ProofedRecordsDAO::setDataDir(AppDirs::dataDir());
+
+        struct UserStatState {
+            ThemePalette palette;
+            bool isAdmin = false;
+            bool hasUser = false;
+            bool isGuest = true;
+            std::optional<User> current;
+            UserStatInstance userStats;
+            AdminStatInstance adminStats;
+            std::string username;
+            std::string password;
+            std::string authStatus;
+            int authFocus = 0;
+            AuthMode authMode = AuthMode::Login;
+            int activeTab = 0;
+            int historyScrollOffset = 0;
+            std::size_t historyDataRevision = 0;
+            int historyCacheOffset = -1;
+            std::size_t historyCacheRevision = static_cast<std::size_t>(-1);
+            Elements historyRowsCache;
+        };
+
+        auto state = std::make_shared<UserStatState>();
+        state->palette = ThemeAdapter::resolveFromRuntime();
+
+        auto refreshSession = [state] {
+            state->hasUser = AuthenticatedUserService::hasLoggedInUser();
+            state->isAdmin = AuthenticatedUserService::isAdminUser();
+            state->isGuest = AuthenticatedUserService::isGuestUser() || !state->hasUser;
+            state->current = AuthenticatedUserService::currentUser();
+
+            I18nService::instance().ensureLocaleLoaded(RuntimeConfigs::locale);
+            state->palette = ThemeAdapter::resolveFromRuntime();
+
+            if (state->isAdmin){
+                state->adminStats.refresh(AppDirs::chartsDir());
+            }
+            else if (!state->isGuest){
+                state->userStats.refresh(AppDirs::chartsDir());
+            }
+            state->historyScrollOffset = 0;
+            ++state->historyDataRevision;
+            state->historyCacheOffset = -1;
+        };
+        refreshSession();
+
+        InputOption userOpt;
+        userOpt.placeholder = tr("ui.login.username");
+        userOpt.transform = [state](const InputState &input) {
+            return input.element |
+                   color(toColor(input.is_placeholder ? state->palette.textMuted : state->palette.textPrimary)) |
+                   bgcolor(toColor(state->palette.surfacePanel));
+        };
+        auto usernameInput = Input(&state->username, userOpt);
+
+        InputOption passOpt;
+        passOpt.placeholder = tr("ui.login.password");
+        passOpt.password = true;
+        passOpt.transform = [state](const InputState &input) {
+            return input.element |
+                   color(toColor(input.is_placeholder ? state->palette.textMuted : state->palette.textPrimary)) |
+                   bgcolor(toColor(state->palette.surfacePanel));
+        };
+        auto passwordInput = Input(&state->password, passOpt);
+
+        auto authContainer = Container::Vertical({usernameInput, passwordInput});
+        auto root = Renderer(authContainer, [state, tr, usernameInput, passwordInput] {
+            if (state->isGuest){
+                const std::string title = state->authMode == AuthMode::Login
+                                              ? tr("ui.auth.login_title")
+                                              : tr("ui.auth.register_title");
+                Element userRow = window(text(" " + tr("ui.login.username") + " "), usernameInput->Render())
+                                  | size(WIDTH, GREATER_THAN, 30)
+                                  | color(toColor(state->authFocus == 0 ? state->palette.accentPrimary : state->palette.borderNormal))
+                                  | bgcolor(toColor(state->palette.surfacePanel));
+                Element passRow = window(text(" " + tr("ui.login.password") + " "), passwordInput->Render())
+                                  | size(WIDTH, GREATER_THAN, 30)
+                                  | color(toColor(state->authFocus == 1 ? state->palette.accentPrimary : state->palette.borderNormal))
+                                  | bgcolor(toColor(state->palette.surfacePanel));
+                Element statusLine = state->authStatus.empty()
+                                         ? text("")
+                                         : text(state->authStatus) | color(toColor(state->palette.textMuted));
+                Element guestBase = vbox({
+                                             filler(),
+                                             text(title) | bold | color(toColor(state->palette.accentPrimary)) | center,
+                                             text(tr("ui.user_info.auth_switch_hint")) |
+                                             color(toColor(state->palette.textMuted)) | center,
+                                             text(""),
+                                             hbox({filler(), vbox({userRow, passRow, statusLine}), filler()}),
+                                             filler(),
+                                         })
+                                    | bgcolor(toColor(state->palette.surfacePanel))
+                                    | color(toColor(state->palette.textPrimary))
+                                    | flex;
+                Element composed = dbox({guestBase, MessageOverlay::render(state->palette)});
+                TransitionBackdrop::update(composed);
+                return composed;
+            }
+
+            Element logoutBtn = text(" [ " + tr("ui.user_info.logout") + " ] ")
+                                | color(Color::Red)
+                                | bold;
+            Element tabBar = hbox({
+                                      makeTabLabel(state->palette, tr("ui.user_info.tab.info"), state->activeTab == 0),
+                                      text("  "),
+                                      makeTabLabel(state->palette, tr("ui.user_info.tab.history"), state->activeTab == 1),
+                                      filler(),
+                                      logoutBtn,
+                                      text("  "),
+                                       text(tr("ui.user_info.hint")) | color(toColor(state->palette.textMuted)),
+                                  });
+            Element body;
+            if (state->activeTab == 0){
+                // ---- Tab 0: Basic info ----
+                if (state->isAdmin){
+                    const auto &verified        = state->adminStats.playerStats(AdminRecordScope::VerifiedOnly);
+                    const auto &all             = state->adminStats.playerStats(AdminRecordScope::AllRecords);
+                    std::size_t verifiedRecords = 0;
+                    for (const auto &[_, stats]: verified) verifiedRecords += stats.records.order.size();
+                    std::size_t allRecords = 0;
+                    for (const auto &[_, stats]: all) allRecords += stats.records.order.size();
+                    body = vbox({
+                                    text(tr("ui.user_info.admin_badge")) | bold | color(toColor(state->palette.accentPrimary)),
+                                    separator(),
+                                    makeInfoRow(state->palette, tr("ui.user_info.admin_users_verified"), std::to_string(verified.size())),
+                                    makeInfoRow(state->palette, tr("ui.user_info.admin_records_verified"), std::to_string(verifiedRecords)),
+                                    makeInfoRow(state->palette, tr("ui.user_info.admin_users_all"), std::to_string(all.size())),
+                                    makeInfoRow(state->palette, tr("ui.user_info.admin_records_all"), std::to_string(allRecords)),
+                                }) | color(toColor(state->palette.textPrimary));
+                }
+                else{
+                    const std::string userName = state->current.has_value()
+                                                     ? state->current->getUsername()
+                                                     : tr("ui.login.user_unknown");
+                    const std::string uid = state->current.has_value() ? std::to_string(state->current->getUID()) : "-";
+                    const auto &records   = state->userStats.records();
+                    body                  = vbox({
+                                                     makeInfoRow(state->palette, tr("ui.user_info.username"), userName),
+                                                     makeInfoRow(state->palette, tr("ui.user_info.uid"), uid),
+                                                     makeInfoRow(state->palette, tr("ui.user_info.rating"),
+                                                                 formatDouble(state->userStats.rating())),
+                                                     makeInfoRow(state->palette, tr("ui.user_info.potential"),
+                                                                 formatDouble(state->userStats.potential())),
+                                                     makeInfoRow(state->palette, tr("ui.user_info.record_count"),
+                                                                 std::to_string(records.order.size())),
+                                                 }) | color(toColor(state->palette.textPrimary));
+                }
+            }
+            else{
+                // ---- Tab 1: Play history (earliest to latest) ----
+                const auto &records = state->userStats.records();
+                const auto &order   = records.order; // currently sorted newest-first
+                if (state->historyCacheRevision != state->historyDataRevision ||
+                    state->historyCacheOffset != state->historyScrollOffset) {
+                    Elements histRows;
+                    if (order.empty()){
+                        histRows.push_back(
+                                           text(tr("ui.user_info.history.no_records")) | color(toColor(state->palette.textMuted)) |
+                                           center
+                                          );
+                    }
+                    else{
+                        // Iterate in reverse to show earliest first
+                        const int total         = static_cast<int>(order.size());
+                        const int visibleLines  = 20; // approximate visible rows
+                        const int maxOffset     = std::max(0, total - 1);
+                        const int clampedOffset = std::min(std::max(state->historyScrollOffset, 0), maxOffset);
+                        for (int idx = total - 1 - clampedOffset; idx >= 0; --idx){
+                            const auto it = records.records.find(order[static_cast<std::size_t>(idx)]);
+                            if (it == records.records.end()) continue;
+                            const auto &entry           = it->second;
+                            const int displayNum        = total - idx; // 1-based from earliest
+                            const std::string chartName = entry.chart.getDisplayName().empty()
+                                                              ? entry.chartID
+                                                              : entry.chart.getDisplayName();
+                            Element row = vbox({
+                                                   hbox({
+                                                            text(std::to_string(displayNum) + ". ") | bold |
+                                                            color(toColor(state->palette.accentPrimary)),
+                                                            text(tr("ui.user_info.history.chart")) |
+                                                            color(toColor(state->palette.textMuted)),
+                                                            text(chartName) | bold,
+                                                            filler(),
+                                                            text(formatTimestamp(entry.timestamp)) |
+                                                            color(toColor(state->palette.textMuted)),
+                                                        }),
+                                                   hbox({
+                                                            text("   "),
+                                                            text(tr("ui.user_info.history.score")) |
+                                                            color(toColor(state->palette.textMuted)),
+                                                            text(std::to_string(entry.score)) | bold,
+                                                            text("  "),
+                                                            text(tr("ui.user_info.history.accuracy")) |
+                                                            color(toColor(state->palette.textMuted)),
+                                                            text(formatFloat2(entry.accuracy)) | bold,
+                                                            text("  "),
+                                                            text(tr("ui.user_info.history.combo")) |
+                                                            color(toColor(state->palette.textMuted)),
+                                                            text(std::to_string(entry.maxCombo)) | bold,
+                                                        }),
+                                                   separator() | color(toColor(state->palette.borderNormal)),
+                                               });
+                            histRows.push_back(row);
+                            if (static_cast<int>(histRows.size()) >= visibleLines) break;
+                        }
+                    }
+                    state->historyRowsCache = std::move(histRows);
+                    state->historyCacheRevision = state->historyDataRevision;
+                    state->historyCacheOffset = state->historyScrollOffset;
+                }
+                body = vbox(state->historyRowsCache) | color(toColor(state->palette.textPrimary)) | frame | flex;
+            }
+            Element base = window(
+                                  text("  " + tr("ui.user_info.title") + "  ") | bold |
+                                  color(toColor(state->palette.accentPrimary)),
+                                  vbox({
+                                           tabBar,
+                                           separator(),
+                                           body | flex,
+                                       }) | bgcolor(toColor(state->palette.surfaceBg)) | color(toColor(state->palette.textPrimary))
+                                 )
+                           | color(toColor(state->palette.borderNormal))
+                           | bgcolor(toColor(state->palette.surfaceBg))
+                           | flex;
+            Element composed = dbox({base, MessageOverlay::render(state->palette)});
+            TransitionBackdrop::update(composed);
+            return composed;
+        });
+
+        auto handleGuestEvent = [state, tr, usernameInput, passwordInput, refreshSession](const Event &event) {
+            if (event == Event::TabReverse){
+                state->authMode = state->authMode == AuthMode::Login ? AuthMode::Register : AuthMode::Login;
+                state->authStatus.clear();
+                state->username.clear();
+                state->password.clear();
+                state->authFocus = 0;
+                return true;
+            }
+            if (event == Event::Tab || event == Event::ArrowUp || event == Event::ArrowDown){
+                state->authFocus = (state->authFocus + 1) % 2;
+                return true;
+            }
+            if (event == Event::Return){
+                if (state->username.empty()){
+                    state->authFocus = 0;
+                    return true;
+                }
+                if (state->password.empty()){
+                    state->authFocus = 1;
+                    return true;
+                }
+                if (state->authMode == AuthMode::Login){
+                    if (state->userStats.login(state->username, state->password)){
+                        state->authStatus.clear();
+                        refreshSession();
+                    }
+                    else{
+                        state->authStatus = tr("ui.user_info.auth_login_failed");
+                        state->username.clear();
+                        state->password.clear();
+                        state->authFocus = 0;
+                    }
+                }
+                else{
+                    std::string err;
+                    if (state->userStats.registerUser(state->username, state->password, &err)){
+                        state->authMode = AuthMode::Login;
+                        state->authStatus.clear();
+                        state->username.clear();
+                        state->password.clear();
+                        state->authFocus = 0;
+                    }
+                    else{
+                        state->authStatus = err.empty() ? tr("ui.login.result.register_failed") : err;
+                    }
+                }
+                return true;
+            }
+            if (state->authFocus == 0) return usernameInput->OnEvent(event);
+            return passwordInput->OnEvent(event);
+        };
+
+        auto handleLoggedInEvent = [state, refreshSession](const Event &event) {
+            // Logout
+            if (event == Event::Character('L')){
+                state->userStats.logout();
+                refreshSession();
+                return true;
+            }
+            // Logged-in user tab switching
+            if (event == Event::Tab){
+                state->activeTab           = (state->activeTab + 1) % 2;
+                state->historyScrollOffset = 0;
+                return true;
+            }
+            // History scrolling
+            if (state->activeTab == 1){
+                const auto &records = state->userStats.records();
+                const int total     = static_cast<int>(records.order.size());
+                if (event == Event::Character('j') || event == Event::ArrowDown){
+                    state->historyScrollOffset = std::min(state->historyScrollOffset + 1, std::max(0, total - 1));
+                    return true;
+                }
+                if (event == Event::Character('k') || event == Event::ArrowUp){
+                    state->historyScrollOffset = std::max(state->historyScrollOffset - 1, 0);
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        auto app = CatchEvent(root, [state,
+                                     handleGuestEvent,
+                                     handleLoggedInEvent,
+                                     onRoute = std::move(onRoute)](const Event &event) {
+            if (MessageOverlay::handleEvent(event)){
+                return true;
+            }
+
+            if (event == Event::Escape || event == Event::Character('q')){
+                onRoute(UIScene::StartMenu);
+                return true;
+            }
+            if (state->isGuest) return handleGuestEvent(event);
+            return handleLoggedInEvent(event);
+        });
+
+        return app;
+    }
+} // namespace ui
