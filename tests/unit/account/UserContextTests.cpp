@@ -1,0 +1,161 @@
+#include "catch_amalgamated.hpp"
+
+#include "account/UserContext.h"
+#include "account/UserSession.h"
+#include "account/RecordStore.h"
+#include "account/UserStore.h"
+#include "utils/LiteDBUtils.h"
+#include "TestSupport.h"
+
+using namespace test_support;
+
+namespace {
+    std::string metadataJson(const std::string &id,
+                             const std::string &name,
+                             const float difficulty
+        ) {
+        return std::string("{") +
+               "\"id\":\"" + id + "\"," +
+               "\"displayname\":\"" + name + "\"," +
+               "\"artist\":\"artist\"," +
+               "\"charter\":\"charter\"," +
+               "\"BPM\":\"120\"," +
+               "\"difficulty\":\"" + std::to_string(difficulty) + "\"" +
+               "}";
+    }
+}
+
+TEST_CASE (
+
+"UserContext returns current user's verified records in reverse time order"
+,
+"[services][AutheticatedUserService]"
+)
+ {
+    TempDir temp("term4k_auth_service");
+    const auto chartsRoot = temp.path() / "charts";
+    const auto dataRoot = temp.path() / "data";
+    std::filesystem::create_directories(chartsRoot / "chart_a");
+    std::filesystem::create_directories(dataRoot);
+
+    writeTextFile(chartsRoot / "chart_a" / "meta.json", metadataJson("chart_a", "A", 7.0f));
+    writeTextFile(chartsRoot / "chart_a" / "chart.t4k", "t4kcb\nt4kce\n");
+    writeTextFile(chartsRoot / "chart_a" / "music.ogg", "dummy");
+
+    UserStore::setDataDir(dataRoot.string());
+    RecordStore::setDataDir(dataRoot.string());
+    LiteDBUtils::setKeyFile((dataRoot / "key.bin").string());
+    REQUIRE(LiteDBUtils::ensureKey());
+
+    REQUIRE(UserSession::registerUser("alice", "pw", 5));
+    REQUIRE(UserSession::login("alice", "pw"));
+    REQUIRE(UserContext::syncFromUserLoginService());
+
+    REQUIRE(RecordStore::addRecord("1000 chart_a song alice 900000 98.00 100 321"));
+    REQUIRE(RecordStore::addRecord("1000 chart_a song alice 910000 99.00 300 456"));
+    REQUIRE(RecordStore::addRecord("1001 chart_a song bob 880000 96.00 200 111"));
+
+    const auto records = UserContext::loadCurrentUserVerifiedRecords(chartsRoot.string());
+    REQUIRE(records.records.size() == 2);
+    REQUIRE(records.order.size() == 2);
+    REQUIRE(records.records.at(records.order[0]).score == 910000);
+    REQUIRE(records.records.at(records.order[1]).score == 900000);
+    REQUIRE(records.records.at(records.order[0]).maxCombo == 456);
+    REQUIRE(records.records.at(records.order[1]).maxCombo == 321);
+
+    REQUIRE_FALSE(UserContext::isAdminUser());
+    REQUIRE_FALSE(UserContext::isGuestUser());
+
+    UserContext::logout();
+    UserSession::logout();
+    RecordStore::setDataDir(".");
+    UserStore::setDataDir(".");
+}
+
+TEST_CASE (
+
+"UserContext keeps stable order for equal timestamps and falls back missing chart metadata"
+,
+"[services][AutheticatedUserService]"
+)
+ {
+    TempDir temp("term4k_auth_service_stable_fallback");
+    const auto chartsRoot = temp.path() / "charts";
+    const auto dataRoot = temp.path() / "data";
+    std::filesystem::create_directories(chartsRoot / "chart_a");
+    std::filesystem::create_directories(dataRoot);
+
+    writeTextFile(chartsRoot / "chart_a" / "meta.json", metadataJson("chart_a", "A", 7.0f));
+    writeTextFile(chartsRoot / "chart_a" / "chart.t4k", "t4kcb\nt4kce\n");
+    writeTextFile(chartsRoot / "chart_a" / "music.ogg", "dummy");
+
+    UserStore::setDataDir(dataRoot.string());
+    RecordStore::setDataDir(dataRoot.string());
+    LiteDBUtils::setKeyFile((dataRoot / "key.bin").string());
+    REQUIRE(LiteDBUtils::ensureKey());
+
+    REQUIRE(UserSession::registerUser("alice2", "pw", 5));
+    REQUIRE(UserSession::login("alice2", "pw"));
+    REQUIRE(UserContext::syncFromUserLoginService());
+
+    REQUIRE(RecordStore::addRecord("1000 chart_a song alice2 123456 98.00 500 10"));
+    REQUIRE(RecordStore::addRecord("1000 chart_missing song alice2 654321 97.00 500 20"));
+
+    const auto records = UserContext::loadCurrentUserVerifiedRecords(chartsRoot.string());
+    REQUIRE(records.records.size() == 2);
+    REQUIRE(records.order.size() == 2);
+
+    const auto &first = records.records.at(records.order[0]);
+    const auto &second = records.records.at(records.order[1]);
+    REQUIRE(first.score == 123456);
+    REQUIRE(second.score == 654321);
+    REQUIRE(first.maxCombo == 10);
+    REQUIRE(second.maxCombo == 20);
+    REQUIRE(second.chart.getDisplayName() == "chart_missing");
+
+    UserContext::logout();
+    UserSession::logout();
+    RecordStore::setDataDir(".");
+    UserStore::setDataDir(".");
+}
+
+TEST_CASE (
+
+"UserContext keeps maxCombo at 0 for legacy record format"
+,
+"[services][AutheticatedUserService]"
+)
+ {
+    TempDir temp("term4k_auth_service_legacy_record");
+    const auto chartsRoot = temp.path() / "charts";
+    const auto dataRoot = temp.path() / "data";
+    std::filesystem::create_directories(chartsRoot / "chart_a");
+    std::filesystem::create_directories(dataRoot);
+
+    writeTextFile(chartsRoot / "chart_a" / "meta.json", metadataJson("chart_a", "A", 7.0f));
+    writeTextFile(chartsRoot / "chart_a" / "chart.t4k", "t4kcb\nt4kce\n");
+    writeTextFile(chartsRoot / "chart_a" / "music.ogg", "dummy");
+
+    UserStore::setDataDir(dataRoot.string());
+    RecordStore::setDataDir(dataRoot.string());
+    LiteDBUtils::setKeyFile((dataRoot / "key.bin").string());
+    REQUIRE(LiteDBUtils::ensureKey());
+
+    REQUIRE(UserSession::registerUser("alice_legacy", "pw", 5));
+    REQUIRE(UserSession::login("alice_legacy", "pw"));
+    REQUIRE(UserContext::syncFromUserLoginService());
+
+    // Legacy 7-field record without maxCombo should still be accepted.
+    REQUIRE(RecordStore::addRecord("1000 chart_a song alice_legacy 900000 98.00 100"));
+
+    const auto records = UserContext::loadCurrentUserVerifiedRecords(chartsRoot.string());
+    REQUIRE(records.records.size() == 1);
+    REQUIRE(records.order.size() == 1);
+    REQUIRE(records.records.at(records.order[0]).score == 900000);
+    REQUIRE(records.records.at(records.order[0]).maxCombo == 0);
+
+    UserContext::logout();
+    UserSession::logout();
+    RecordStore::setDataDir(".");
+    UserStore::setDataDir(".");
+}

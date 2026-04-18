@@ -23,12 +23,11 @@
 
 - [Architecture Overview](documents/ARCHITECTURE.md)
 
-term4k is a C++20 rhythm-game core logic project.
-
-The current codebase is headless (no built-in UI layer).
+term4k is a C++20 terminal rhythm-game project.
 
 It includes:
 
+- full TUI built with FTXUI (start menu, chart list, gameplay, settlement, settings, user stats)
 - chart parsing and gameplay timing logic
 - user/account data management
 - per-user runtime configuration persistence

@@ -63,46 +63,45 @@ else ()
 endif ()
 
 set(TERM4K_CORE_SOURCES
-        src/main/services/AudioService.cpp
-        src/main/services/ChartIOService.cpp
-        src/main/services/ChartCatalogService.cpp
-        src/main/entities/Chart.cpp
-        src/main/entities/GameplayChartData.cpp
-        src/main/entities/GameplayResult.cpp
-        src/main/entities/SettingsDraft.cpp
-        src/main/utils/JsonUtils.cpp
-        src/main/entities/Rating.cpp
-        src/main/entities/User.cpp
-        src/main/dao/ProofedRecordsDAO.cpp
-        src/main/dao/UserAccountsDAO.cpp
-        src/main/utils/LiteDBUtils.cpp
-        src/main/utils/PrefixTrie.cpp
-        src/main/services/I18nService.cpp
-        src/main/services/AuthenticatedUserService.cpp
-        src/main/services/UserLoginService.cpp
-        src/main/services/GameplayChartService.cpp
-        src/main/services/GameplayStatsService.cpp
-        src/main/services/GameplayClockService.cpp
-        src/main/services/GameplaySessionService.cpp
-        src/main/services/GameplayRecordService.cpp
-        src/main/services/SettingsService.cpp
-        src/main/services/ThemePresetService.cpp
-        src/main/instances/ChartListInstance.cpp
-        src/main/instances/UserStatInstance.cpp
-        src/main/instances/AdminStatInstance.cpp
-        src/main/instances/GameplayInstance.cpp
-        src/main/instances/GameplaySettlementInstance.cpp
-        src/main/instances/SettingsInstance.cpp
-        src/main/utils/ErrorNotifier.cpp
-        src/main/config/AppDirs.cpp
-        src/main/config/RuntimeConfigs.cpp
-        src/main/ui/ThemeAdapter.cpp)
+        src/audio/AudioPlayer.cpp
+        src/chart/ChartFileReader.cpp
+        src/chart/ChartCatalog.cpp
+        src/data/Chart.cpp
+        src/data/GameplayChartData.cpp
+        src/data/GameplayResult.cpp
+        src/data/SettingsDraft.cpp
+        src/utils/JsonUtils.cpp
+        src/data/Rating.cpp
+        src/data/User.cpp
+        src/account/RecordStore.cpp
+        src/account/UserStore.cpp
+        src/utils/LiteDBUtils.cpp
+        src/utils/PrefixTrie.cpp
+        src/platform/I18n.cpp
+        src/account/UserContext.cpp
+        src/account/UserSession.cpp
+        src/gameplay/GameplayChartParser.cpp
+        src/gameplay/GameplayStats.cpp
+        src/gameplay/GameplayClock.cpp
+        src/gameplay/GameplaySession.cpp
+        src/gameplay/GameplayRecordWriter.cpp
+        src/platform/SettingsIO.cpp
+        src/platform/ThemeStore.cpp
+        src/scenes/ChartListScene.cpp
+        src/scenes/UserStatScene.cpp
+        src/scenes/AdminStatScene.cpp
+        src/scenes/GameplaySettlement.cpp
+        src/scenes/SettingsScene.cpp
+        src/utils/ErrorNotifier.cpp
+        src/platform/AppDirs.cpp
+        src/platform/RuntimeConfig.cpp
+        src/ui/ThemeAdapter.cpp)
 
 add_library(term4k_core STATIC ${TERM4K_CORE_SOURCES})
 add_library(term4k::core ALIAS term4k_core)
 target_include_directories(term4k_core
         PUBLIC
-        src/main
+        src
         ${TERM4K_MINIAUDIO_INCLUDE_DIR})
 target_link_libraries(term4k_core
         PUBLIC
@@ -114,7 +113,7 @@ if(TERM4K_IPO_SUPPORTED)
     set_property(TARGET term4k_core PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
 endif()
 
-add_executable(term4k src/main/main.cpp)
+add_executable(term4k src/main.cpp)
 target_compile_definitions(term4k PRIVATE TERM4K_VERSION="${PROJECT_VERSION}")
 target_link_libraries(term4k PRIVATE term4k::core)
 
@@ -141,16 +140,16 @@ if (TERM4K_ENABLE_TUI)
     endif ()
 
     target_sources(term4k PRIVATE
-            src/main/ui/StartMenuUI.cpp
-            src/main/ui/MessageOverlay.cpp
-            src/main/ui/TransitionBackdrop.cpp
-            src/main/ui/ChartListUI.cpp
-            src/main/ui/SettingsUI.cpp
-            src/main/ui/UserStatUI.cpp
-            src/main/ui/GameplayUI.cpp
-            src/main/ui/GameplaySettlementUI.cpp
-            src/main/ui/UIColors.cpp
-            src/main/ui/UIBus.cpp
+            src/ui/StartMenuUI.cpp
+            src/ui/MessageOverlay.cpp
+            src/ui/TransitionBackdrop.cpp
+            src/ui/ChartListUI.cpp
+            src/ui/SettingsUI.cpp
+            src/ui/UserStatUI.cpp
+            src/ui/GameplayUI.cpp
+            src/ui/GameplaySettlementUI.cpp
+            src/ui/UIColors.cpp
+            src/ui/UIBus.cpp
     )
 
     target_compile_definitions(term4k PRIVATE TERM4K_ENABLE_TUI=1)
@@ -177,28 +176,28 @@ if (TERM4K_BUILD_TESTS)
     enable_testing()
 
     add_executable(term4k_tests
-            src/test/unit/utils/PrefixTrieTests.cpp
-            src/test/unit/utils/ErrorNotifierTests.cpp
-            src/test/unit/utils/LiteDBUtilsTests.cpp
-            src/test/unit/utils/AppDirsTests.cpp
-            src/test/unit/config/RuntimeConfigsTests.cpp
-            src/test/unit/services/I18nTests.cpp
-            src/test/unit/services/ChartIOTests.cpp
-            src/test/unit/services/ChartCatalogServiceTests.cpp
-            src/test/unit/services/SongPlayerTests.cpp
-            src/test/unit/services/UserServiceTests.cpp
-            src/test/unit/services/AuthenticatedUserServiceTests.cpp
-            src/test/unit/services/GameplayRecordServiceTests.cpp
-            src/test/unit/services/ThemePresetServiceTests.cpp
-            src/test/unit/instances/ChartListInstanceTests.cpp
-            src/test/unit/instances/UserStatInstanceTests.cpp
-            src/test/unit/instances/AdminStatInstanceTests.cpp
-            src/test/unit/instances/GameplayInstanceTests.cpp
-            src/test/unit/instances/GameplaySettlementInstanceTests.cpp
-            src/test/unit/instances/SettingsInstanceTests.cpp
+            tests/unit/utils/PrefixTrieTests.cpp
+            tests/unit/utils/ErrorNotifierTests.cpp
+            tests/unit/utils/LiteDBUtilsTests.cpp
+            tests/unit/platform/AppDirsTests.cpp
+            tests/unit/platform/RuntimeConfigTests.cpp
+            tests/unit/platform/I18nTests.cpp
+            tests/unit/chart/ChartFileReaderTests.cpp
+            tests/unit/chart/ChartCatalogTests.cpp
+            tests/unit/audio/AudioPlayerTests.cpp
+            tests/unit/account/UserSessionTests.cpp
+            tests/unit/account/UserContextTests.cpp
+            tests/unit/gameplay/GameplayRecordWriterTests.cpp
+            tests/unit/platform/ThemeStoreTests.cpp
+            tests/unit/scenes/ChartListSceneTests.cpp
+            tests/unit/scenes/UserStatSceneTests.cpp
+            tests/unit/scenes/AdminStatSceneTests.cpp
+            tests/unit/gameplay/GameplaySessionTests.cpp
+            tests/unit/scenes/GameplaySettlementTests.cpp
+            tests/unit/scenes/SettingsSceneTests.cpp
     )
 
-    target_include_directories(term4k_tests PRIVATE src/test)
+    target_include_directories(term4k_tests PRIVATE tests)
     target_link_libraries(term4k_tests PRIVATE term4k::core Catch2::Catch2WithMain)
 
     add_test(NAME term4k_tests COMMAND term4k_tests)
@@ -231,38 +230,37 @@ install(CODE
 
 # Development package: public headers -> /usr/include/term4k/
 set(TERM4K_PUBLIC_HEADERS
-        src/main/config/AppDirs.h
-        src/main/config/RuntimeConfigs.h
-        src/main/services/ChartIOService.h
-        src/main/services/ChartCatalogService.h
-        src/main/services/I18nService.h
-        src/main/services/AuthenticatedUserService.h
-        src/main/services/UserLoginService.h
-        src/main/services/AudioService.h
-        src/main/services/GameplayChartService.h
-        src/main/services/GameplayStatsService.h
-        src/main/services/GameplayClockService.h
-        src/main/services/GameplaySessionService.h
-        src/main/services/GameplayRecordService.h
-        src/main/services/SettingsService.h
-        src/main/services/ThemePresetService.h
-        src/main/instances/ChartListInstance.h
-        src/main/instances/UserStatInstance.h
-        src/main/instances/AdminStatInstance.h
-        src/main/instances/GameplayInstance.h
-        src/main/instances/GameplaySettlementInstance.h
-        src/main/instances/SettingsInstance.h
-        src/main/dao/ProofedRecordsDAO.h
-        src/main/dao/UserAccountsDAO.h
-        src/main/utils/LiteDBUtils.h
-        src/main/entities/Chart.h
-        src/main/entities/GameplayResult.h
-        src/main/entities/SettingsDraft.h
-        src/main/utils/JsonUtils.h
-        src/main/entities/Rating.h
-        src/main/entities/User.h
-        src/main/entities/GameplayChartData.h
-        src/main/utils/ErrorNotifier.h
+        src/platform/AppDirs.h
+        src/platform/RuntimeConfig.h
+        src/chart/ChartFileReader.h
+        src/chart/ChartCatalog.h
+        src/platform/I18n.h
+        src/account/UserContext.h
+        src/account/UserSession.h
+        src/audio/AudioPlayer.h
+        src/gameplay/GameplayChartParser.h
+        src/gameplay/GameplayStats.h
+        src/gameplay/GameplayClock.h
+        src/gameplay/GameplaySession.h
+        src/gameplay/GameplayRecordWriter.h
+        src/platform/SettingsIO.h
+        src/platform/ThemeStore.h
+        src/scenes/ChartListScene.h
+        src/scenes/UserStatScene.h
+        src/scenes/AdminStatScene.h
+        src/scenes/GameplaySettlement.h
+        src/scenes/SettingsScene.h
+        src/account/RecordStore.h
+        src/account/UserStore.h
+        src/utils/LiteDBUtils.h
+        src/data/Chart.h
+        src/data/GameplayResult.h
+        src/data/SettingsDraft.h
+        src/utils/JsonUtils.h
+        src/data/Rating.h
+        src/data/User.h
+        src/data/GameplayChartData.h
+        src/utils/ErrorNotifier.h
 )
 
 install(FILES ${TERM4K_PUBLIC_HEADERS}
