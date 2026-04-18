@@ -636,7 +636,7 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
                     for (const auto &[kc, ts] : state->heldKeys) {
                         const auto elapsed =
                             std::chrono::duration_cast<std::chrono::milliseconds>(now - ts).count();
-                        if (elapsed > static_cast<long long>(kKeyHoldTimeoutMs)) {
+                        if (elapsed > kKeyHoldTimeoutMs) {
                             toRelease.push_back(kc);
                         }
                     }
