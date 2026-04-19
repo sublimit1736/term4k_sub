@@ -86,7 +86,7 @@ const CachedCover &loadCoverFromFolder(const std::string &folderPath,
                                        const int targetW,
                                        const int targetH) {
     const std::string cacheKey =
-        folderPath + '\0' + std::to_string(targetW) + 'x' + std::to_string(targetH);
+        folderPath + '|' + std::to_string(targetW) + 'x' + std::to_string(targetH);
 
     std::lock_guard<std::mutex> lock(g_coverCacheMutex);
 
@@ -172,7 +172,8 @@ ftxui::Element renderCoverArt(const std::string &folderPath,
                         cover.rgba[static_cast<std::size_t>(botBase)],
                         cover.rgba[static_cast<std::size_t>(botBase + 1)],
                         cover.rgba[static_cast<std::size_t>(botBase + 2)]);
-                    cells.push_back(text("\xe2\x96\x80") | color(topColor) | bgcolor(botColor));
+                    // U+2580 UPPER HALF BLOCK: fg = top pixel, bg = bottom pixel.
+                    cells.push_back(text("▀") | color(topColor) | bgcolor(botColor));
                 }
                 rows.push_back(hbox(std::move(cells)));
             }
