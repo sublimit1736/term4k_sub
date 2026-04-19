@@ -44,6 +44,15 @@ public:
 
     bool isResultReady() const;
 
+    // Max accuracy ceiling: if all remaining notes are Perfect, the highest
+    // accuracy the player can still achieve (range 0–1).
+    double getMaxAccuracyCeiling() const;
+
+    // Last settled judgement (used for the in-game judgment flash).
+    GameplayJudgement getLastJudgement() const;
+
+    bool hasLastJudgement() const;
+
     void setPerfectCount(uint32_t value);
 
     void setGreatCount(uint32_t value);
@@ -72,6 +81,12 @@ public:
 
     void setResultReady(bool value);
 
+    void setMaxAccuracyCeiling(double value);
+
+    void setLastJudgement(GameplayJudgement value);
+
+    void clearLastJudgement();
+
 private:
     uint32_t perfectCount_             = 0;
     uint32_t greatCount_               = 0;
@@ -87,6 +102,9 @@ private:
     uint32_t currentChartTimeMs_       = 0;
     bool settlementAnimationTriggered_ = false;
     bool resultReady_                  = false;
+    double maxAccuracyCeiling_         = 0.0;
+    bool hasLastJudgement_             = false;
+    GameplayJudgement lastJudgement_   = GameplayJudgement::Perfect;
 };
 
 class GameplayFinalResult {

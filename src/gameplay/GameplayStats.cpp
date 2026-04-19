@@ -18,6 +18,7 @@ void GameplayStats::reset(const uint32_t noteCount, const uint64_t maxScore) {
 
     chartNoteCount_ = noteCount;
     chartMaxScore_  = maxScore;
+    hasLastJudgement_ = false;
     updateAccuracy();
 }
 
@@ -26,6 +27,8 @@ void GameplayStats::settleNote(const GameplayJudgement judgement, const bool isE
     if (isLate) ++lateCount_;
 
     const uint32_t comboBefore = currentCombo_;
+    hasLastJudgement_ = true;
+    lastJudgement_    = judgement;
 
     switch (judgement){
         case GameplayJudgement::Perfect: ++perfectCount_;
@@ -56,6 +59,19 @@ uint64_t GameplayStats::chartMaxScore() const {
     return chartMaxScore_;
 }
 
+uint32_t GameplayStats::settledNoteCount() const {
+    return perfectCount_ + greatCount_ + missCount_;
+}
+
+double GameplayStats::computeMaxAccuracyCeiling() const {
+    if (chartNoteCount_ == 0) return 0.0;
+    const uint32_t settled   = settledNoteCount();
+    const uint32_t remaining = (chartNoteCount_ > settled) ? (chartNoteCount_ - settled) : 0;
+    const double ceiling = (accuracyPoints_ + static_cast<double>(remaining)) * 100.0
+                           / static_cast<double>(chartNoteCount_);
+    return std::clamp(ceiling, 0.0, 100.0);
+}
+
 GameplaySnapshot GameplayStats::buildSnapshot(const uint32_t chartTimeMs,
                                                      const bool settlementAnimationTriggered,
                                                      const bool resultReady
@@ -79,6 +95,8 @@ GameplaySnapshot GameplayStats::buildSnapshot(const uint32_t chartTimeMs,
     s.setCurrentChartTimeMs(chartTimeMs);
     s.setSettlementAnimationTriggered(settlementAnimationTriggered);
     s.setResultReady(resultReady);
+    s.setMaxAccuracyCeiling(computeMaxAccuracyCeiling());
+    if (hasLastJudgement_) s.setLastJudgement(lastJudgement_);
     return s;
 }
 

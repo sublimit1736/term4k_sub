@@ -7,8 +7,11 @@
 #include "audio/AudioPlayer.h"
 #include "gameplay/GameplayChartParser.h"
 #include "platform/I18n.h"
+#include "ui/MessageOverlay.h"
 #include "ui/ThemeAdapter.h"
 #include "ui/UIColors.h"
+#include "account/UserContext.h"
+#include "utils/ErrorNotifier.h"
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/event.hpp>
@@ -117,19 +120,22 @@ ftxui::Element renderCell(const NoteCell &cell, const ThemePalette &palette) {
         return e | size(WIDTH, EQUAL, kCellW);
     }
     if (cell.type == CellType::HoldHead) {
-        return text("╠══╣") |
-               color(Color::RGB(100, 200, 255)) | bold |
-               size(WIDTH, EQUAL, kCellW);
+        const std::string bar = tapNoteBar(8);
+        Element e = text(bar) | color(Color::RGB(100, 200, 255)) | bold;
+        if (cell.lanePressed) e = e | bgcolor(Color::RGB(100, 200, 255)) | color(Color::Black);
+        return e | size(WIDTH, EQUAL, kCellW);
     }
     if (cell.type == CellType::HoldBody) {
-        return text("║  ║") |
-               color(Color::RGB(60, 140, 220)) |
-               size(WIDTH, EQUAL, kCellW);
+        const std::string bar = tapNoteBar(8);
+        Element e = text(bar) | color(Color::RGB(40, 110, 190));
+        if (cell.lanePressed) e = e | bgcolor(Color::RGB(40, 110, 190));
+        return e | size(WIDTH, EQUAL, kCellW);
     }
     if (cell.type == CellType::HoldTail) {
-        return text("╠══╣") |
-               color(Color::RGB(60, 180, 200)) | bold |
-               size(WIDTH, EQUAL, kCellW);
+        const std::string bar = tapNoteBar(8);
+        Element e = text(bar) | color(Color::RGB(60, 170, 210)) | bold;
+        if (cell.lanePressed) e = e | bgcolor(Color::RGB(60, 170, 210));
+        return e | size(WIDTH, EQUAL, kCellW);
     }
     // Empty cell
     const Color bg = cell.lanePressed
@@ -306,6 +312,32 @@ ftxui::Element renderNoteField(
         rows.push_back(hbox(std::move(cells)));
     }
 
+    // Gutter rows: below hit-line, highlight the full lane column when key is held
+    constexpr int kGutterRows = 2;
+    for (int g = 0; g < kGutterRows; ++g) {
+        Elements cells;
+        cells.push_back(text("│") | color(toColor(palette.borderNormal)));
+        for (int l = 0; l < keyCount; ++l) {
+            const bool pressed = lanePressed[static_cast<std::size_t>(l)];
+            const Color bg = pressed ? Color::RGB(40, 40, 90) : Color::RGB(14, 14, 24);
+            cells.push_back(text("    ") | bgcolor(bg) | size(WIDTH, EQUAL, 4));
+            cells.push_back(text("│") | color(toColor(palette.borderNormal)));
+        }
+        rows.push_back(hbox(std::move(cells)));
+    }
+
+    // Bottom border
+    {
+        Elements botBorder;
+        botBorder.push_back(text("╚") | color(toColor(palette.borderNormal)));
+        for (int l = 0; l < keyCount; ++l) {
+            botBorder.push_back(text("════") | color(toColor(palette.borderNormal)) | size(WIDTH, EQUAL, 4));
+            botBorder.push_back(text(l + 1 < keyCount ? "╩" : "╝") |
+                                 color(toColor(palette.borderNormal)));
+        }
+        rows.push_back(hbox(std::move(botBorder)));
+    }
+
     // Top border
     Elements borderRow;
     borderRow.push_back(text("╔") | color(toColor(palette.borderNormal)));
@@ -322,154 +354,11 @@ ftxui::Element renderNoteField(
     return vbox({hbox(std::move(borderRow)), field});
 }
 
-// ── Stats panel ───────────────────────────────────────────────────────────────
-ftxui::Element renderStatsPanel(
-    const GameplaySnapshot &snap,
-    const ThemePalette     &palette,
-    const std::function<std::string(const std::string &)> &tr,
-    const uint32_t           totalDurationMs,
-    const bool               showEarlyLate,
-    const bool               showAP,
-    const bool               showFC)
-{
-    using namespace ftxui;
-
-    const uint64_t maxScore = snap.getChartMaxScore();
-    const uint64_t score    = snap.getScore();
-
-    // Score row
-    Element scoreElem =
-        vbox({
-            text(tr("ui.gameplay.score")) |
-                color(toColor(palette.textMuted)) | bold,
-            text(formatScore(score)) |
-                color(toColor(palette.accentPrimary)) | bold |
-                size(WIDTH, EQUAL, 14),
-        }) | size(WIDTH, EQUAL, 18);
-
-    // Accuracy
-    Element accElem =
-        hbox({
-            text(tr("ui.gameplay.accuracy") + " ") |
-                color(toColor(palette.textMuted)),
-            text(formatAccuracy(snap.getAccuracy())) |
-                color(toColor(palette.textPrimary)) | bold,
-        });
-
-    // Combo
-    const uint32_t combo    = snap.getCurrentCombo();
-    const uint32_t maxCombo = snap.getMaxCombo();
-    const bool     isAP     = snap.getMissCount() == 0 && snap.getGreatCount() == 0;
-    const bool     isFC     = snap.getMissCount() == 0;
-
-    Color comboColor = toColor(palette.textPrimary);
-    if (isAP && showAP)   comboColor = Color::RGB(255, 215, 0);
-    else if (isFC && showFC) comboColor = Color::RGB(192, 192, 192);
-
-    Element comboElem =
-        hbox({
-            text(tr("ui.gameplay.combo") + " ") |
-                color(toColor(palette.textMuted)),
-            text("×" + std::to_string(combo)) |
-                color(comboColor) | bold,
-            text("  " + tr("ui.gameplay.max_combo") + " ×" + std::to_string(maxCombo)) |
-                color(toColor(palette.textMuted)),
-        });
-
-    // AP / FC badge
-    Elements badges;
-    if (showAP && isAP) {
-        badges.push_back(text(" AP ") | bold |
-                         color(Color::RGB(255, 215, 0)) |
-                         bgcolor(Color::RGB(40, 30, 0)));
-        badges.push_back(text("  "));
-    }
-    if (showFC && isFC && !isAP) {
-        badges.push_back(text(" FC ") | bold |
-                         color(Color::RGB(192, 192, 192)) |
-                         bgcolor(Color::RGB(30, 30, 30)));
-        badges.push_back(text("  "));
-    }
-
-    // Judgement counts
-    auto judgRow = [&](const std::string &labelKey, const uint32_t count, const Color &col) {
-        return hbox({
-            text(tr(labelKey)) | color(toColor(palette.textMuted)) | size(WIDTH, EQUAL, 10),
-            text(std::to_string(count)) | color(col) | bold | size(WIDTH, EQUAL, 6),
-        });
-    };
-
-    Element judgePanel = vbox({
-        judgRow("ui.gameplay.perfect", snap.getPerfectCount(), Color::RGB(255, 215, 0)),
-        judgRow("ui.gameplay.great",   snap.getGreatCount(),   Color::RGB(120, 200, 255)),
-        judgRow("ui.gameplay.miss",    snap.getMissCount(),    Color::RGB(255, 80, 80)),
-    });
-
-    // Early / Late
-    Elements earlyLateRows;
-    if (showEarlyLate) {
-        earlyLateRows.push_back(
-            hbox({
-                text(tr("ui.gameplay.early")) | color(Color::RGB(120, 200, 255)) |
-                    size(WIDTH, EQUAL, 8),
-                text(std::to_string(snap.getEarlyCount())) |
-                    color(toColor(palette.textPrimary)) | bold,
-                text("  "),
-                text(tr("ui.gameplay.late")) | color(Color::RGB(255, 180, 80)) |
-                    size(WIDTH, EQUAL, 8),
-                text(std::to_string(snap.getLateCount())) |
-                    color(toColor(palette.textPrimary)) | bold,
-            }));
-    }
-
-    // Progress bar
-    const uint32_t timeMs = snap.getCurrentChartTimeMs();
-    const int      pct    = (totalDurationMs > 0)
-                              ? static_cast<int>(std::min<uint64_t>(timeMs, totalDurationMs) * 100 /
-                                                  totalDurationMs)
-                              : 0;
-    const int      filled = pct * 24 / 100;
-    std::string    bar    = "[";
-    for (int i = 0; i < 24; ++i) bar += (i < filled ? "█" : "░");
-    bar += "] " + formatMs(timeMs) + " / " + formatMs(totalDurationMs);
-
-    // Score bar vs max score
-    const int scorePct = (maxScore > 0)
-                             ? static_cast<int>(std::min<uint64_t>(score, maxScore) * 100 / maxScore)
-                             : 0;
-    const int sBar = scorePct * 16 / 100;
-    std::string scoreBar;
-    for (int i = 0; i < 16; ++i) scoreBar += (i < sBar ? "▮" : "▯");
-
-    Element statsContent = vbox({
-        scoreElem,
-        text(scoreBar) | color(toColor(palette.accentPrimary)),
-        text(""),
-        accElem,
-        comboElem,
-        text(""),
-        badges.empty() ? text("") : hbox(std::move(badges)),
-        text(""),
-        judgePanel,
-        text(""),
-        vbox(std::move(earlyLateRows)),
-        filler(),
-        text(bar) | color(toColor(palette.textMuted)),
-    });
-
-    return window(
-        text("  " + tr("ui.gameplay.stats_title") + " "),
-        statsContent) |
-        color(toColor(palette.accentPrimary)) |
-        bgcolor(toColor(palette.surfacePanel)) |
-        flex;
-}
-
-// ── Top info bar ──────────────────────────────────────────────────────────────
-ftxui::Element renderTopBar(
-    const std::string  &songName,
-    const float         difficulty,
-    const int           keyCount,
+// ── Corner HUD: top-left — song name, difficulty, key count ──────────────────
+ftxui::Element renderTopLeftHUD(
+    const std::string &songName,
+    const float        difficulty,
+    const int          keyCount,
     const ThemePalette &palette,
     const std::function<std::string(const std::string &)> &tr)
 {
@@ -477,26 +366,223 @@ ftxui::Element renderTopBar(
     std::ostringstream diffStr;
     diffStr << std::fixed << std::setprecision(1) << difficulty;
 
-    return hbox({
-        text(songName) | bold | color(toColor(palette.textPrimary)) | flex,
-        text(tr("ui.gameplay.difficulty") + " " + diffStr.str()) |
-            color(toColor(palette.textMuted)),
-        text("  "),
-        text(std::to_string(keyCount) + tr("ui.gameplay.keys")) |
-            color(toColor(palette.textMuted)),
-    });
+    Element panel = vbox({
+        text(songName) | bold | color(toColor(palette.textPrimary)),
+        hbox({
+            text(tr("ui.gameplay.difficulty") + " " + diffStr.str()) |
+                color(toColor(palette.textMuted)),
+            text("  "),
+            text(std::to_string(keyCount) + tr("ui.gameplay.keys")) |
+                color(toColor(palette.textMuted)),
+        }),
+    }) | borderRounded |
+         color(toColor(palette.accentPrimary)) |
+         bgcolor(toColor(palette.surfacePanel)) |
+         size(WIDTH, LESS_THAN, 42);
+
+    return vbox({panel, filler()});
 }
 
-// ── Bottom hint bar ───────────────────────────────────────────────────────────
-ftxui::Element renderBottomBar(
-    const ThemePalette &palette,
-    const std::function<std::string(const std::string &)> &tr)
+// ── Corner HUD: top-right — score + accuracy ──────────────────────────────────
+ftxui::Element renderTopRightHUD(
+    const GameplaySnapshot &snap,
+    const ThemePalette     &palette,
+    const std::function<std::string(const std::string &)> &tr,
+    const bool showScore,
+    const bool showAccuracy,
+    const bool showMaxAccCeiling,
+    const bool showPbDelta,
+    const float personalBestAccuracy)
 {
     using namespace ftxui;
-    return hbox({
-        text(tr("ui.gameplay.hint")) | color(toColor(palette.textMuted)),
-        filler(),
-    }) | size(HEIGHT, EQUAL, 1);
+
+    Elements rows;
+    if (showScore) {
+        rows.push_back(text(tr("ui.gameplay.score")) | color(toColor(palette.textMuted)) | bold);
+        rows.push_back(text(formatScore(snap.getScore())) |
+                       color(toColor(palette.accentPrimary)) | bold);
+    }
+    if (showAccuracy) {
+        if (!rows.empty()) rows.push_back(text(""));
+        rows.push_back(hbox({
+            text(tr("ui.gameplay.accuracy") + " ") | color(toColor(palette.textMuted)),
+            text(formatAccuracy(snap.getAccuracy())) | bold |
+                color(toColor(palette.textPrimary)),
+        }));
+    }
+    if (showMaxAccCeiling) {
+        rows.push_back(hbox({
+            text(tr("ui.gameplay.max_acc_ceiling") + " ") | color(toColor(palette.textMuted)),
+            text(formatAccuracy(snap.getMaxAccuracyCeiling())) |
+                color(toColor(palette.textMuted)),
+        }));
+    }
+    if (showPbDelta && personalBestAccuracy > 0.0f) {
+        const double delta = snap.getAccuracy() - static_cast<double>(personalBestAccuracy);
+        std::ostringstream ds;
+        ds << std::fixed << std::setprecision(2) << (delta * 100.0);
+        const std::string sign = delta >= 0.0 ? "+" : "";
+        rows.push_back(hbox({
+            text(tr("ui.gameplay.pb_delta") + " ") | color(toColor(palette.textMuted)),
+            text(sign + ds.str() + "%") |
+                color(delta >= 0.0 ? Color::RGB(100, 220, 100) : Color::RGB(255, 100, 100)),
+        }));
+    }
+
+    if (rows.empty()) return filler();
+
+    Element panel = vbox(std::move(rows)) |
+         borderRounded |
+         color(toColor(palette.accentPrimary)) |
+         bgcolor(toColor(palette.surfacePanel)) |
+         size(WIDTH, LESS_THAN, 30);
+
+    return vbox({panel, filler()});
+}
+
+// ── Corner HUD: bottom-left — combo + AP/FC badge ─────────────────────────────
+ftxui::Element renderBottomLeftHUD(
+    const GameplaySnapshot &snap,
+    const ThemePalette     &palette,
+    const std::function<std::string(const std::string &)> &tr,
+    const bool showAP,
+    const bool showFC,
+    const bool showCombo,
+    const bool showMaxCombo)
+{
+    using namespace ftxui;
+
+    const uint32_t combo    = snap.getCurrentCombo();
+    const uint32_t maxCombo = snap.getMaxCombo();
+    const bool     isAP     = snap.getMissCount() == 0 && snap.getGreatCount() == 0;
+    const bool     isFC     = snap.getMissCount() == 0;
+
+    Color comboColor = toColor(palette.textPrimary);
+    if      (isAP && showAP)  comboColor = Color::RGB(255, 215, 0);
+    else if (isFC && showFC)  comboColor = Color::RGB(192, 192, 192);
+
+    Elements rows;
+    if (showCombo) {
+        rows.push_back(hbox({
+            text(tr("ui.gameplay.combo") + " ") | color(toColor(palette.textMuted)),
+            text("×" + std::to_string(combo)) | color(comboColor) | bold,
+        }));
+    }
+    if (showMaxCombo) {
+        rows.push_back(
+            text(tr("ui.gameplay.max_combo") + " ×" + std::to_string(maxCombo)) |
+            color(toColor(palette.textMuted)));
+    }
+
+    if (showAP && isAP) {
+        rows.push_back(text(""));
+        rows.push_back(text(" AP ") | bold |
+                       color(Color::RGB(255, 215, 0)) | bgcolor(Color::RGB(40, 30, 0)));
+    } else if (showFC && isFC) {
+        rows.push_back(text(""));
+        rows.push_back(text(" FC ") | bold |
+                       color(Color::RGB(192, 192, 192)) | bgcolor(Color::RGB(30, 30, 30)));
+    }
+
+    if (rows.empty()) return filler();
+
+    Element panel = vbox(std::move(rows)) |
+        borderRounded |
+        color(toColor(palette.accentPrimary)) |
+        bgcolor(toColor(palette.surfacePanel)) |
+        size(WIDTH, LESS_THAN, 30);
+
+    return vbox({filler(), panel});
+}
+
+// ── Corner HUD: bottom-right — judgements + progress bar ─────────────────────
+ftxui::Element renderBottomRightHUD(
+    const GameplaySnapshot &snap,
+    const ThemePalette     &palette,
+    const std::function<std::string(const std::string &)> &tr,
+    const uint32_t totalDurationMs,
+    const bool     showEarlyLate,
+    const bool     showJudgements,
+    const bool     showProgress)
+{
+    using namespace ftxui;
+
+    const uint32_t timeMs = snap.getCurrentChartTimeMs();
+    const int pct = (totalDurationMs > 0)
+                        ? static_cast<int>(
+                              std::min<uint64_t>(timeMs, totalDurationMs) * 100 /
+                              totalDurationMs)
+                        : 0;
+
+    // Progress bar with head / middle / tail characters
+    constexpr int kBarW = 22;
+    const int     filled = pct * kBarW / 100;
+    std::string   bar;
+    // FiraCode PUA progress-bar glyphs (U+EE00–U+EE05):
+    //   empty: head=U+EE00  mid=U+EE01  tail=U+EE02
+    //   full:  head=U+EE03  mid=U+EE04  tail=U+EE05
+    static const std::string kEmptyHead = "\xEE\xB8\x80"; // U+EE00
+    static const std::string kEmptyMid  = "\xEE\xB8\x81"; // U+EE01
+    static const std::string kEmptyTail = "\xEE\xB8\x82"; // U+EE02
+    static const std::string kFullHead  = "\xEE\xB8\x83"; // U+EE03
+    static const std::string kFullMid   = "\xEE\xB8\x84"; // U+EE04
+    static const std::string kFullTail  = "\xEE\xB8\x85"; // U+EE05
+    if (filled == 0) {
+        bar += kEmptyHead;
+        for (int i = 0; i < kBarW; ++i) bar += kEmptyMid;
+        bar += kEmptyTail;
+    } else if (filled >= kBarW) {
+        bar += kFullHead;
+        for (int i = 0; i < kBarW; ++i) bar += kFullMid;
+        bar += kFullTail;
+    } else {
+        bar += kFullHead;
+        for (int i = 0; i < filled; ++i)        bar += kFullMid;
+        bar += kFullMid;  // transition cell
+        for (int i = filled + 1; i < kBarW; ++i) bar += kEmptyMid;
+        bar += kEmptyTail;
+    }
+
+    Elements rows;
+    auto judgRow = [&](const std::string &labelKey, uint32_t count, const Color &col) {
+        return hbox({
+            text(tr(labelKey)) | color(col) | size(WIDTH, EQUAL, 10),
+            text(std::to_string(count)) | bold | color(toColor(palette.textPrimary)),
+        });
+    };
+    if (showJudgements) {
+        rows.push_back(judgRow("ui.gameplay.perfect", snap.getPerfectCount(), Color::RGB(255, 215, 0)));
+        rows.push_back(judgRow("ui.gameplay.great",   snap.getGreatCount(),   Color::RGB(120, 200, 255)));
+        rows.push_back(judgRow("ui.gameplay.miss",    snap.getMissCount(),    Color::RGB(255, 80, 80)));
+
+        if (showEarlyLate) {
+            rows.push_back(hbox({
+                text(tr("ui.gameplay.early")) | color(Color::RGB(120, 200, 255)) | size(WIDTH, EQUAL, 8),
+                text(std::to_string(snap.getEarlyCount())) | bold | size(WIDTH, EQUAL, 5),
+                text(tr("ui.gameplay.late"))  | color(Color::RGB(255, 180, 80))  | size(WIDTH, EQUAL, 8),
+                text(std::to_string(snap.getLateCount())) | bold,
+            }));
+        }
+    }
+    if (showProgress) {
+        if (!rows.empty()) rows.push_back(text(""));
+        rows.push_back(text(bar) | color(toColor(palette.textMuted)));
+        rows.push_back(hbox({
+            filler(),
+            text(formatMs(timeMs) + " / " + formatMs(totalDurationMs)) |
+                color(toColor(palette.textMuted)),
+        }));
+    }
+
+    if (rows.empty()) return filler();
+
+    Element panel = vbox(std::move(rows)) |
+        borderRounded |
+        color(toColor(palette.accentPrimary)) |
+        bgcolor(toColor(palette.surfacePanel)) |
+        size(WIDTH, LESS_THAN, 30);
+
+    return vbox({filler(), panel});
 }
 
 // ── Component state ───────────────────────────────────────────────────────────
@@ -515,6 +601,16 @@ struct GameplayState {
     bool    resultTriggered = false;
     bool    routed          = false;
     uint32_t totalDurationMs = 0;
+
+    // Pause menu
+    bool paused       = false;
+    int  pauseRow     = 0;  // 0=Resume, 1=Quit
+
+    // Judgment flash
+    bool showFlash    = false;
+    GameplayJudgement flashJudgement = GameplayJudgement::Perfect;
+    std::chrono::steady_clock::time_point flashStart{};
+    uint32_t lastNoteSettled = 0;  // tracks total settled notes to detect new judgements
 
     std::atomic<bool> bgRunning{false};
     std::thread       bgThread;
@@ -543,35 +639,60 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
     state->palette = ThemeAdapter::resolveFromRuntime();
     state->params  = params;
 
-    // Load chart data for note-field rendering
-    const bool chartOk =
-        GameplayChartParser::parseChart(params.chartFilePath, params.keyCount, state->chartData);
-    const bool sessionOk =
-        state->gameplay.openChart(params.chartFilePath, params.keyCount);
-
-    if (!chartOk || !sessionOk) {
-        // Fallback: render error and allow escape back
-        auto errRoot = Renderer([state, tr] {
-            return vbox({
-                text(tr("ui.gameplay.load_failed")) |
-                    color(Color::RedLight) | bold | center,
-                text(state->params.chartFilePath) |
-                    color(toColor(state->palette.textMuted)) | center,
-                text(tr("ui.gameplay.press_esc")) |
-                    color(toColor(state->palette.textMuted)) | center,
-            }) |
-            bgcolor(toColor(state->palette.surfaceBg)) | flex;
-        });
-        return CatchEvent(errRoot, [state, onRoute = std::move(onRoute)](const Event &ev) {
-            if (ev == Event::Escape || ev == Event::Character('q')) {
-                if (!state->routed) {
-                    state->routed = true;
-                    onRoute(UIScene::ChartList);
-                }
-                return true;
+    // Load chart data for note-field rendering.
+    // Intercept ErrorNotifier messages during parsing to detect out-of-range notes (W1).
+    bool hadOutOfRangeNotes = false;
+    {
+        // Capture prevSink by value so it remains valid if the lambda outlives this scope.
+        auto prevSink = ErrorNotifier::getSink();
+        // Match against the translated out-of-range error strings directly to stay locale-independent.
+        const std::string tapRangeMsg  = I18n::instance().get("error.tap_track_out_of_range");
+        const std::string holdRangeMsg = I18n::instance().get("error.hold_track_out_of_range");
+        ErrorNotifier::setSink([&hadOutOfRangeNotes, prevSink, tapRangeMsg, holdRangeMsg]
+                               (ErrorNotifier::Level level, const std::string &msg) {
+            if (msg.find(tapRangeMsg)  != std::string::npos ||
+                msg.find(holdRangeMsg) != std::string::npos) {
+                hadOutOfRangeNotes = true;
             }
-            return false;
+            if (prevSink) prevSink(level, msg);
         });
+
+        const bool chartOk_ =
+            GameplayChartParser::parseChart(params.chartFilePath, params.keyCount, state->chartData);
+        const bool sessionOk_ =
+            state->gameplay.openChart(params.chartFilePath, params.keyCount);
+
+        ErrorNotifier::setSink(prevSink);
+
+        if (!chartOk_ || !sessionOk_) {
+            MessageOverlay::push(MessageLevel::Error, tr("popup.error.chart_invalid_content"));
+            // Fallback: render error and allow escape back
+            auto errRoot = Renderer([state, tr] {
+                return vbox({
+                    text(tr("ui.gameplay.load_failed")) |
+                        color(Color::RedLight) | bold | center,
+                    text(state->params.chartFilePath) |
+                        color(toColor(state->palette.textMuted)) | center,
+                    text(tr("ui.gameplay.press_esc")) |
+                        color(toColor(state->palette.textMuted)) | center,
+                }) |
+                bgcolor(toColor(state->palette.surfaceBg)) | flex;
+            });
+            return CatchEvent(errRoot, [state, onRoute = std::move(onRoute)](const Event &ev) {
+                if (ev == Event::Escape || ev == Event::Character('q')) {
+                    if (!state->routed) {
+                        state->routed = true;
+                        onRoute(UIScene::ChartList);
+                    }
+                    return true;
+                }
+                return false;
+            });
+        }
+    }
+
+    if (hadOutOfRangeNotes) {
+        MessageOverlay::push(MessageLevel::Warning, tr("popup.warning.chart_notes_out_of_range"));
     }
 
     // Initialise lane pressed vector
@@ -584,6 +705,8 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
         state->gameplay.setChartClockDrivenByAudio(true);
         state->audio.playSong();
         state->audioStarted = true;
+    } else {
+        MessageOverlay::push(MessageLevel::Error, tr("popup.error.audio_load_failed"));
     }
 
     // Estimate total duration from chart end time (plus a small tail)
@@ -629,37 +752,104 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
             state->chartData, displayTimeMs, state->params.keyCount,
             state->lanePressed, state->palette, snap);
 
-        Element stats = renderStatsPanel(
-            snap, state->palette, tr,
-            state->totalDurationMs,
-            RuntimeConfig::showEarlyLate,
-            RuntimeConfig::showAPIndicator,
-            RuntimeConfig::showFCIndicator);
-
-        Element topBar = renderTopBar(
-            state->params.songName,
-            state->params.difficulty,
-            state->params.keyCount,
-            state->palette, tr);
-
-        Element bottomBar = renderBottomBar(state->palette, tr);
-
-        Element body = hbox({
-            noteField | size(WIDTH, EQUAL, state->params.keyCount * 5 + 2),
-            text("  "),
-            stats,
+        // Layer 1: note field horizontally centered, filling available space
+        Element centeredField = hbox({
+            filler(),
+            noteField | size(WIDTH, EQUAL, state->params.keyCount * 5 + 1),
+            filler(),
         }) | flex;
 
-        return vbox({
-                   topBar,
-                   separator(),
-                   body,
-                   separator(),
-                   bottomBar,
-               }) |
+        // Layer 2: four corner HUDs overlaid on top (conditional on RuntimeConfig flags)
+        Element tlHUD = renderTopLeftHUD(
+            state->params.songName, state->params.difficulty,
+            state->params.keyCount, state->palette, tr);
+        Element trHUD = renderTopRightHUD(
+            snap, state->palette, tr,
+            RuntimeConfig::hudShowScore, RuntimeConfig::hudShowAccuracy,
+            RuntimeConfig::hudShowMaxAccCeiling, RuntimeConfig::hudShowPbDelta,
+            state->params.personalBestAccuracy);
+        Element blHUD = renderBottomLeftHUD(
+            snap, state->palette, tr,
+            RuntimeConfig::showAPIndicator, RuntimeConfig::showFCIndicator,
+            RuntimeConfig::hudShowCombo, RuntimeConfig::hudShowMaxCombo);
+        Element brHUD = renderBottomRightHUD(
+            snap, state->palette, tr,
+            state->totalDurationMs, RuntimeConfig::showEarlyLate,
+            RuntimeConfig::hudShowJudgements, RuntimeConfig::hudShowProgress);
+
+        Element cornerOverlay = vbox({
+            hbox({tlHUD, filler(), trHUD}),
+            filler(),
+            hbox({blHUD, filler(), brHUD}),
+        }) | flex;
+
+        // Layer 3: message toasts
+        Element toastLayer = MessageOverlay::render(state->palette);
+
+        Element base = dbox({centeredField, cornerOverlay, toastLayer}) |
                bgcolor(toColor(state->palette.surfaceBg)) |
                color(toColor(state->palette.textPrimary)) |
                flex;
+
+        // Layer 4: judgment flash (centered, auto-expire after 800ms)
+        if (state->showFlash) {
+            const auto elapsedFlash = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - state->flashStart).count();
+            if (elapsedFlash <= 800) {
+                std::string flashLabel;
+                Color        flashColor = Color::White;
+                switch (state->flashJudgement) {
+                    case GameplayJudgement::Perfect:
+                        flashLabel = tr("ui.gameplay.flash.perfect");
+                        flashColor = Color::RGB(255, 215, 0);
+                        break;
+                    case GameplayJudgement::Great:
+                        flashLabel = tr("ui.gameplay.flash.great");
+                        flashColor = Color::RGB(120, 200, 255);
+                        break;
+                    case GameplayJudgement::Miss:
+                        flashLabel = tr("ui.gameplay.flash.miss");
+                        flashColor = Color::RGB(255, 80, 80);
+                        break;
+                }
+                Element flashEl = text(flashLabel) | bold | color(flashColor) | center;
+                Element flashOverlay = hbox({filler(), flashEl, filler()}) | vcenter | flex;
+                base = dbox({base, flashOverlay});
+            } else {
+                state->showFlash = false;
+            }
+        }
+
+        // Layer 5: pause menu overlay
+        if (state->paused) {
+            constexpr int kMenuW = 32;
+            auto menuRow = [&](const std::string &label, const bool selected) -> Element {
+                Element e = text("  " + label + "  ") | center;
+                if (selected) {
+                    e = e | bold |
+                        color(highContrastOn(state->palette.accentPrimary)) |
+                        bgcolor(toColor(state->palette.accentPrimary));
+                } else {
+                    e = e | color(toColor(state->palette.textPrimary));
+                }
+                return e;
+            };
+            Element pauseBox = vbox({
+                text(tr("ui.gameplay.pause.title")) | bold | color(toColor(state->palette.accentPrimary)) | center,
+                separator(),
+                menuRow(tr("ui.gameplay.pause.resume"), state->pauseRow == 0),
+                text(""),
+                menuRow(tr("ui.gameplay.pause.quit"), state->pauseRow == 1),
+            }) | borderRounded |
+                 color(toColor(state->palette.accentPrimary)) |
+                 bgcolor(toColor(state->palette.surfacePanel)) |
+                 size(WIDTH, EQUAL, kMenuW);
+
+            Element pauseOverlay = hbox({filler(), pauseBox, filler()}) | vcenter | flex;
+            base = dbox({base, pauseOverlay});
+        }
+
+        return base;
     });
 
     // ── Event handler ─────────────────────────────────────────────────────────
@@ -670,7 +860,7 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
 
             // ── Tick: advance game clock & check key timeouts ──────────────
             if (event == Event::Custom) {
-                if (!state->resultTriggered) {
+                if (!state->resultTriggered && !state->paused) {
                     // Advance clock via audio position
                     if (state->audioStarted) {
                         if (state->audio.isFinished()) {
@@ -704,6 +894,18 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
                         }
                     }
 
+                    // Detect new judgement for flash display
+                    const GameplaySnapshot snap = state->gameplay.snapshot();
+                    const uint32_t nowSettled = snap.getPerfectCount() +
+                                                snap.getGreatCount() +
+                                                snap.getMissCount();
+                    if (nowSettled > state->lastNoteSettled && snap.hasLastJudgement()) {
+                        state->showFlash      = true;
+                        state->flashJudgement = snap.getLastJudgement();
+                        state->flashStart     = std::chrono::steady_clock::now();
+                        state->lastNoteSettled = nowSettled;
+                    }
+
                     // Check result ready
                     if (state->gameplay.isResultReady() && !state->routed) {
                         state->resultTriggered = true;
@@ -734,6 +936,18 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
                             state->params.chartID,
                             state->params.songName);
 
+                        // Push result popup
+                        if (sp.saveSucceeded) {
+                            MessageOverlay::push(MessageLevel::Info,
+                                I18n::instance().get("popup.info.record_saved"));
+                        } else if (!UserContext::hasLoggedInUser() || UserContext::isGuestUser()) {
+                            MessageOverlay::push(MessageLevel::Error,
+                                I18n::instance().get("popup.error.record_save_no_login"));
+                        } else {
+                            MessageOverlay::push(MessageLevel::Error,
+                                I18n::instance().get("popup.error.record_save_failed"));
+                        }
+
                         UIBus::pendingSettlement = sp;
                         onRoute(UIScene::GameplaySettlement);
                     }
@@ -741,15 +955,56 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
                 return true;
             }
 
-            // ── Escape: quit back to chart list ───────────────────────────
+            // ── Escape: toggle pause menu ─────────────────────────────────
             if (event == Event::Escape) {
-                if (!state->routed) {
-                    state->routed = true;
-                    state->bgRunning.store(false);
-                    state->audio.stopSong();
-                    onRoute(UIScene::ChartList);
+                if (state->paused) {
+                    // Escape while paused = resume
+                    state->paused = false;
+                    if (state->audioStarted) state->audio.resume();
+                } else {
+                    state->paused = true;
+                    state->pauseRow = 0;
+                    if (state->audioStarted) state->audio.pause();
                 }
                 return true;
+            }
+
+            // ── Pause menu navigation ─────────────────────────────────────
+            if (state->paused) {
+                if (event == Event::ArrowUp || event == Event::Character('k')) {
+                    state->pauseRow = (state->pauseRow + 1) % 2;
+                    return true;
+                }
+                if (event == Event::ArrowDown || event == Event::Character('j')) {
+                    state->pauseRow = (state->pauseRow + 1) % 2;
+                    return true;
+                }
+                if (event == Event::Return) {
+                    if (state->pauseRow == 0) {
+                        // Resume
+                        state->paused = false;
+                        if (state->audioStarted) state->audio.resume();
+                    } else {
+                        // Quit
+                        if (!state->routed) {
+                            state->routed = true;
+                            state->bgRunning.store(false);
+                            state->audio.stopSong();
+                            onRoute(UIScene::ChartList);
+                        }
+                    }
+                    return true;
+                }
+                if (event == Event::Character('q') || event == Event::Character('Q')) {
+                    if (!state->routed) {
+                        state->routed = true;
+                        state->bgRunning.store(false);
+                        state->audio.stopSong();
+                        onRoute(UIScene::ChartList);
+                    }
+                    return true;
+                }
+                return true;  // consume all other keys while paused
             }
 
             // ── Key press ─────────────────────────────────────────────────

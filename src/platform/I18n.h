@@ -2,6 +2,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 /**
  * Lightweight singleton i18n utility.
@@ -44,6 +45,13 @@ public:
 
     /** Locale identifier inferred from loaded filename, e.g. "zh_CN". */
     const std::string &locale() const;
+
+    /**
+     * Returns the list of locale IDs available on disk (stems of *.json files
+     * in the dev i18n directory and/or AppDirs::localeDir()). Always sorted;
+     * duplicates removed.  Returns at least {"en_US"} as a fallback.
+     */
+    static std::vector<std::string> listAvailableLocales();
 
 private:
     I18n() = default;

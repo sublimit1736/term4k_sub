@@ -2,6 +2,7 @@
 
 #include "platform/RuntimeConfig.h"
 #include "platform/I18n.h"
+#include "ui/MessageOverlay.h"
 #include "ui/ThemeAdapter.h"
 #include "ui/UIColors.h"
 
@@ -173,59 +174,39 @@ ftxui::Component GameplaySettlementUI::component(const SettlementRouteParams &pa
         const ThemePalette &pal = state->palette;
 
         // ── Grade block art ──────────────────────────────────────────────
-        const GradeInfo grade  = gradeFromAcc(p.accuracy);
-        const AchvInfo  achv   = achievementFromParams(p);
+        const GradeInfo grade = gradeFromAcc(p.accuracy);
+        const AchvInfo  achv  = achievementFromParams(p);
 
-        Elements artLines;
-        artLines.push_back(blockArtWord(grade.label, grade.color, grade.rainbow));
+        Elements artRows;
+        artRows.push_back(
+            hbox({filler(), blockArtWord(grade.label, grade.color, grade.rainbow), filler()}));
         if (!achv.label.empty()) {
-            artLines.push_back(text(""));
-            artLines.push_back(blockArtWord(achv.label, achv.color, achv.rainbow));
+            artRows.push_back(text(""));
+            artRows.push_back(
+                hbox({filler(), blockArtWord(achv.label, achv.color, achv.rainbow), filler()}));
         }
-        Element gradeArt = vbox(std::move(artLines));
+        Element artCol = vbox({
+            filler(),
+            vbox(std::move(artRows)),
+            filler(),
+        }) | size(WIDTH, EQUAL, 40);
 
-        // ── Stat rows ────────────────────────────────────────────────────
-        auto statRow = [&](const std::string &labelKey, const std::string &value,
-                           const Color &valColor = Color::Default) {
+        // ── Stats column (right side) ─────────────────────────────────────
+        auto infoRow = [&](const std::string &labelKey, const std::string &val,
+                           const Color &valCol = Color::Default) {
             return hbox({
-                text(tr(labelKey)) |
-                    color(toColor(pal.textMuted)) |
-                    size(WIDTH, EQUAL, 20),
-                text(value) | bold |
-                    color(valColor == Color::Default ? toColor(pal.textPrimary) : valColor),
+                text(tr(labelKey)) | color(toColor(pal.textMuted)) | size(WIDTH, EQUAL, 18),
+                filler(),
+                text(val) | bold |
+                    color(valCol == Color::Default ? toColor(pal.textPrimary) : valCol),
             });
         };
 
-        const std::string scoreStr =
-            fmtScore(p.score) + " / " + fmtScore(p.chartMaxScore);
+        std::ostringstream diffStr;
+        diffStr << std::fixed << std::setprecision(1) << p.difficulty;
 
-        Element statsBox = vbox({
-            statRow("ui.settlement.score",     scoreStr, toColor(pal.accentPrimary)),
-            statRow("ui.settlement.accuracy",  fmtAcc(p.accuracy)),
-            statRow("ui.settlement.max_combo", "×" + std::to_string(p.maxCombo)),
-            text(""),
-            hbox({
-                text(tr("ui.settlement.perfect")) |
-                    color(Color::RGB(255,215,0)) | size(WIDTH, EQUAL, 10),
-                text(std::to_string(p.perfectCount)) | bold | size(WIDTH, EQUAL, 6),
-                text(tr("ui.settlement.great")) |
-                    color(Color::RGB(120,200,255)) | size(WIDTH, EQUAL, 10),
-                text(std::to_string(p.greatCount)) | bold | size(WIDTH, EQUAL, 6),
-                text(tr("ui.settlement.miss")) |
-                    color(Color::RGB(255, 80, 80)) | size(WIDTH, EQUAL, 10),
-                text(std::to_string(p.missCount)) | bold | size(WIDTH, EQUAL, 6),
-            }),
-            hbox({
-                text(tr("ui.settlement.early")) |
-                    color(Color::RGB(120,200,255)) | size(WIDTH, EQUAL, 10),
-                text(std::to_string(p.earlyCount)) | bold | size(WIDTH, EQUAL, 6),
-                text(tr("ui.settlement.late")) |
-                    color(Color::RGB(255,180, 80)) | size(WIDTH, EQUAL, 10),
-                text(std::to_string(p.lateCount)) | bold | size(WIDTH, EQUAL, 6),
-            }),
-        });
+        const std::string scoreStr = fmtScore(p.score) + " / " + fmtScore(p.chartMaxScore);
 
-        // ── Save status ──────────────────────────────────────────────────
         Element saveStatus;
         if (p.saveSucceeded) {
             saveStatus = text("✓ " + tr("ui.settlement.record_saved")) |
@@ -235,46 +216,57 @@ ftxui::Component GameplaySettlementUI::component(const SettlementRouteParams &pa
                          color(Color::RGB(255, 100, 100));
         }
 
-        // ── Song info bar ────────────────────────────────────────────────
-        std::ostringstream diffStr;
-        diffStr << std::fixed << std::setprecision(1) << p.difficulty;
-        Element songInfo = hbox({
-            text(p.songName) | bold | color(toColor(pal.textPrimary)) | flex,
-            text(tr("ui.settlement.difficulty") + " " + diffStr.str()) |
-                color(toColor(pal.textMuted)),
-        });
-
-        // ── Main content panel ───────────────────────────────────────────
-        Element mainContent = vbox({
-            hbox({filler(), gradeArt, filler()}),
-            text(""),
-            statsBox,
+        Element statsCol = vbox({
+            infoRow("ui.settlement.score",     scoreStr,                          toColor(pal.accentPrimary)),
+            infoRow("ui.settlement.accuracy",  fmtAcc(p.accuracy)),
+            infoRow("ui.settlement.max_combo", "×" + std::to_string(p.maxCombo)),
+            infoRow("ui.settlement.difficulty", diffStr.str()),
+            separator(),
+            hbox({
+                text(tr("ui.settlement.perfect")) |
+                    color(Color::RGB(255, 215, 0)) | size(WIDTH, EQUAL, 10),
+                text(std::to_string(p.perfectCount)) | bold | size(WIDTH, EQUAL, 6),
+                text(tr("ui.settlement.great")) |
+                    color(Color::RGB(120, 200, 255)) | size(WIDTH, EQUAL, 10),
+                text(std::to_string(p.greatCount)) | bold | size(WIDTH, EQUAL, 6),
+                text(tr("ui.settlement.miss")) |
+                    color(Color::RGB(255, 80, 80)) | size(WIDTH, EQUAL, 10),
+                text(std::to_string(p.missCount)) | bold,
+            }),
+            hbox({
+                text(tr("ui.settlement.early")) |
+                    color(Color::RGB(120, 200, 255)) | size(WIDTH, EQUAL, 10),
+                text(std::to_string(p.earlyCount)) | bold | size(WIDTH, EQUAL, 6),
+                text(tr("ui.settlement.late")) |
+                    color(Color::RGB(255, 180, 80)) | size(WIDTH, EQUAL, 10),
+                text(std::to_string(p.lateCount)) | bold,
+            }),
             text(""),
             saveStatus,
-        });
+            filler(),
+            hbox({filler(), text(tr("ui.settlement.hint")) | color(toColor(pal.textMuted))}),
+        }) | flex;
 
-        Element mainPanel = window(
-            text("  " + p.songName + "  "),
-            mainContent) |
+        // ── Horizontal panel ──────────────────────────────────────────────
+        Element panelBody = hbox({artCol, separator(), statsCol | flex});
+
+        Element panel =
+            window(text("  " + p.songName + "  "), panelBody) |
             color(toColor(pal.accentPrimary)) |
             bgcolor(toColor(pal.surfacePanel));
 
-        // ── Bottom bar ───────────────────────────────────────────────────
-        Element bottomBar = hbox({
-            text(tr("ui.settlement.hint")) | color(toColor(pal.textMuted)),
-            filler(),
-        }) | size(HEIGHT, EQUAL, 1);
-
-        return vbox({
-                   songInfo,
-                   separator(),
-                   hbox({filler(), mainPanel, filler()}) | flex,
-                   separator(),
-                   bottomBar,
-               }) |
-               bgcolor(toColor(pal.surfaceBg)) |
-               color(toColor(pal.textPrimary)) |
-               flex;
+        // Dark background; panel vertically + horizontally centered
+        return dbox({
+            text("") | bgcolor(Color::RGB(10, 10, 15)) | flex,
+            vbox({
+                filler(),
+                hbox({filler(), panel, filler()}),
+                filler(),
+            }) | flex,
+            MessageOverlay::render(pal),
+        }) |
+        color(toColor(pal.textPrimary)) |
+        flex;
     });
 
     return CatchEvent(root, [routeBack = std::move(routeBack)](const Event &event) mutable {

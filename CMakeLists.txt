@@ -41,6 +41,17 @@ if (TERM4K_USE_SYSTEM_DEPS)
     find_path(TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR miniaudio.h)
 endif ()
 
+# ── stb (single-header image loader, used by IllustrationRenderer) ──────────────
+FetchContent_Declare(
+        stb
+        GIT_REPOSITORY https://github.com/nothings/stb.git
+        GIT_TAG        31c1ad37456438565541f4919958214b6e762fb4  # stb_image v2.30
+)
+FetchContent_MakeAvailable(stb)
+set(TERM4K_STB_INCLUDE_DIR "${stb_SOURCE_DIR}")
+message(STATUS "term4k deps: using FetchContent stb from ${TERM4K_STB_INCLUDE_DIR}")
+# ────────────────────────────────────────────────────────────────────────────
+
 if (TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR)
     set(TERM4K_MINIAUDIO_IMPL "${CMAKE_BINARY_DIR}/term4k_miniaudio_impl.c")
     file(WRITE "${TERM4K_MINIAUDIO_IMPL}" "#define MINIAUDIO_IMPLEMENTATION\n#include <miniaudio.h>\n")
@@ -144,6 +155,8 @@ if (TERM4K_ENABLE_TUI)
             src/ui/MessageOverlay.cpp
             src/ui/TransitionBackdrop.cpp
             src/ui/ChartListUI.cpp
+            src/ui/IllustrationRenderer.cpp
+            src/ui/TerminalImageProtocol.cpp
             src/ui/SettingsUI.cpp
             src/ui/UserStatUI.cpp
             src/ui/GameplayUI.cpp
@@ -151,6 +164,8 @@ if (TERM4K_ENABLE_TUI)
             src/ui/UIColors.cpp
             src/ui/UIBus.cpp
     )
+
+    target_include_directories(term4k PRIVATE "${TERM4K_STB_INCLUDE_DIR}")
 
     target_compile_definitions(term4k PRIVATE TERM4K_ENABLE_TUI=1)
     target_link_libraries(term4k PRIVATE ftxui::screen ftxui::dom ftxui::component)

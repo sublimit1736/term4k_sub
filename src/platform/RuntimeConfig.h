@@ -7,6 +7,8 @@
 
 enum class ChartEndTimingMode { AfterAudioEnd, AfterChartEnd, };
 
+enum class ToastPosition { TopLeft, TopRight, BottomLeft, BottomRight };
+
 // Global runtime settings hub: defaults, per-user load, and persistence.
 class RuntimeConfig {
 public:
@@ -28,6 +30,21 @@ public:
     static uint32_t chartPreloadMs;
     static ChartEndTimingMode chartEndTimingMode;
     static std::vector<uint8_t> keyBindings;
+    static ToastPosition toastPosition;
+
+    // Gameplay HUD display toggles
+    static bool hudShowScore;
+    static bool hudShowAccuracy;
+    static bool hudShowCombo;
+    static bool hudShowMaxCombo;
+    static bool hudShowJudgements;
+    static bool hudShowProgress;
+    static bool hudShowMaxAccCeiling;
+    static bool hudShowPbDelta;
+
+    // Set to true when the last loadForUser() call failed to read the file.
+    // Reset to false on a successful load or when resetToDefaults() is called.
+    static bool lastLoadFailed;
 
     static void resetToDefaults();
 

@@ -1,5 +1,7 @@
 #include "ui/ChartListUI.h"
 
+#include "ui/IllustrationRenderer.h"
+
 #include "platform/AppDirs.h"
 #include "platform/RuntimeConfig.h"
 #include "account/RecordStore.h"
@@ -11,6 +13,7 @@
 #include "ui/UIBus.h"
 #include "ui/UIColors.h"
 #include "utils/StringUtils.h"
+#include "audio/AudioPlayer.h"
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
@@ -121,6 +124,7 @@ namespace ui {
             std::atomic<bool> loadFailed{false};
             std::string loadError;
             bool loadCompleted = false;
+            bool failuresPosted = false;
             std::atomic<bool> keepRunning{true};
         };
 
@@ -209,6 +213,7 @@ namespace ui {
         };
 
         struct RightPanelState {
+            std::string chartFolderPath;
             std::string nameText = "-";
             std::string artistText = "-";
             std::string charterText = "-";
@@ -252,6 +257,53 @@ namespace ui {
             appliedSearch = searchQuery;
             selectedIndex = 0;
             session.loadCompleted = true;
+        }
+
+        // Posts detection-failure popups once after load completes.
+        // Called from the render path when loadCompleted first becomes true.
+        void postDetectionFailurePopups(ChartListLoadSession &session,
+                                        const ChartListScene &chartList) {
+            if (!session.loadCompleted || session.failuresPosted) return;
+            session.failuresPosted = true;
+
+            const auto &failures = chartList.failures();
+            if (failures.empty()) return;
+
+            std::size_t missingAudio   = 0;
+            std::size_t missingChart   = 0;
+            std::size_t missingMeta    = 0;
+            std::size_t otherIssues    = 0;
+
+            for (const auto &f : failures) {
+                switch (f.issue) {
+                    case ChartDetectionIssue::MissingMusic:   ++missingAudio;  break;
+                    case ChartDetectionIssue::MissingChart:   ++missingChart;  break;
+                    case ChartDetectionIssue::MissingMeta:    ++missingMeta;   break;
+                    default:                                  ++otherIssues;   break;
+                }
+            }
+
+            auto &i18n = I18n::instance();
+            if (missingAudio > 0) {
+                MessageOverlay::push(MessageLevel::Error,
+                    i18n.get("popup.error.chart_no_audio") +
+                    " (" + std::to_string(missingAudio) + ")");
+            }
+            if (missingChart > 0) {
+                MessageOverlay::push(MessageLevel::Error,
+                    i18n.get("popup.error.chart_no_file") +
+                    " (" + std::to_string(missingChart) + ")");
+            }
+            if (missingMeta > 0) {
+                MessageOverlay::push(MessageLevel::Warning,
+                    i18n.get("popup.warning.chart_no_meta") +
+                    " (" + std::to_string(missingMeta) + ")");
+            }
+            if (otherIssues > 0) {
+                MessageOverlay::push(MessageLevel::Warning,
+                    i18n.get("popup.warning.chart_other_issues") +
+                    " (" + std::to_string(otherIssues) + ")");
+            }
         }
 
         std::vector<std::string> collectVisibleChartIds(ChartListLoadSession &session,
@@ -338,6 +390,7 @@ namespace ui {
 
             const auto &entry = it->second;
             const auto &chart = entry.chart;
+            panelState.chartFolderPath = entry.folderPath;
             panelState.nameText = chart.getDisplayName().empty() ? selection.chartId : chart.getDisplayName();
             panelState.artistText = chart.getArtist().empty() ? "-" : chart.getArtist();
             panelState.charterText = chart.getCharter().empty() ? "-" : chart.getCharter();
@@ -709,6 +762,7 @@ namespace ui {
                                    uiState.searchQuery,
                                    uiState.appliedSearch,
                                    uiState.selectedIndex);
+            postDetectionFailurePopups(session, chartList);
 
             std::string loadFailureMessage;
             if (!session.loadCompleted && session.loadFailed.load()) {
@@ -987,22 +1041,31 @@ namespace ui {
             auto infoRow = [&](const std::string &labelKey, const std::string &value) {
                 return hbox({
                     text(tr(labelKey)) | color(toColor(palette.textMuted)),
+                    filler(),
                     text(value) | bold | color(toColor(palette.textPrimary)),
                 });
             };
 
-            Element metaPanel = vbox({
+            Element infoPanel = vbox({
                 infoRow("ui.chart_select.meta.name", state.nameText),
                 infoRow("ui.chart_select.meta.artist", state.artistText),
                 infoRow("ui.chart_select.meta.charter", state.charterText),
                 infoRow("ui.chart_select.meta.difficulty", state.diffText),
                 infoRow("ui.chart_select.meta.keys", state.keyText),
+            }) | flex;
+
+            Element illustration = renderIllustration(state.chartFolderPath);
+
+            Element metaPanel = hbox({
+                illustration | size(WIDTH, EQUAL, kIllustrationCellW) | size(HEIGHT, EQUAL, kIllustrationCellH),
+                text(" "),
+                infoPanel,
             });
 
-            return window(text("  " + tr("ui.chart_select.meta.title") + " "), metaPanel) |
+            return window(text("  " + tr("ui.chart_select.meta.title") + " "), metaPanel) |
                    color(toColor(palette.accentPrimary)) |
                    bgcolor(toColor(palette.surfacePanel)) |
-                   size(HEIGHT, LESS_THAN, 12);
+                   size(HEIGHT, LESS_THAN, 16);
         }
 
         ftxui::Element renderScorePanel(const ThemePalette &palette,
@@ -1395,12 +1458,65 @@ namespace ui {
             bool routed = false;
             std::atomic<bool> exitRequested{false};
 
+            // Audio preview player for the chart selection screen.
+            AudioPlayer previewPlayer;
+            std::string lastPreviewChartId;  ///< Chart ID whose preview is currently loaded.
+            uint32_t previewEndMs = 0;       ///< Stop preview when position reaches this value.
+
             ~ChartListComponentState() {
                 session.keepRunning = false;
                 if (chartLoader.joinable()) chartLoader.join();
                 if (recordLoader.joinable()) recordLoader.join();
             }
         };
+
+        /// Default preview duration (ms) when chart metadata contains no preview range.
+        constexpr uint32_t kDefaultPreviewEndMs = 10000;
+
+        /// Starts or updates the audio preview for the currently selected chart.
+        /// Stops any ongoing preview first.  Safe to call every render frame —
+        /// it is a no-op when the selected chart has not changed.
+        void updateChartPreview(ChartListComponentState &cstate,
+                                const std::string &selectedChartId,
+                                const ChartListScene &chartList) {
+            // Auto-stop when the preview time window has elapsed.
+            if (!cstate.lastPreviewChartId.empty() &&
+                cstate.previewEndMs > 0 &&
+                cstate.previewPlayer.positionMs() >= cstate.previewEndMs) {
+                cstate.previewPlayer.stopSong();
+            }
+
+            if (selectedChartId == cstate.lastPreviewChartId) return;
+
+            // Selection changed — stop the current preview and start a new one.
+            cstate.previewPlayer.stopSong();
+            cstate.lastPreviewChartId = selectedChartId;
+            cstate.previewEndMs = 0;
+
+            if (selectedChartId.empty()) return;
+
+            const auto it = chartList.items().find(selectedChartId);
+            if (it == chartList.items().end()) return;
+
+            const auto &entry = it->second;
+            if (entry.musicFilePath.empty()) return;
+
+            const uint32_t begin = entry.chart.getPreviewBegin();
+            const uint32_t end   = entry.chart.getPreviewEnd();
+
+            // Determine effective preview window.
+            // If the chart supplies no end time (end == 0), default to begin + 10 s.
+            const uint32_t effectiveBegin = begin;
+            const uint32_t effectiveEnd   = (end > begin) ? end : (begin + kDefaultPreviewEndMs);
+
+            cstate.previewEndMs = effectiveEnd;
+            cstate.previewPlayer.setVolume(RuntimeConfig::musicVolume);
+            if (cstate.previewPlayer.loadSong(entry.musicFilePath.c_str())) {
+                if (effectiveBegin > 0) cstate.previewPlayer.seekToMs(effectiveBegin);
+                cstate.previewPlayer.playSong();
+            }
+        }
+
     } // namespace
 
     ftxui::Component ChartListUI::component(ftxui::ScreenInteractive &screen,
@@ -1451,6 +1567,7 @@ namespace ui {
             bool expected = false;
             if (!state->exitRequested.compare_exchange_strong(expected, true)) return;
             state->session.keepRunning = false;
+            state->previewPlayer.stopSong();
             routeToStartMenu();
             // routeToStartMenu() posts Event::Custom which drives the deferred
             // scene-swap in UIBus — no need to call ExitLoopClosure() here,
@@ -1478,10 +1595,12 @@ namespace ui {
                                    : entry.chart.getDisplayName();
             gp.keyCount      = entry.chart.getKeyCount();
             gp.difficulty    = entry.chart.getDifficulty();
+            gp.personalBestAccuracy = entry.stats.bestAccuracy;
 
             UIBus::pendingGameplay = gp;
             state->routed = true;
             state->session.keepRunning = false;
+            state->previewPlayer.stopSong();
             onRoute(UIScene::Gameplay);
         };
 
@@ -1498,6 +1617,15 @@ namespace ui {
         auto container   = Container::Vertical({searchInput});
 
         auto root = Renderer(container, [state, tr, searchInput] {
+            // Update audio preview when the selected chart changes.
+            if (state->session.loadCompleted) {
+                const auto &ids = state->chartList.filteredOrderedChartIDs();
+                const std::string selectedId =
+                    ids.empty() ? std::string()
+                                : ids[std::min(state->uiState.selectedIndex, ids.size() - 1)];
+                updateChartPreview(*state, selectedId, state->chartList);
+            }
+
             return renderChartListFrame(state->palette,
                                         tr,
                                         state->session,

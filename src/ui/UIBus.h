@@ -27,6 +27,7 @@ struct GameplayRouteParams {
     std::string songName;
     uint16_t    keyCount    = 0;
     float       difficulty  = 0.0f;
+    float       personalBestAccuracy = 0.0f;  // 0.0 if no record
 };
 
 // Parameters populated by GameplayUI before routing to UIScene::GameplaySettlement.

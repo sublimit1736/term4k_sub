@@ -5,6 +5,12 @@
 /**
  * Resolves runtime filesystem paths for term4k.
  *
+ * Development mode (detected when src/resources/i18n/ exists in or above CWD):
+ *   dataDir   -> <projectRoot>/data/
+ *   chartsDir -> <projectRoot>/data/charts/
+ *   configDir -> <projectRoot>/data/config/
+ *   localeDir -> <projectRoot>/src/resources/i18n/
+ *
  * System mode (detected when /etc/term4k/ exists, e.g. package install):
  *   dataDir   -> /var/lib/term4k/
  *   chartsDir -> /usr/share/term4k/charts/
@@ -15,14 +21,11 @@
  *   chartsDir -> $XDG_DATA_HOME/term4k/charts/ (fallback: ~/.local/share/term4k/charts/)
  *   configDir -> $XDG_CONFIG_HOME/term4k/      (fallback: ~/.config/term4k/)
  *
- * The following path is mode-independent and always fixed:
- *   localeDir -> <exeDir>/i18n/
- *
  * Runtime settings are stored by RuntimeConfig under:
- *   $XDG_CONFIG_HOME/term4k/<username>_settings.json (fallback: ~/.config/term4k/)
+ *   $configDir/<username>_settings.json
  *
  * Call AppDirs::init() once before accessing these paths.
- * In user mode, init() also creates missing directories.
+ * init() also creates missing directories in dev and user modes.
  */
 class AppDirs {
 public:

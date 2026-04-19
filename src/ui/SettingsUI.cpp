@@ -84,6 +84,8 @@ ftxui::Component SettingsUI::component(
         bool keyCaptureMode = false;
         std::string cachedConflictWarning;
         bool conflictWarningDirty = true;
+        bool showHudEditor = false;
+        int hudEditorRow = 0;
     };
 
     auto state = std::make_shared<SettingsState>();
@@ -97,7 +99,14 @@ ftxui::Component SettingsUI::component(
     }
     state->status = tr("ui.settings.action.idle");
 
-    const std::array<std::string, 2> locales = {"zh_CN", "en_US"};
+    // E6: warn once if the settings file failed to load on login.
+    if (RuntimeConfig::lastLoadFailed) {
+        MessageOverlay::push(MessageLevel::Error, tr("popup.error.settings_load_failed"));
+        RuntimeConfig::lastLoadFailed = false;
+    }
+
+    // Locale list is read dynamically from the i18n directory on disk.
+    const std::vector<std::string> locales = I18n::listAvailableLocales();
     const std::array<uint32_t, 8> bufferOptions = {64, 128, 256, 512, 1024, 2048, 4096, 8192};
 
     // Helper: compute a summary of duplicate-key conflicts.
@@ -158,6 +167,7 @@ ftxui::Component SettingsUI::component(
             I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
             state->palette = ThemeAdapter::resolveFromRuntime();
             state->status = tr("ui.settings.action.saved");
+            MessageOverlay::push(MessageLevel::Info, tr("popup.info.settings_saved"));
             return true;
         }
         state->status = tr("ui.settings.action.save_failed");
@@ -165,7 +175,7 @@ ftxui::Component SettingsUI::component(
     };
 
     auto clampRow = [state] {
-        const int maxRowsByTab[3] = {2, 3, 8};
+        const int maxRowsByTab[3] = {3, 3, 9};
         state->rowIndex = std::clamp(state->rowIndex, 0, maxRowsByTab[state->tabIndex] - 1);
     };
 
@@ -185,6 +195,19 @@ ftxui::Component SettingsUI::component(
         state->draft.setLocale(locales[static_cast<std::size_t>(index)]);
     };
 
+    const std::array<ToastPosition, 4> kToastPositions = {
+        ToastPosition::TopLeft, ToastPosition::TopRight,
+        ToastPosition::BottomLeft, ToastPosition::BottomRight
+    };
+    auto cycleToastPosition = [state, kToastPositions](const int delta) {
+        int index = 0;
+        for (std::size_t i = 0; i < kToastPositions.size(); ++i) {
+            if (state->draft.getToastPosition() == kToastPositions[i]) index = static_cast<int>(i);
+        }
+        index = (index + delta + static_cast<int>(kToastPositions.size())) % static_cast<int>(kToastPositions.size());
+        state->draft.setToastPosition(kToastPositions[static_cast<std::size_t>(index)]);
+    };
+
     auto cycleBuffer = [state, bufferOptions](const int delta) {
         int index = 0;
         for (std::size_t i = 0; i < bufferOptions.size(); ++i) {
@@ -194,10 +217,11 @@ ftxui::Component SettingsUI::component(
         state->draft.setAudioBufferSize(bufferOptions[static_cast<std::size_t>(index)]);
     };
 
-    auto modifyCurrentField = [state, cycleTheme, cycleLocale, cycleBuffer](const int delta, const bool fineAdjust) {
+    auto modifyCurrentField = [state, cycleTheme, cycleLocale, cycleBuffer, cycleToastPosition](const int delta, const bool fineAdjust) {
         if (state->tabIndex == 0) {
             if (state->rowIndex == 0) cycleTheme(delta);
             if (state->rowIndex == 1) cycleLocale(delta);
+            if (state->rowIndex == 2) cycleToastPosition(delta);
             return;
         }
 
@@ -255,6 +279,17 @@ ftxui::Component SettingsUI::component(
         // ensureTenKeySlots is called once at startup; not repeated every frame.
         const std::vector<uint8_t> &bindings = state->draft.getKeyBindings();
 
+        // Toast position label helper
+        auto toastPosLabel = [&](const ToastPosition pos) -> std::string {
+            switch (pos) {
+                case ToastPosition::TopLeft:     return tr("ui.settings.value.toast_top_left");
+                case ToastPosition::TopRight:    return tr("ui.settings.value.toast_top_right");
+                case ToastPosition::BottomLeft:  return tr("ui.settings.value.toast_bottom_left");
+                case ToastPosition::BottomRight: return tr("ui.settings.value.toast_bottom_right");
+            }
+            return "";
+        };
+
         Elements tabElements;
         for (int i = 0; i < static_cast<int>(tabs.size()); ++i) {
             Element t = text(" " + tabs[static_cast<std::size_t>(i)] + " ") | bold;
@@ -271,6 +306,7 @@ ftxui::Component SettingsUI::component(
         if (state->tabIndex == 0) {
             logicalRows.push_back(row(tr("ui.settings.field.theme"), state->draft.getTheme(), state->rowIndex == 0));
             logicalRows.push_back(row(tr("ui.settings.field.locale"), state->draft.getLocale(), state->rowIndex == 1));
+            logicalRows.push_back(row(tr("ui.settings.field.toast_position"), toastPosLabel(state->draft.getToastPosition()), state->rowIndex == 2));
         } else if (state->tabIndex == 1) {
             logicalRows.push_back(row(tr("ui.settings.field.music_volume"), std::to_string(static_cast<int>(state->draft.getMusicVolume() * 100.0f)) + "%", state->rowIndex == 0));
             logicalRows.push_back(row(tr("ui.settings.field.hit_volume"), std::to_string(static_cast<int>(state->draft.getHitSoundVolume() * 100.0f)) + "%", state->rowIndex == 1));
@@ -288,6 +324,7 @@ ftxui::Component SettingsUI::component(
                                          : tr("ui.settings.value.after_chart_end"),
                                      state->rowIndex == 6));
             logicalRows.push_back(row(tr("ui.settings.field.key_bindings"), bindingSummary(bindings), state->rowIndex == 7));
+            logicalRows.push_back(row(tr("ui.settings.field.hud_display"), "", state->rowIndex == 8));
         }
 
         Elements rowsWithGap;
@@ -353,6 +390,54 @@ ftxui::Component SettingsUI::component(
                             size(WIDTH, EQUAL, 56);
 
             body = dbox({body, hbox({filler(), popup, filler()}) | vcenter | flex});
+        }
+
+        if (state->showHudEditor) {
+            // HUD display checklist popup
+            struct HudItem {
+                std::string labelKey;
+                bool (SettingsDraft::*getter)() const;
+                void (SettingsDraft::*setter)(bool);
+            };
+            const std::array<HudItem, 8> hudItems = {{
+                {"ui.settings.hud.score",          &SettingsDraft::isHudShowScore,         &SettingsDraft::setHudShowScore},
+                {"ui.settings.hud.accuracy",       &SettingsDraft::isHudShowAccuracy,      &SettingsDraft::setHudShowAccuracy},
+                {"ui.settings.hud.combo",          &SettingsDraft::isHudShowCombo,         &SettingsDraft::setHudShowCombo},
+                {"ui.settings.hud.max_combo",      &SettingsDraft::isHudShowMaxCombo,      &SettingsDraft::setHudShowMaxCombo},
+                {"ui.settings.hud.judgements",     &SettingsDraft::isHudShowJudgements,    &SettingsDraft::setHudShowJudgements},
+                {"ui.settings.hud.progress",       &SettingsDraft::isHudShowProgress,      &SettingsDraft::setHudShowProgress},
+                {"ui.settings.hud.max_acc_ceiling",&SettingsDraft::isHudShowMaxAccCeiling, &SettingsDraft::setHudShowMaxAccCeiling},
+                {"ui.settings.hud.pb_delta",       &SettingsDraft::isHudShowPbDelta,       &SettingsDraft::setHudShowPbDelta},
+            }};
+
+            Elements hudRows;
+            for (int i = 0; i < static_cast<int>(hudItems.size()); ++i) {
+                const bool checked = (state->draft.*hudItems[static_cast<std::size_t>(i)].getter)();
+                const std::string mark = checked ? "[x] " : "[ ] ";
+                Element r = hbox({text(mark), text(tr(hudItems[static_cast<std::size_t>(i)].labelKey))});
+                if (i == state->hudEditorRow) {
+                    r = r | color(highContrastOn(state->palette.accentPrimary)) | bgcolor(toColor(state->palette.accentPrimary));
+                } else {
+                    r = r | color(toColor(state->palette.textPrimary));
+                }
+                hudRows.push_back(r);
+                if (i + 1 < static_cast<int>(hudItems.size())) hudRows.push_back(text(""));
+            }
+
+            Elements hudEditorRows = {
+                text(tr("ui.settings.hud_editor.title")) | bold | color(toColor(state->palette.accentPrimary)),
+                text(tr("ui.settings.hud_editor.hint")) | color(toColor(state->palette.textMuted)),
+                separator(),
+                vbox(std::move(hudRows)),
+            };
+
+            Element hudEditorBody = vbox(std::move(hudEditorRows));
+            Element hudPopup = window(text(" " + tr("ui.settings.field.hud_display") + " "), hudEditorBody) |
+                               color(toColor(state->palette.accentPrimary)) |
+                               bgcolor(toColor(state->palette.surfacePanel)) |
+                               size(WIDTH, EQUAL, 56);
+
+            body = dbox({body, hbox({filler(), hudPopup, filler()}) | vcenter | flex});
         }
 
         Element bottom = text(state->status) | color(toColor(state->palette.textMuted));
@@ -434,6 +519,43 @@ ftxui::Component SettingsUI::component(
             return true;
         }
 
+        if (state->showHudEditor) {
+            constexpr int kHudItemCount = 8;
+            if (event == Event::Escape) {
+                state->showHudEditor = false;
+                return true;
+            }
+            if (event == Event::ArrowUp || event == Event::Character('k')) {
+                state->hudEditorRow = (state->hudEditorRow + kHudItemCount - 1) % kHudItemCount;
+                return true;
+            }
+            if (event == Event::ArrowDown || event == Event::Character('j')) {
+                state->hudEditorRow = (state->hudEditorRow + 1) % kHudItemCount;
+                return true;
+            }
+            if (event == Event::Return) {
+                // Toggle the selected HUD item
+                switch (state->hudEditorRow) {
+                    case 0: state->draft.setHudShowScore(!state->draft.isHudShowScore()); break;
+                    case 1: state->draft.setHudShowAccuracy(!state->draft.isHudShowAccuracy()); break;
+                    case 2: state->draft.setHudShowCombo(!state->draft.isHudShowCombo()); break;
+                    case 3: state->draft.setHudShowMaxCombo(!state->draft.isHudShowMaxCombo()); break;
+                    case 4: state->draft.setHudShowJudgements(!state->draft.isHudShowJudgements()); break;
+                    case 5: state->draft.setHudShowProgress(!state->draft.isHudShowProgress()); break;
+                    case 6: state->draft.setHudShowMaxAccCeiling(!state->draft.isHudShowMaxAccCeiling()); break;
+                    case 7: state->draft.setHudShowPbDelta(!state->draft.isHudShowPbDelta()); break;
+                    default: break;
+                }
+                return true;
+            }
+            if (event == Event::Character('s') || event == Event::Character('S')) {
+                saveAndRefresh();
+                state->showHudEditor = false;
+                return true;
+            }
+            return true;
+        }
+
         if (event == Event::Escape || event == Event::Character('q')) {
             onRoute(UIScene::StartMenu);
             return true;
@@ -477,6 +599,7 @@ ftxui::Component SettingsUI::component(
         if (event == Event::Return) {
             if (state->tabIndex == 0 && state->rowIndex == 0) state->status = tr("ui.settings.desc.theme");
             if (state->tabIndex == 0 && state->rowIndex == 1) state->status = tr("ui.settings.desc.locale");
+            if (state->tabIndex == 0 && state->rowIndex == 2) state->status = tr("ui.settings.desc.toast_position");
             if (state->tabIndex == 1 && state->rowIndex == 0) state->status = tr("ui.settings.desc.music_volume");
             if (state->tabIndex == 1 && state->rowIndex == 1) state->status = tr("ui.settings.desc.hit_volume");
             if (state->tabIndex == 1 && state->rowIndex == 2) state->status = tr("ui.settings.desc.buffer_size");

@@ -43,6 +43,12 @@ void GameplaySnapshot::setChartMaxScore(const uint64_t value) { chartMaxScore_ =
 void GameplaySnapshot::setCurrentChartTimeMs(const uint32_t value) { currentChartTimeMs_ = value; }
 void GameplaySnapshot::setSettlementAnimationTriggered(const bool value) { settlementAnimationTriggered_ = value; }
 void GameplaySnapshot::setResultReady(const bool value) { resultReady_ = value; }
+double GameplaySnapshot::getMaxAccuracyCeiling() const { return maxAccuracyCeiling_; }
+void GameplaySnapshot::setMaxAccuracyCeiling(const double value) { maxAccuracyCeiling_ = value; }
+GameplayJudgement GameplaySnapshot::getLastJudgement() const { return lastJudgement_; }
+bool GameplaySnapshot::hasLastJudgement() const { return hasLastJudgement_; }
+void GameplaySnapshot::setLastJudgement(const GameplayJudgement value) { hasLastJudgement_ = true; lastJudgement_ = value; }
+void GameplaySnapshot::clearLastJudgement() { hasLastJudgement_ = false; }
 
 GameplayFinalResult::GameplayFinalResult() = default;
 

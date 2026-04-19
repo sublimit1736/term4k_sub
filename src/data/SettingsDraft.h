@@ -43,6 +43,17 @@ public:
 
     const std::vector<uint8_t> &getKeyBindings() const;
 
+    ToastPosition getToastPosition() const;
+
+    bool isHudShowScore() const;
+    bool isHudShowAccuracy() const;
+    bool isHudShowCombo() const;
+    bool isHudShowMaxCombo() const;
+    bool isHudShowJudgements() const;
+    bool isHudShowProgress() const;
+    bool isHudShowMaxAccCeiling() const;
+    bool isHudShowPbDelta() const;
+
     void setTheme(const std::string &value);
 
     void setLocale(const std::string &value);
@@ -69,6 +80,17 @@ public:
 
     void setKeyBindings(const std::vector<uint8_t> &value);
 
+    void setToastPosition(ToastPosition value);
+
+    void setHudShowScore(bool value);
+    void setHudShowAccuracy(bool value);
+    void setHudShowCombo(bool value);
+    void setHudShowMaxCombo(bool value);
+    void setHudShowJudgements(bool value);
+    void setHudShowProgress(bool value);
+    void setHudShowMaxAccCeiling(bool value);
+    void setHudShowPbDelta(bool value);
+
     bool operator==(const SettingsDraft &other) const;
 
     bool operator!=(const SettingsDraft &other) const;
@@ -89,4 +111,14 @@ private:
     uint32_t chartPreloadMs_               = 2000;
     ChartEndTimingMode chartEndTimingMode_ = ChartEndTimingMode::AfterChartEnd;
     std::vector<uint8_t> keyBindings_;
+    ToastPosition toastPosition_           = ToastPosition::TopRight;
+
+    bool hudShowScore_         = true;
+    bool hudShowAccuracy_      = true;
+    bool hudShowCombo_         = true;
+    bool hudShowMaxCombo_      = false;
+    bool hudShowJudgements_    = false;
+    bool hudShowProgress_      = false;
+    bool hudShowMaxAccCeiling_ = false;
+    bool hudShowPbDelta_       = false;
 };

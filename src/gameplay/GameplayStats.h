@@ -14,6 +14,10 @@ public:
 
     uint64_t chartMaxScore() const;
 
+    uint32_t settledNoteCount() const;
+
+    double computeMaxAccuracyCeiling() const;
+
     GameplaySnapshot buildSnapshot(uint32_t chartTimeMs,
                                    bool settlementAnimationTriggered,
                                    bool resultReady
@@ -39,4 +43,7 @@ private:
 
     uint32_t chartNoteCount_ = 0;
     uint64_t chartMaxScore_  = 0;
+
+    bool hasLastJudgement_            = false;
+    GameplayJudgement lastJudgement_  = GameplayJudgement::Perfect;
 };
