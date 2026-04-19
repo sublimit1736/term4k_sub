@@ -1003,12 +1003,10 @@ namespace ui {
                 infoRow("ui.chart_select.meta.keys", state.keyText),
             }) | flex;
 
-            constexpr int kCoverW = 12;
-            constexpr int kCoverH = 6;
-            Element coverArt = renderCoverArt(state.chartFolderPath, kCoverW, kCoverH);
+            Element coverArt = renderCoverArt(state.chartFolderPath);
 
             Element metaPanel = hbox({
-                coverArt | size(WIDTH, EQUAL, kCoverW) | size(HEIGHT, EQUAL, kCoverH),
+                coverArt | size(WIDTH, EQUAL, kCoverArtCellW) | size(HEIGHT, EQUAL, kCoverArtCellH),
                 text(" "),
                 infoPanel,
             });
@@ -1016,7 +1014,7 @@ namespace ui {
             return window(text("  " + tr("ui.chart_select.meta.title") + " "), metaPanel) |
                    color(toColor(palette.accentPrimary)) |
                    bgcolor(toColor(palette.surfacePanel)) |
-                   size(HEIGHT, LESS_THAN, 12);
+                   size(HEIGHT, LESS_THAN, 16);
         }
 
         ftxui::Element renderScorePanel(const ThemePalette &palette,

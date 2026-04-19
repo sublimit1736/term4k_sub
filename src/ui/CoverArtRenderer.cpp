@@ -22,11 +22,15 @@
 #endif
 
 #include "ui/CoverArtRenderer.h"
+#include "ui/TerminalImageProtocol.h"
 
 #include <ftxui/dom/elements.hpp>
+#include <ftxui/dom/node.hpp>
+#include <ftxui/screen/screen.hpp>
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -37,21 +41,39 @@ namespace ui {
 namespace {
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/// Images are always decoded and scaled to this pixel size before further
+/// processing.  Native-protocol output sends exactly this many pixels to the
+/// terminal; half-block fallback downsamples from this size.
+constexpr int kNativeImagePx = 180;
+
+/// Number of bytes per pixel in 32-bit RGBA data.
+constexpr int kBytesPerPixel = 4;
+
+// ---------------------------------------------------------------------------
 // Image cache
 // ---------------------------------------------------------------------------
 
 enum class CoverStatus {
     Unknown,    // not yet attempted
-    NoFile,     // no cover image file found in folder
+    NoFile,     // no cover image file found in the folder
     LoadFailed, // image file exists but could not be decoded
     Loaded      // decoded successfully
 };
 
 struct CachedCover {
     CoverStatus status = CoverStatus::Unknown;
-    std::vector<uint8_t> rgba; // decoded RGBA pixels, pixW × pixH × 4 bytes
-    int pixW = 0;
-    int pixH = 0;
+
+    /// Complete Kitty APC sequence (all chunks) plus trailing space, ready to
+    /// drop into an FTXUI screen cell.  Empty when no image protocol is
+    /// available or when loading failed.
+    std::string protocolPayload;
+
+    /// Downsampled RGBA pixels for the half-block fallback renderer.
+    /// Dimensions: kCoverArtCellW × (kCoverArtCellH * 2) × 4 bytes.
+    std::vector<uint8_t> blockRgba;
 };
 
 std::unordered_map<std::string, CachedCover> g_coverCache;
@@ -78,63 +100,121 @@ std::optional<std::filesystem::path> findCoverImageFile(const std::string &folde
 }
 
 // ---------------------------------------------------------------------------
-// Load + resize into cache
+// Nearest-neighbour resize helper
 // ---------------------------------------------------------------------------
 
-// Returns a reference that is stable for the lifetime of g_coverCache.
-const CachedCover &loadCoverFromFolder(const std::string &folderPath,
-                                       const int targetW,
-                                       const int targetH) {
-    const std::string cacheKey =
-        folderPath + '|' + std::to_string(targetW) + 'x' + std::to_string(targetH);
+void nnResize(const uint8_t *src, int srcW, int srcH,
+              uint8_t       *dst, int dstW, int dstH) {
+    for (int ty = 0; ty < dstH; ++ty) {
+        for (int tx = 0; tx < dstW; ++tx) {
+            const int sx = tx * srcW / dstW;
+            const int sy = ty * srcH / dstH;
+            const uint8_t *s = src + (sy * srcW + sx) * kBytesPerPixel;
+            uint8_t       *d = dst + (ty * dstW + tx) * kBytesPerPixel;
+            d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d[3] = s[3];
+        }
+    }
+}
 
+// ---------------------------------------------------------------------------
+// Load and cache a cover image
+// ---------------------------------------------------------------------------
+
+const CachedCover &loadCoverFromFolder(const std::string &folderPath) {
     std::lock_guard<std::mutex> lock(g_coverCacheMutex);
 
-    // Return existing entry if already resolved.
-    auto it = g_coverCache.find(cacheKey);
+    auto it = g_coverCache.find(folderPath);
     if (it != g_coverCache.end() && it->second.status != CoverStatus::Unknown) {
         return it->second;
     }
 
-    CachedCover &entry = g_coverCache[cacheKey];
+    CachedCover &entry = g_coverCache[folderPath];
 
-    // Search for a cover image file.
     const auto maybeFile = findCoverImageFile(folderPath);
     if (!maybeFile) {
         entry.status = CoverStatus::NoFile;
         return entry;
     }
 
-    // Decode the image.
-    int srcW, srcH, channels;
-    stbi_uc *raw = stbi_load(maybeFile->string().c_str(), &srcW, &srcH, &channels, 4);
+    // Decode the image to RGBA.
+    int srcW = 0, srcH = 0, ch = 0;
+    stbi_uc *raw = stbi_load(maybeFile->string().c_str(), &srcW, &srcH, &ch, kBytesPerPixel);
     if (!raw || srcW <= 0 || srcH <= 0) {
         entry.status = CoverStatus::LoadFailed;
         return entry;
     }
 
-    // Nearest-neighbour resize to targetW × targetH.
-    const std::size_t totalBytes = static_cast<std::size_t>(targetW * targetH * 4);
-    entry.rgba.resize(totalBytes);
-    for (int ty = 0; ty < targetH; ++ty) {
-        for (int tx = 0; tx < targetW; ++tx) {
-            const int sx = tx * srcW / targetW;
-            const int sy = ty * srcH / targetH;
-            const stbi_uc *src = raw + (sy * srcW + sx) * 4;
-            uint8_t *dst = entry.rgba.data() + (ty * targetW + tx) * 4;
-            dst[0] = src[0];
-            dst[1] = src[1];
-            dst[2] = src[2];
-            dst[3] = src[3];
-        }
-    }
+    // Step 1 — scale to the fixed native pixel size (180 × 180).
+    std::vector<uint8_t> native(static_cast<std::size_t>(kNativeImagePx * kNativeImagePx * kBytesPerPixel));
+    nnResize(raw, srcW, srcH, native.data(), kNativeImagePx, kNativeImagePx);
     stbi_image_free(raw);
 
-    entry.pixW   = targetW;
-    entry.pixH   = targetH;
+    // Step 2 — build the terminal image protocol payload (if supported).
+    if (TerminalImageProtocol::isSupported()) {
+        entry.protocolPayload = TerminalImageProtocol::buildKittyPayload(
+            native, kNativeImagePx, kNativeImagePx,
+            kCoverArtCellW, kCoverArtCellH);
+    }
+
+    // Step 3 — downsample to block-art dimensions for the fallback renderer.
+    // Each terminal row covers 2 vertical pixel rows (half-block characters).
+    const int bW = kCoverArtCellW;
+    const int bH = kCoverArtCellH * 2;
+    entry.blockRgba.resize(static_cast<std::size_t>(bW * bH * kBytesPerPixel));
+    nnResize(native.data(), kNativeImagePx, kNativeImagePx,
+             entry.blockRgba.data(), bW, bH);
+
     entry.status = CoverStatus::Loaded;
     return entry;
 }
+
+// ---------------------------------------------------------------------------
+// Custom FTXUI Node — native image protocol
+// ---------------------------------------------------------------------------
+
+/// A fixed-size FTXUI element that embeds a terminal image protocol payload.
+///
+/// The payload (a Kitty APC sequence + trailing space) is placed in the first
+/// pixel of the reserved area.  All other pixels are set to space characters
+/// so the layout occupies the expected terminal cells.
+///
+/// Why the trailing space in the payload?
+///   APC sequences (ESC _ … ESC \) are control strings that do NOT advance
+///   the terminal cursor.  FTXUI's Screen::ToString() outputs all cells of a
+///   row sequentially without per-cell cursor-move instructions, relying on
+///   natural cursor advancement.  Without the space the second cell would land
+///   on the same column as the first, shifting every subsequent cell in that
+///   row one position to the left.  The appended space makes the cursor
+///   advance exactly one column — matching FTXUI's internal model.
+class ImageProtocolNode : public ftxui::Node {
+public:
+    ImageProtocolNode(std::string payload, int cellW, int cellH)
+        : payload_(std::move(payload)), cellW_(cellW), cellH_(cellH) {}
+
+    void ComputeRequirement() override {
+        requirement_.min_x = cellW_;
+        requirement_.min_y = cellH_;
+    }
+
+    void Render(ftxui::Screen &screen) override {
+        // Place the full sequence (APC + trailing space) in the first cell.
+        screen.PixelAt(box_.x_min, box_.y_min).character = payload_;
+
+        // Reserve all remaining cells in the image area with spaces so FTXUI
+        // accounts for the correct number of columns and rows.
+        for (int y = box_.y_min; y <= box_.y_max; ++y) {
+            const int xStart = (y == box_.y_min) ? box_.x_min + 1 : box_.x_min;
+            for (int x = xStart; x <= box_.x_max; ++x) {
+                screen.PixelAt(x, y).character = " ";
+            }
+        }
+    }
+
+private:
+    std::string payload_;
+    int cellW_;
+    int cellH_;
+};
 
 } // namespace
 
@@ -142,37 +222,40 @@ const CachedCover &loadCoverFromFolder(const std::string &folderPath,
 // Public API
 // ---------------------------------------------------------------------------
 
-ftxui::Element renderCoverArt(const std::string &folderPath,
-                               const int cellWidth,
-                               const int cellHeight) {
+ftxui::Element renderCoverArt(const std::string &folderPath) {
     using namespace ftxui;
 
-    // Each terminal row represents two pixel rows using the UPPER HALF BLOCK
-    // character (▀): foreground = top pixel, background = bottom pixel.
-    const int pixW = cellWidth;
-    const int pixH = cellHeight * 2;
-
     if (!folderPath.empty()) {
-        const CachedCover &cover = loadCoverFromFolder(folderPath, pixW, pixH);
+        const CachedCover &cover = loadCoverFromFolder(folderPath);
 
         if (cover.status == CoverStatus::Loaded) {
+            // ── Native protocol path ────────────────────────────────────────
+            if (!cover.protocolPayload.empty()) {
+                return std::make_shared<ImageProtocolNode>(
+                    cover.protocolPayload, kCoverArtCellW, kCoverArtCellH);
+            }
+
+            // ── Half-block fallback ─────────────────────────────────────────
+            // Each terminal row encodes two pixel rows: foreground = top pixel,
+            // background = bottom pixel, using U+2580 UPPER HALF BLOCK (▀).
+            const int pixW = kCoverArtCellW;
+            const int pixH = kCoverArtCellH * 2;
             Elements rows;
-            rows.reserve(static_cast<std::size_t>(cellHeight));
-            for (int row = 0; row < cellHeight; ++row) {
+            rows.reserve(static_cast<std::size_t>(kCoverArtCellH));
+            for (int row = 0; row < kCoverArtCellH; ++row) {
                 Elements cells;
-                cells.reserve(static_cast<std::size_t>(cellWidth));
-                for (int col = 0; col < cellWidth; ++col) {
-                    const int topBase = ((row * 2)     * pixW + col) * 4;
-                    const int botBase = ((row * 2 + 1) * pixW + col) * 4;
+                cells.reserve(static_cast<std::size_t>(kCoverArtCellW));
+                for (int col = 0; col < kCoverArtCellW; ++col) {
+                    const int topBase = ((row * 2)     * pixW + col) * kBytesPerPixel;
+                    const int botBase = ((row * 2 + 1) * pixW + col) * kBytesPerPixel;
                     const Color topColor = Color::RGB(
-                        cover.rgba[static_cast<std::size_t>(topBase)],
-                        cover.rgba[static_cast<std::size_t>(topBase + 1)],
-                        cover.rgba[static_cast<std::size_t>(topBase + 2)]);
+                        cover.blockRgba[static_cast<std::size_t>(topBase)],
+                        cover.blockRgba[static_cast<std::size_t>(topBase + 1)],
+                        cover.blockRgba[static_cast<std::size_t>(topBase + 2)]);
                     const Color botColor = Color::RGB(
-                        cover.rgba[static_cast<std::size_t>(botBase)],
-                        cover.rgba[static_cast<std::size_t>(botBase + 1)],
-                        cover.rgba[static_cast<std::size_t>(botBase + 2)]);
-                    // U+2580 UPPER HALF BLOCK: fg = top pixel, bg = bottom pixel.
+                        cover.blockRgba[static_cast<std::size_t>(botBase)],
+                        cover.blockRgba[static_cast<std::size_t>(botBase + 1)],
+                        cover.blockRgba[static_cast<std::size_t>(botBase + 2)]);
                     cells.push_back(text("▀") | color(topColor) | bgcolor(botColor));
                 }
                 rows.push_back(hbox(std::move(cells)));
@@ -181,13 +264,13 @@ ftxui::Element renderCoverArt(const std::string &folderPath,
         }
     }
 
-    // Placeholder: a rounded rectangle with a dim '?' in the centre.
+    // ── Placeholder ─────────────────────────────────────────────────────────
     const Color kDimColor = Color::RGB(70, 70, 70);
     return (text("?") | dim | color(kDimColor) | center)
            | borderRounded
            | color(kDimColor)
-           | size(WIDTH,  EQUAL, cellWidth)
-           | size(HEIGHT, EQUAL, cellHeight);
+           | size(WIDTH,  EQUAL, kCoverArtCellW)
+           | size(HEIGHT, EQUAL, kCoverArtCellH);
 }
 
 } // namespace ui

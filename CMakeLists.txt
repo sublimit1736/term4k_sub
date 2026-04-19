@@ -156,6 +156,7 @@ if (TERM4K_ENABLE_TUI)
             src/ui/TransitionBackdrop.cpp
             src/ui/ChartListUI.cpp
             src/ui/CoverArtRenderer.cpp
+            src/ui/TerminalImageProtocol.cpp
             src/ui/SettingsUI.cpp
             src/ui/UserStatUI.cpp
             src/ui/GameplayUI.cpp

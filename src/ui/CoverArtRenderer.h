@@ -5,15 +5,22 @@
 
 namespace ui {
 
-// Renders cover art from the chart folder as a terminal block-art element.
-// Looks for cover.jpg / cover.jpeg / cover.png / cover.bmp in folderPath.
-// If a cover image is found it is loaded, resized to cellWidth × (cellHeight*2)
-// pixels, and rendered as rows of Unicode half-block (▀) characters with
-// per-pixel 24-bit RGB colour.
-// If no cover image is present a dim placeholder is rendered: a rounded
-// rectangle the same size as the cover area with a centred dark '?' character.
-// cellWidth  : desired width  in terminal character columns.
-// cellHeight : desired height in terminal character rows.
-ftxui::Element renderCoverArt(const std::string &folderPath, int cellWidth, int cellHeight);
+/// Terminal columns reserved for the cover art block.
+/// Matches a 180-pixel-wide image at the typical 8 px/cell font metric.
+inline constexpr int kCoverArtCellW = 22;
+
+/// Terminal rows reserved for the cover art block.
+/// Matches a 180-pixel-tall image at the typical 16 px/cell font metric.
+inline constexpr int kCoverArtCellH = 11;
+
+/// Render cover art for the chart at @p folderPath.
+///
+/// Searches for cover.jpg / .jpeg / .png / .bmp / .webp in the folder.
+/// Automatically selects the best available output method:
+///   1. Kitty Graphics Protocol — 180 × 180 pixels in kCoverArtCellW ×
+///      kCoverArtCellH terminal cells (native, pixel-perfect).
+///   2. Unicode half-block (▀) with 24-bit RGB colour — block art fallback.
+///   3. Dim '?' inside a rounded rectangle — if no cover image is found.
+ftxui::Element renderCoverArt(const std::string &folderPath);
 
 } // namespace ui
