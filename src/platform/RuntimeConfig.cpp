@@ -181,6 +181,14 @@ uint32_t RuntimeConfig::chartPreloadMs               = 2000;
 ChartEndTimingMode RuntimeConfig::chartEndTimingMode = ChartEndTimingMode::AfterChartEnd;
 std::vector<uint8_t> RuntimeConfig::keyBindings      = {'D', 'F', 'H', 'J', 0, 0, 0, 0, 0, 0};
 ToastPosition RuntimeConfig::toastPosition           = ToastPosition::TopRight;
+bool RuntimeConfig::hudShowScore                     = true;
+bool RuntimeConfig::hudShowAccuracy                  = true;
+bool RuntimeConfig::hudShowCombo                     = true;
+bool RuntimeConfig::hudShowMaxCombo                  = false;
+bool RuntimeConfig::hudShowJudgements                = false;
+bool RuntimeConfig::hudShowProgress                  = false;
+bool RuntimeConfig::hudShowMaxAccCeiling             = false;
+bool RuntimeConfig::hudShowPbDelta                   = false;
 std::string RuntimeConfig::configDirOverride;
 bool RuntimeConfig::lastLoadFailed                   = false;
 
@@ -201,6 +209,14 @@ void RuntimeConfig::resetToDefaults() {
     chartEndTimingMode   = ChartEndTimingMode::AfterChartEnd;
     keyBindings          = {'D', 'F', 'H', 'J', 0, 0, 0, 0, 0, 0};
     toastPosition        = ToastPosition::TopRight;
+    hudShowScore         = true;
+    hudShowAccuracy      = true;
+    hudShowCombo         = true;
+    hudShowMaxCombo      = false;
+    hudShowJudgements    = false;
+    hudShowProgress      = false;
+    hudShowMaxAccCeiling = false;
+    hudShowPbDelta       = false;
     lastLoadFailed       = false;
 }
 
@@ -255,6 +271,15 @@ bool RuntimeConfig::loadForUser(const std::string &username) {
     toastPosition = parseToastPosition(json.get("appearance.toastPosition", toastPositionToString(toastPosition)),
                                        toastPosition);
 
+    hudShowScore         = parseBool(json.get("hud.showScore",         "true"),  true);
+    hudShowAccuracy      = parseBool(json.get("hud.showAccuracy",      "true"),  true);
+    hudShowCombo         = parseBool(json.get("hud.showCombo",         "true"),  true);
+    hudShowMaxCombo      = parseBool(json.get("hud.showMaxCombo",      "false"), false);
+    hudShowJudgements    = parseBool(json.get("hud.showJudgements",    "false"), false);
+    hudShowProgress      = parseBool(json.get("hud.showProgress",      "false"), false);
+    hudShowMaxAccCeiling = parseBool(json.get("hud.showMaxAccCeiling", "false"), false);
+    hudShowPbDelta       = parseBool(json.get("hud.showPbDelta",       "false"), false);
+
     lastLoadFailed = false;
     return true;
 }
@@ -293,6 +318,15 @@ bool RuntimeConfig::saveForUser(const std::string &username) {
     json.set("gameplay.chartEndTimingMode", chartEndTimingModeToString(chartEndTimingMode));
     json.set("gameplay.keyBindings", keyBindings.empty() ? "68,70,72,74,0,0,0,0,0,0" : keyBindingsToString(keyBindings));
     json.set("appearance.toastPosition", toastPositionToString(toastPosition));
+
+    json.set("hud.showScore",         hudShowScore         ? "true" : "false");
+    json.set("hud.showAccuracy",      hudShowAccuracy      ? "true" : "false");
+    json.set("hud.showCombo",         hudShowCombo         ? "true" : "false");
+    json.set("hud.showMaxCombo",      hudShowMaxCombo      ? "true" : "false");
+    json.set("hud.showJudgements",    hudShowJudgements    ? "true" : "false");
+    json.set("hud.showProgress",      hudShowProgress      ? "true" : "false");
+    json.set("hud.showMaxAccCeiling", hudShowMaxAccCeiling ? "true" : "false");
+    json.set("hud.showPbDelta",       hudShowPbDelta       ? "true" : "false");
 
     std::ofstream out(path, std::ios::trunc);
     if (!out.is_open()) return false;

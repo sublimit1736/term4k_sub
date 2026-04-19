@@ -45,6 +45,15 @@ public:
 
     ToastPosition getToastPosition() const;
 
+    bool isHudShowScore() const;
+    bool isHudShowAccuracy() const;
+    bool isHudShowCombo() const;
+    bool isHudShowMaxCombo() const;
+    bool isHudShowJudgements() const;
+    bool isHudShowProgress() const;
+    bool isHudShowMaxAccCeiling() const;
+    bool isHudShowPbDelta() const;
+
     void setTheme(const std::string &value);
 
     void setLocale(const std::string &value);
@@ -72,6 +81,15 @@ public:
     void setKeyBindings(const std::vector<uint8_t> &value);
 
     void setToastPosition(ToastPosition value);
+
+    void setHudShowScore(bool value);
+    void setHudShowAccuracy(bool value);
+    void setHudShowCombo(bool value);
+    void setHudShowMaxCombo(bool value);
+    void setHudShowJudgements(bool value);
+    void setHudShowProgress(bool value);
+    void setHudShowMaxAccCeiling(bool value);
+    void setHudShowPbDelta(bool value);
 
     bool operator==(const SettingsDraft &other) const;
 
