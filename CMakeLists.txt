@@ -153,6 +153,7 @@ if (TERM4K_ENABLE_TUI)
     target_sources(term4k PRIVATE
             src/ui/StartMenuUI.cpp
             src/ui/MessageOverlay.cpp
+            src/ui/ContextMenuOverlay.cpp
             src/ui/TransitionBackdrop.cpp
             src/ui/ChartListUI.cpp
             src/ui/IllustrationRenderer.cpp

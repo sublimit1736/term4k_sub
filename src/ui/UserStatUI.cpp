@@ -266,16 +266,16 @@ namespace ui {
                                           );
                     }
                     else{
-                        // Iterate in reverse to show earliest first
+                        // Iterate from index 0 (newest first, order is newest-first)
                         const int total         = static_cast<int>(order.size());
                         const int visibleLines  = 20; // approximate visible rows
                         const int maxOffset     = std::max(0, total - 1);
                         const int clampedOffset = std::min(std::max(state->historyScrollOffset, 0), maxOffset);
-                        for (int idx = total - 1 - clampedOffset; idx >= 0; --idx){
+                        for (int idx = clampedOffset; idx < total; ++idx){
                             const auto it = records.records.find(order[static_cast<std::size_t>(idx)]);
                             if (it == records.records.end()) continue;
                             const auto &entry           = it->second;
-                            const int displayNum        = total - idx; // 1-based from earliest
+                            const int displayNum        = idx + 1; // 1-based from newest
                             const std::string chartName = entry.chart.getDisplayName().empty()
                                                               ? entry.chartID
                                                               : entry.chart.getDisplayName();
