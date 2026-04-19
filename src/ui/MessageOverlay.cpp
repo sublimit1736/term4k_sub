@@ -2,15 +2,19 @@
 
 #include "ui/UIColors.h"
 
+#include <chrono>
 #include <deque>
 #include <mutex>
 
 namespace ui {
 namespace {
 
+constexpr int kAutoDismissMs = 3000;
+
 struct MessageItem {
     MessageLevel level = MessageLevel::Info;
     std::string text;
+    std::chrono::steady_clock::time_point shownAt = std::chrono::steady_clock::now();
 };
 
 std::deque<MessageItem> &queue() {
@@ -37,7 +41,7 @@ ftxui::Color levelColor(const MessageLevel level) {
 void MessageOverlay::push(const MessageLevel level, const std::string &message) {
     if (message.empty()) return;
     std::scoped_lock lock(queueMutex());
-    queue().push_back({level, message});
+    queue().push_back({level, message, std::chrono::steady_clock::now()});
 }
 
 bool MessageOverlay::hasPending() {
@@ -45,20 +49,29 @@ bool MessageOverlay::hasPending() {
     return !queue().empty();
 }
 
-bool MessageOverlay::handleEvent(const ftxui::Event &event) {
-    if (event != ftxui::Event::Return && event != ftxui::Event::Escape &&
-        event != ftxui::Event::Character('q')) {
-        return false;
-    }
-
-    std::scoped_lock lock(queueMutex());
-    if (queue().empty()) return false;
-    queue().pop_front();
-    return true;
+// Messages are auto-dismissed after 3 s; no key-press required.
+bool MessageOverlay::handleEvent(const ftxui::Event &) {
+    return false;
 }
 
 ftxui::Element MessageOverlay::render(const ThemePalette &palette) {
     using namespace ftxui;
+
+    // Auto-dismiss expired messages (older than 3 s).
+    {
+        std::scoped_lock lock(queueMutex());
+        const auto now = std::chrono::steady_clock::now();
+        while (!queue().empty()) {
+            const auto elapsed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now - queue().front().shownAt).count();
+            if (elapsed >= kAutoDismissMs)
+                queue().pop_front();
+            else
+                break;
+        }
+        if (queue().empty()) return text("");
+    }
 
     MessageItem current;
     {
@@ -67,19 +80,15 @@ ftxui::Element MessageOverlay::render(const ThemePalette &palette) {
         current = queue().front();
     }
 
-    const Element panel = vbox({
-        text(current.text) | bold | color(levelColor(current.level)),
-        separator(),
-        text("Enter/Esc/q") | color(toColor(palette.textMuted)) | dim,
-    }) |
-    borderRounded |
-    color(toColor(palette.accentPrimary)) |
-    bgcolor(toColor(palette.surfacePanel)) |
-    size(WIDTH, GREATER_THAN, 36);
+    const Element panel =
+        text(current.text) | bold | color(levelColor(current.level)) |
+        borderRounded |
+        color(toColor(palette.accentPrimary)) |
+        bgcolor(toColor(palette.surfacePanel)) |
+        size(WIDTH, LESS_THAN, 44);
 
-    const Element shade = filler() | bgcolor(ftxui::Color::RGB(18, 18, 18));
-    const Element popup = hbox({filler(), panel, filler()}) | vcenter;
-    return dbox({shade, popup}) | flex;
+    // Top-right corner, no background dimming.
+    return hbox({filler(), vbox({panel, filler()})}) | flex;
 }
 
 } // namespace ui

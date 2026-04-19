@@ -1505,8 +1505,9 @@ namespace ui {
             const uint32_t end   = entry.chart.getPreviewEnd();
 
             // Determine effective preview window.
+            // If the chart supplies no end time (end == 0), default to begin + 10 s.
             const uint32_t effectiveBegin = begin;
-            const uint32_t effectiveEnd   = (end > begin) ? end : kDefaultPreviewEndMs;
+            const uint32_t effectiveEnd   = (end > begin) ? end : (begin + kDefaultPreviewEndMs);
 
             cstate.previewEndMs = effectiveEnd;
             cstate.previewPlayer.setVolume(RuntimeConfig::musicVolume);

@@ -120,19 +120,22 @@ ftxui::Element renderCell(const NoteCell &cell, const ThemePalette &palette) {
         return e | size(WIDTH, EQUAL, kCellW);
     }
     if (cell.type == CellType::HoldHead) {
-        return text("╠══╣") |
-               color(Color::RGB(100, 200, 255)) | bold |
-               size(WIDTH, EQUAL, kCellW);
+        const std::string bar = tapNoteBar(8);
+        Element e = text(bar) | color(Color::RGB(100, 200, 255)) | bold;
+        if (cell.lanePressed) e = e | bgcolor(Color::RGB(100, 200, 255)) | color(Color::Black);
+        return e | size(WIDTH, EQUAL, kCellW);
     }
     if (cell.type == CellType::HoldBody) {
-        return text("║  ║") |
-               color(Color::RGB(60, 140, 220)) |
-               size(WIDTH, EQUAL, kCellW);
+        const std::string bar = tapNoteBar(8);
+        Element e = text(bar) | color(Color::RGB(40, 110, 190));
+        if (cell.lanePressed) e = e | bgcolor(Color::RGB(40, 110, 190));
+        return e | size(WIDTH, EQUAL, kCellW);
     }
     if (cell.type == CellType::HoldTail) {
-        return text("╠══╣") |
-               color(Color::RGB(60, 180, 200)) | bold |
-               size(WIDTH, EQUAL, kCellW);
+        const std::string bar = tapNoteBar(8);
+        Element e = text(bar) | color(Color::RGB(60, 170, 210)) | bold;
+        if (cell.lanePressed) e = e | bgcolor(Color::RGB(60, 170, 210));
+        return e | size(WIDTH, EQUAL, kCellW);
     }
     // Empty cell
     const Color bg = cell.lanePressed
@@ -309,6 +312,32 @@ ftxui::Element renderNoteField(
         rows.push_back(hbox(std::move(cells)));
     }
 
+    // Gutter rows: below hit-line, highlight the full lane column when key is held
+    constexpr int kGutterRows = 2;
+    for (int g = 0; g < kGutterRows; ++g) {
+        Elements cells;
+        cells.push_back(text("│") | color(toColor(palette.borderNormal)));
+        for (int l = 0; l < keyCount; ++l) {
+            const bool pressed = lanePressed[static_cast<std::size_t>(l)];
+            const Color bg = pressed ? Color::RGB(40, 40, 90) : Color::RGB(14, 14, 24);
+            cells.push_back(text("    ") | bgcolor(bg) | size(WIDTH, EQUAL, 4));
+            cells.push_back(text("│") | color(toColor(palette.borderNormal)));
+        }
+        rows.push_back(hbox(std::move(cells)));
+    }
+
+    // Bottom border
+    {
+        Elements botBorder;
+        botBorder.push_back(text("╚") | color(toColor(palette.borderNormal)));
+        for (int l = 0; l < keyCount; ++l) {
+            botBorder.push_back(text("════") | color(toColor(palette.borderNormal)) | size(WIDTH, EQUAL, 4));
+            botBorder.push_back(text(l + 1 < keyCount ? "╩" : "╝") |
+                                 color(toColor(palette.borderNormal)));
+        }
+        rows.push_back(hbox(std::move(botBorder)));
+    }
+
     // Top border
     Elements borderRow;
     borderRow.push_back(text("╔") | color(toColor(palette.borderNormal)));
@@ -325,154 +354,11 @@ ftxui::Element renderNoteField(
     return vbox({hbox(std::move(borderRow)), field});
 }
 
-// ── Stats panel ───────────────────────────────────────────────────────────────
-ftxui::Element renderStatsPanel(
-    const GameplaySnapshot &snap,
-    const ThemePalette     &palette,
-    const std::function<std::string(const std::string &)> &tr,
-    const uint32_t           totalDurationMs,
-    const bool               showEarlyLate,
-    const bool               showAP,
-    const bool               showFC)
-{
-    using namespace ftxui;
-
-    const uint64_t maxScore = snap.getChartMaxScore();
-    const uint64_t score    = snap.getScore();
-
-    // Score row
-    Element scoreElem =
-        vbox({
-            text(tr("ui.gameplay.score")) |
-                color(toColor(palette.textMuted)) | bold,
-            text(formatScore(score)) |
-                color(toColor(palette.accentPrimary)) | bold |
-                size(WIDTH, EQUAL, 14),
-        }) | size(WIDTH, EQUAL, 18);
-
-    // Accuracy
-    Element accElem =
-        hbox({
-            text(tr("ui.gameplay.accuracy") + " ") |
-                color(toColor(palette.textMuted)),
-            text(formatAccuracy(snap.getAccuracy())) |
-                color(toColor(palette.textPrimary)) | bold,
-        });
-
-    // Combo
-    const uint32_t combo    = snap.getCurrentCombo();
-    const uint32_t maxCombo = snap.getMaxCombo();
-    const bool     isAP     = snap.getMissCount() == 0 && snap.getGreatCount() == 0;
-    const bool     isFC     = snap.getMissCount() == 0;
-
-    Color comboColor = toColor(palette.textPrimary);
-    if (isAP && showAP)   comboColor = Color::RGB(255, 215, 0);
-    else if (isFC && showFC) comboColor = Color::RGB(192, 192, 192);
-
-    Element comboElem =
-        hbox({
-            text(tr("ui.gameplay.combo") + " ") |
-                color(toColor(palette.textMuted)),
-            text("×" + std::to_string(combo)) |
-                color(comboColor) | bold,
-            text("  " + tr("ui.gameplay.max_combo") + " ×" + std::to_string(maxCombo)) |
-                color(toColor(palette.textMuted)),
-        });
-
-    // AP / FC badge
-    Elements badges;
-    if (showAP && isAP) {
-        badges.push_back(text(" AP ") | bold |
-                         color(Color::RGB(255, 215, 0)) |
-                         bgcolor(Color::RGB(40, 30, 0)));
-        badges.push_back(text("  "));
-    }
-    if (showFC && isFC && !isAP) {
-        badges.push_back(text(" FC ") | bold |
-                         color(Color::RGB(192, 192, 192)) |
-                         bgcolor(Color::RGB(30, 30, 30)));
-        badges.push_back(text("  "));
-    }
-
-    // Judgement counts
-    auto judgRow = [&](const std::string &labelKey, const uint32_t count, const Color &col) {
-        return hbox({
-            text(tr(labelKey)) | color(toColor(palette.textMuted)) | size(WIDTH, EQUAL, 10),
-            text(std::to_string(count)) | color(col) | bold | size(WIDTH, EQUAL, 6),
-        });
-    };
-
-    Element judgePanel = vbox({
-        judgRow("ui.gameplay.perfect", snap.getPerfectCount(), Color::RGB(255, 215, 0)),
-        judgRow("ui.gameplay.great",   snap.getGreatCount(),   Color::RGB(120, 200, 255)),
-        judgRow("ui.gameplay.miss",    snap.getMissCount(),    Color::RGB(255, 80, 80)),
-    });
-
-    // Early / Late
-    Elements earlyLateRows;
-    if (showEarlyLate) {
-        earlyLateRows.push_back(
-            hbox({
-                text(tr("ui.gameplay.early")) | color(Color::RGB(120, 200, 255)) |
-                    size(WIDTH, EQUAL, 8),
-                text(std::to_string(snap.getEarlyCount())) |
-                    color(toColor(palette.textPrimary)) | bold,
-                text("  "),
-                text(tr("ui.gameplay.late")) | color(Color::RGB(255, 180, 80)) |
-                    size(WIDTH, EQUAL, 8),
-                text(std::to_string(snap.getLateCount())) |
-                    color(toColor(palette.textPrimary)) | bold,
-            }));
-    }
-
-    // Progress bar
-    const uint32_t timeMs = snap.getCurrentChartTimeMs();
-    const int      pct    = (totalDurationMs > 0)
-                              ? static_cast<int>(std::min<uint64_t>(timeMs, totalDurationMs) * 100 /
-                                                  totalDurationMs)
-                              : 0;
-    const int      filled = pct * 24 / 100;
-    std::string    bar    = "[";
-    for (int i = 0; i < 24; ++i) bar += (i < filled ? "█" : "░");
-    bar += "] " + formatMs(timeMs) + " / " + formatMs(totalDurationMs);
-
-    // Score bar vs max score
-    const int scorePct = (maxScore > 0)
-                             ? static_cast<int>(std::min<uint64_t>(score, maxScore) * 100 / maxScore)
-                             : 0;
-    const int sBar = scorePct * 16 / 100;
-    std::string scoreBar;
-    for (int i = 0; i < 16; ++i) scoreBar += (i < sBar ? "▮" : "▯");
-
-    Element statsContent = vbox({
-        scoreElem,
-        text(scoreBar) | color(toColor(palette.accentPrimary)),
-        text(""),
-        accElem,
-        comboElem,
-        text(""),
-        badges.empty() ? text("") : hbox(std::move(badges)),
-        text(""),
-        judgePanel,
-        text(""),
-        vbox(std::move(earlyLateRows)),
-        filler(),
-        text(bar) | color(toColor(palette.textMuted)),
-    });
-
-    return window(
-        text("  " + tr("ui.gameplay.stats_title") + " "),
-        statsContent) |
-        color(toColor(palette.accentPrimary)) |
-        bgcolor(toColor(palette.surfacePanel)) |
-        flex;
-}
-
-// ── Top info bar ──────────────────────────────────────────────────────────────
-ftxui::Element renderTopBar(
-    const std::string  &songName,
-    const float         difficulty,
-    const int           keyCount,
+// ── Corner HUD: top-left — song name, difficulty, key count ──────────────────
+ftxui::Element renderTopLeftHUD(
+    const std::string &songName,
+    const float        difficulty,
+    const int          keyCount,
     const ThemePalette &palette,
     const std::function<std::string(const std::string &)> &tr)
 {
@@ -480,26 +366,167 @@ ftxui::Element renderTopBar(
     std::ostringstream diffStr;
     diffStr << std::fixed << std::setprecision(1) << difficulty;
 
-    return hbox({
-        text(songName) | bold | color(toColor(palette.textPrimary)) | flex,
-        text(tr("ui.gameplay.difficulty") + " " + diffStr.str()) |
-            color(toColor(palette.textMuted)),
-        text("  "),
-        text(std::to_string(keyCount) + tr("ui.gameplay.keys")) |
-            color(toColor(palette.textMuted)),
-    });
+    Element panel = vbox({
+        text(songName) | bold | color(toColor(palette.textPrimary)),
+        hbox({
+            text(tr("ui.gameplay.difficulty") + " " + diffStr.str()) |
+                color(toColor(palette.textMuted)),
+            text("  "),
+            text(std::to_string(keyCount) + tr("ui.gameplay.keys")) |
+                color(toColor(palette.textMuted)),
+        }),
+    }) | borderRounded |
+         color(toColor(palette.accentPrimary)) |
+         bgcolor(toColor(palette.surfacePanel)) |
+         size(WIDTH, LESS_THAN, 42);
+
+    return vbox({panel, filler()});
 }
 
-// ── Bottom hint bar ───────────────────────────────────────────────────────────
-ftxui::Element renderBottomBar(
-    const ThemePalette &palette,
+// ── Corner HUD: top-right — score + accuracy ──────────────────────────────────
+ftxui::Element renderTopRightHUD(
+    const GameplaySnapshot &snap,
+    const ThemePalette     &palette,
     const std::function<std::string(const std::string &)> &tr)
 {
     using namespace ftxui;
-    return hbox({
-        text(tr("ui.gameplay.hint")) | color(toColor(palette.textMuted)),
+
+    Element panel = vbox({
+        text(tr("ui.gameplay.score")) | color(toColor(palette.textMuted)) | bold,
+        text(formatScore(snap.getScore())) |
+            color(toColor(palette.accentPrimary)) | bold,
+        text(""),
+        hbox({
+            text(tr("ui.gameplay.accuracy") + " ") | color(toColor(palette.textMuted)),
+            text(formatAccuracy(snap.getAccuracy())) | bold |
+                color(toColor(palette.textPrimary)),
+        }),
+    }) | borderRounded |
+         color(toColor(palette.accentPrimary)) |
+         bgcolor(toColor(palette.surfacePanel)) |
+         size(WIDTH, LESS_THAN, 30);
+
+    return vbox({panel, filler()});
+}
+
+// ── Corner HUD: bottom-left — combo + AP/FC badge ─────────────────────────────
+ftxui::Element renderBottomLeftHUD(
+    const GameplaySnapshot &snap,
+    const ThemePalette     &palette,
+    const std::function<std::string(const std::string &)> &tr,
+    const bool showAP,
+    const bool showFC)
+{
+    using namespace ftxui;
+
+    const uint32_t combo    = snap.getCurrentCombo();
+    const uint32_t maxCombo = snap.getMaxCombo();
+    const bool     isAP     = snap.getMissCount() == 0 && snap.getGreatCount() == 0;
+    const bool     isFC     = snap.getMissCount() == 0;
+
+    Color comboColor = toColor(palette.textPrimary);
+    if      (isAP && showAP)  comboColor = Color::RGB(255, 215, 0);
+    else if (isFC && showFC)  comboColor = Color::RGB(192, 192, 192);
+
+    Elements rows;
+    rows.push_back(hbox({
+        text(tr("ui.gameplay.combo") + " ") | color(toColor(palette.textMuted)),
+        text("×" + std::to_string(combo)) | color(comboColor) | bold,
+    }));
+    rows.push_back(
+        text(tr("ui.gameplay.max_combo") + " ×" + std::to_string(maxCombo)) |
+        color(toColor(palette.textMuted)));
+
+    if (showAP && isAP) {
+        rows.push_back(text(""));
+        rows.push_back(text(" AP ") | bold |
+                       color(Color::RGB(255, 215, 0)) | bgcolor(Color::RGB(40, 30, 0)));
+    } else if (showFC && isFC) {
+        rows.push_back(text(""));
+        rows.push_back(text(" FC ") | bold |
+                       color(Color::RGB(192, 192, 192)) | bgcolor(Color::RGB(30, 30, 30)));
+    }
+
+    Element panel = vbox(std::move(rows)) |
+        borderRounded |
+        color(toColor(palette.accentPrimary)) |
+        bgcolor(toColor(palette.surfacePanel)) |
+        size(WIDTH, LESS_THAN, 30);
+
+    return vbox({filler(), panel});
+}
+
+// ── Corner HUD: bottom-right — judgements + progress bar ─────────────────────
+ftxui::Element renderBottomRightHUD(
+    const GameplaySnapshot &snap,
+    const ThemePalette     &palette,
+    const std::function<std::string(const std::string &)> &tr,
+    const uint32_t totalDurationMs,
+    const bool     showEarlyLate)
+{
+    using namespace ftxui;
+
+    const uint32_t timeMs = snap.getCurrentChartTimeMs();
+    const int pct = (totalDurationMs > 0)
+                        ? static_cast<int>(
+                              std::min<uint64_t>(timeMs, totalDurationMs) * 100 /
+                              totalDurationMs)
+                        : 0;
+
+    // Progress bar with head / middle / tail characters
+    constexpr int kBarW = 22;
+    const int     filled = pct * kBarW / 100;
+    std::string   bar;
+    if (filled == 0) {
+        bar += "╞";
+        for (int i = 0; i < kBarW; ++i) bar += "─";
+        bar += "╡";
+    } else if (filled >= kBarW) {
+        bar += "╠";
+        for (int i = 0; i < kBarW; ++i) bar += "═";
+        bar += "╣";
+    } else {
+        bar += "╠";
+        for (int i = 0; i < filled; ++i)        bar += "═";
+        bar += "╪";
+        for (int i = filled + 1; i < kBarW; ++i) bar += "─";
+        bar += "╡";
+    }
+
+    Elements rows;
+    auto judgRow = [&](const std::string &labelKey, uint32_t count, const Color &col) {
+        return hbox({
+            text(tr(labelKey)) | color(col) | size(WIDTH, EQUAL, 10),
+            text(std::to_string(count)) | bold | color(toColor(palette.textPrimary)),
+        });
+    };
+    rows.push_back(judgRow("ui.gameplay.perfect", snap.getPerfectCount(), Color::RGB(255, 215, 0)));
+    rows.push_back(judgRow("ui.gameplay.great",   snap.getGreatCount(),   Color::RGB(120, 200, 255)));
+    rows.push_back(judgRow("ui.gameplay.miss",    snap.getMissCount(),    Color::RGB(255, 80, 80)));
+
+    if (showEarlyLate) {
+        rows.push_back(hbox({
+            text(tr("ui.gameplay.early")) | color(Color::RGB(120, 200, 255)) | size(WIDTH, EQUAL, 8),
+            text(std::to_string(snap.getEarlyCount())) | bold | size(WIDTH, EQUAL, 5),
+            text(tr("ui.gameplay.late"))  | color(Color::RGB(255, 180, 80))  | size(WIDTH, EQUAL, 8),
+            text(std::to_string(snap.getLateCount())) | bold,
+        }));
+    }
+    rows.push_back(text(""));
+    rows.push_back(text(bar) | color(toColor(palette.textMuted)));
+    rows.push_back(hbox({
         filler(),
-    }) | size(HEIGHT, EQUAL, 1);
+        text(formatMs(timeMs) + " / " + formatMs(totalDurationMs)) |
+            color(toColor(palette.textMuted)),
+    }));
+
+    Element panel = vbox(std::move(rows)) |
+        borderRounded |
+        color(toColor(palette.accentPrimary)) |
+        bgcolor(toColor(palette.surfacePanel)) |
+        size(WIDTH, LESS_THAN, 30);
+
+    return vbox({filler(), panel});
 }
 
 // ── Component state ───────────────────────────────────────────────────────────
@@ -659,34 +686,35 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
             state->chartData, displayTimeMs, state->params.keyCount,
             state->lanePressed, state->palette, snap);
 
-        Element stats = renderStatsPanel(
-            snap, state->palette, tr,
-            state->totalDurationMs,
-            RuntimeConfig::showEarlyLate,
-            RuntimeConfig::showAPIndicator,
-            RuntimeConfig::showFCIndicator);
-
-        Element topBar = renderTopBar(
-            state->params.songName,
-            state->params.difficulty,
-            state->params.keyCount,
-            state->palette, tr);
-
-        Element bottomBar = renderBottomBar(state->palette, tr);
-
-        Element body = hbox({
-            noteField | size(WIDTH, EQUAL, state->params.keyCount * 5 + 2),
-            text("  "),
-            stats,
+        // Layer 1: note field horizontally centered, filling available space
+        Element centeredField = hbox({
+            filler(),
+            noteField | size(WIDTH, EQUAL, state->params.keyCount * 5 + 1),
+            filler(),
         }) | flex;
 
-        return vbox({
-                   topBar,
-                   separator(),
-                   body,
-                   separator(),
-                   bottomBar,
-               }) |
+        // Layer 2: four corner HUDs overlaid on top
+        Element tlHUD = renderTopLeftHUD(
+            state->params.songName, state->params.difficulty,
+            state->params.keyCount, state->palette, tr);
+        Element trHUD = renderTopRightHUD(snap, state->palette, tr);
+        Element blHUD = renderBottomLeftHUD(
+            snap, state->palette, tr,
+            RuntimeConfig::showAPIndicator, RuntimeConfig::showFCIndicator);
+        Element brHUD = renderBottomRightHUD(
+            snap, state->palette, tr,
+            state->totalDurationMs, RuntimeConfig::showEarlyLate);
+
+        Element cornerOverlay = vbox({
+            hbox({tlHUD, filler(), trHUD}),
+            filler(),
+            hbox({blHUD, filler(), brHUD}),
+        }) | flex;
+
+        // Layer 3: message toasts (top-right, auto-dismiss)
+        Element toastLayer = MessageOverlay::render(state->palette);
+
+        return dbox({centeredField, cornerOverlay, toastLayer}) |
                bgcolor(toColor(state->palette.surfaceBg)) |
                color(toColor(state->palette.textPrimary)) |
                flex;
