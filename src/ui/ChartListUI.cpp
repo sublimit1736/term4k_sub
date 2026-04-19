@@ -1595,6 +1595,7 @@ namespace ui {
                                    : entry.chart.getDisplayName();
             gp.keyCount      = entry.chart.getKeyCount();
             gp.difficulty    = entry.chart.getDifficulty();
+            gp.personalBestAccuracy = entry.stats.bestAccuracy;
 
             UIBus::pendingGameplay = gp;
             state->routed = true;

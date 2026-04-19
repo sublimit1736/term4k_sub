@@ -112,4 +112,13 @@ private:
     ChartEndTimingMode chartEndTimingMode_ = ChartEndTimingMode::AfterChartEnd;
     std::vector<uint8_t> keyBindings_;
     ToastPosition toastPosition_           = ToastPosition::TopRight;
+
+    bool hudShowScore_         = true;
+    bool hudShowAccuracy_      = true;
+    bool hudShowCombo_         = true;
+    bool hudShowMaxCombo_      = false;
+    bool hudShowJudgements_    = false;
+    bool hudShowProgress_      = false;
+    bool hudShowMaxAccCeiling_ = false;
+    bool hudShowPbDelta_       = false;
 };

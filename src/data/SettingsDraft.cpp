@@ -47,6 +47,24 @@ void SettingsDraft::setKeyBindings(const std::vector<uint8_t> &value) { keyBindi
 ToastPosition SettingsDraft::getToastPosition() const { return toastPosition_; }
 void SettingsDraft::setToastPosition(const ToastPosition value) { toastPosition_ = value; }
 
+bool SettingsDraft::isHudShowScore() const { return hudShowScore_; }
+bool SettingsDraft::isHudShowAccuracy() const { return hudShowAccuracy_; }
+bool SettingsDraft::isHudShowCombo() const { return hudShowCombo_; }
+bool SettingsDraft::isHudShowMaxCombo() const { return hudShowMaxCombo_; }
+bool SettingsDraft::isHudShowJudgements() const { return hudShowJudgements_; }
+bool SettingsDraft::isHudShowProgress() const { return hudShowProgress_; }
+bool SettingsDraft::isHudShowMaxAccCeiling() const { return hudShowMaxAccCeiling_; }
+bool SettingsDraft::isHudShowPbDelta() const { return hudShowPbDelta_; }
+
+void SettingsDraft::setHudShowScore(const bool value) { hudShowScore_ = value; }
+void SettingsDraft::setHudShowAccuracy(const bool value) { hudShowAccuracy_ = value; }
+void SettingsDraft::setHudShowCombo(const bool value) { hudShowCombo_ = value; }
+void SettingsDraft::setHudShowMaxCombo(const bool value) { hudShowMaxCombo_ = value; }
+void SettingsDraft::setHudShowJudgements(const bool value) { hudShowJudgements_ = value; }
+void SettingsDraft::setHudShowProgress(const bool value) { hudShowProgress_ = value; }
+void SettingsDraft::setHudShowMaxAccCeiling(const bool value) { hudShowMaxAccCeiling_ = value; }
+void SettingsDraft::setHudShowPbDelta(const bool value) { hudShowPbDelta_ = value; }
+
 bool SettingsDraft::operator==(const SettingsDraft &other) const {
     return theme_ == other.theme_ &&
            locale_ == other.locale_ &&
@@ -61,7 +79,15 @@ bool SettingsDraft::operator==(const SettingsDraft &other) const {
            chartPreloadMs_ == other.chartPreloadMs_ &&
            chartEndTimingMode_ == other.chartEndTimingMode_ &&
            keyBindings_ == other.keyBindings_ &&
-           toastPosition_ == other.toastPosition_;
+           toastPosition_ == other.toastPosition_ &&
+           hudShowScore_ == other.hudShowScore_ &&
+           hudShowAccuracy_ == other.hudShowAccuracy_ &&
+           hudShowCombo_ == other.hudShowCombo_ &&
+           hudShowMaxCombo_ == other.hudShowMaxCombo_ &&
+           hudShowJudgements_ == other.hudShowJudgements_ &&
+           hudShowProgress_ == other.hudShowProgress_ &&
+           hudShowMaxAccCeiling_ == other.hudShowMaxAccCeiling_ &&
+           hudShowPbDelta_ == other.hudShowPbDelta_;
 }
 
 bool SettingsDraft::operator!=(const SettingsDraft &other) const {
