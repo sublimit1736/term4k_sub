@@ -1,6 +1,6 @@
 #include "ui/ChartListUI.h"
 
-#include "ui/CoverArtRenderer.h"
+#include "ui/IllustrationRenderer.h"
 
 #include "platform/AppDirs.h"
 #include "platform/RuntimeConfig.h"
@@ -13,6 +13,7 @@
 #include "ui/UIBus.h"
 #include "ui/UIColors.h"
 #include "utils/StringUtils.h"
+#include "audio/AudioPlayer.h"
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
@@ -1040,6 +1041,7 @@ namespace ui {
             auto infoRow = [&](const std::string &labelKey, const std::string &value) {
                 return hbox({
                     text(tr(labelKey)) | color(toColor(palette.textMuted)),
+                    filler(),
                     text(value) | bold | color(toColor(palette.textPrimary)),
                 });
             };
@@ -1052,10 +1054,10 @@ namespace ui {
                 infoRow("ui.chart_select.meta.keys", state.keyText),
             }) | flex;
 
-            Element coverArt = renderCoverArt(state.chartFolderPath);
+            Element illustration = renderIllustration(state.chartFolderPath);
 
             Element metaPanel = hbox({
-                coverArt | size(WIDTH, EQUAL, kCoverArtCellW) | size(HEIGHT, EQUAL, kCoverArtCellH),
+                illustration | size(WIDTH, EQUAL, kIllustrationCellW) | size(HEIGHT, EQUAL, kIllustrationCellH),
                 text(" "),
                 infoPanel,
             });
@@ -1456,12 +1458,64 @@ namespace ui {
             bool routed = false;
             std::atomic<bool> exitRequested{false};
 
+            // Audio preview player for the chart selection screen.
+            AudioPlayer previewPlayer;
+            std::string lastPreviewChartId;  ///< Chart ID whose preview is currently loaded.
+            uint32_t previewEndMs = 0;       ///< Stop preview when position reaches this value.
+
             ~ChartListComponentState() {
                 session.keepRunning = false;
                 if (chartLoader.joinable()) chartLoader.join();
                 if (recordLoader.joinable()) recordLoader.join();
             }
         };
+
+        /// Default preview duration (ms) when chart metadata contains no preview range.
+        constexpr uint32_t kDefaultPreviewEndMs = 10000;
+
+        /// Starts or updates the audio preview for the currently selected chart.
+        /// Stops any ongoing preview first.  Safe to call every render frame —
+        /// it is a no-op when the selected chart has not changed.
+        void updateChartPreview(ChartListComponentState &cstate,
+                                const std::string &selectedChartId,
+                                const ChartListScene &chartList) {
+            // Auto-stop when the preview time window has elapsed.
+            if (!cstate.lastPreviewChartId.empty() &&
+                cstate.previewEndMs > 0 &&
+                cstate.previewPlayer.positionMs() >= cstate.previewEndMs) {
+                cstate.previewPlayer.stopSong();
+            }
+
+            if (selectedChartId == cstate.lastPreviewChartId) return;
+
+            // Selection changed — stop the current preview and start a new one.
+            cstate.previewPlayer.stopSong();
+            cstate.lastPreviewChartId = selectedChartId;
+            cstate.previewEndMs = 0;
+
+            if (selectedChartId.empty()) return;
+
+            const auto it = chartList.items().find(selectedChartId);
+            if (it == chartList.items().end()) return;
+
+            const auto &entry = it->second;
+            if (entry.musicFilePath.empty()) return;
+
+            const uint32_t begin = entry.chart.getPreviewBegin();
+            const uint32_t end   = entry.chart.getPreviewEnd();
+
+            // Determine effective preview window.
+            const uint32_t effectiveBegin = begin;
+            const uint32_t effectiveEnd   = (end > begin) ? end : kDefaultPreviewEndMs;
+
+            cstate.previewEndMs = effectiveEnd;
+            cstate.previewPlayer.setVolume(RuntimeConfig::musicVolume);
+            if (cstate.previewPlayer.loadSong(entry.musicFilePath.c_str())) {
+                if (effectiveBegin > 0) cstate.previewPlayer.seekToMs(effectiveBegin);
+                cstate.previewPlayer.playSong();
+            }
+        }
+
     } // namespace
 
     ftxui::Component ChartListUI::component(ftxui::ScreenInteractive &screen,
@@ -1512,6 +1566,7 @@ namespace ui {
             bool expected = false;
             if (!state->exitRequested.compare_exchange_strong(expected, true)) return;
             state->session.keepRunning = false;
+            state->previewPlayer.stopSong();
             routeToStartMenu();
             // routeToStartMenu() posts Event::Custom which drives the deferred
             // scene-swap in UIBus — no need to call ExitLoopClosure() here,
@@ -1543,6 +1598,7 @@ namespace ui {
             UIBus::pendingGameplay = gp;
             state->routed = true;
             state->session.keepRunning = false;
+            state->previewPlayer.stopSong();
             onRoute(UIScene::Gameplay);
         };
 
@@ -1559,6 +1615,15 @@ namespace ui {
         auto container   = Container::Vertical({searchInput});
 
         auto root = Renderer(container, [state, tr, searchInput] {
+            // Update audio preview when the selected chart changes.
+            if (state->session.loadCompleted) {
+                const auto &ids = state->chartList.filteredOrderedChartIDs();
+                const std::string selectedId =
+                    ids.empty() ? std::string()
+                                : ids[std::min(state->uiState.selectedIndex, ids.size() - 1)];
+                updateChartPreview(*state, selectedId, state->chartList);
+            }
+
             return renderChartListFrame(state->palette,
                                         tr,
                                         state->session,

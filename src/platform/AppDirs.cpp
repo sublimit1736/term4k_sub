@@ -38,6 +38,24 @@ void ensureDir(const std::string &path) {
     // Errors are intentionally ignored here and handled by later file operations.
 }
 
+// Detects the development i18n source directory.
+// Returns the prefix (project root with trailing slash) when found, else "".
+// Mirrors the logic in I18n.cpp so both subsystems agree on dev mode.
+std::string devRootIfPresent() {
+    std::error_code ec;
+    const std::pair<const char *, const char *> candidates[] = {
+        // Running from project root (e.g. ./build/term4k).
+        {"src/resources/i18n/", "./"},
+        // Running from a build sub-directory (e.g. build/term4k from build/).
+        {"../src/resources/i18n/", "../"},
+    };
+    for (const auto &[marker, root] : candidates) {
+        if (fs::exists(marker, ec) && fs::is_directory(marker, ec)) return root;
+        ec.clear();
+    }
+    return "";
+}
+
 } // namespace
 
 // -- AppDirs::exeDir -----------------------------------------------------------
@@ -58,6 +76,27 @@ std::string AppDirs::exeDir() {
 void AppDirs::init() {
     if (initialized) return;
 
+    // ── Development mode ─────────────────────────────────────────────────────
+    // Detected when the source resource tree is reachable from CWD (i.e. the
+    // binary is being run directly from a local build directory).
+    // Paths are kept inside the project tree to avoid polluting the user's
+    // home directory during development and testing.
+    const std::string devRoot = devRootIfPresent();
+    if (!devRoot.empty()) {
+        dataDirValue   = ensureTrailingSlash(devRoot + "data");
+        chartsDirValue = ensureTrailingSlash(devRoot + "data/charts");
+        configDirValue = ensureTrailingSlash(devRoot + "data/config");
+        localeDirValue = ensureTrailingSlash(devRoot + "src/resources/i18n");
+
+        ensureDir(dataDirValue);
+        ensureDir(chartsDirValue);
+        ensureDir(configDirValue);
+
+        initialized = true;
+        return;
+    }
+
+    // ── Production mode ───────────────────────────────────────────────────────
     bool systemMode = false;
 
     // Detect system installation by checking /etc/term4k.

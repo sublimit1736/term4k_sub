@@ -103,7 +103,8 @@ ftxui::Component SettingsUI::component(
         RuntimeConfig::lastLoadFailed = false;
     }
 
-    const std::array<std::string, 2> locales = {"zh_CN", "en_US"};
+    // Locale list is read dynamically from the i18n directory on disk.
+    const std::vector<std::string> locales = I18n::listAvailableLocales();
     const std::array<uint32_t, 8> bufferOptions = {64, 128, 256, 512, 1024, 2048, 4096, 8192};
 
     // Helper: compute a summary of duplicate-key conflicts.

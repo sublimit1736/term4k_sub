@@ -41,7 +41,7 @@ if (TERM4K_USE_SYSTEM_DEPS)
     find_path(TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR miniaudio.h)
 endif ()
 
-# ── stb (single-header image loader, used by CoverArtRenderer) ──────────────
+# ── stb (single-header image loader, used by IllustrationRenderer) ──────────────
 FetchContent_Declare(
         stb
         GIT_REPOSITORY https://github.com/nothings/stb.git
@@ -155,7 +155,7 @@ if (TERM4K_ENABLE_TUI)
             src/ui/MessageOverlay.cpp
             src/ui/TransitionBackdrop.cpp
             src/ui/ChartListUI.cpp
-            src/ui/CoverArtRenderer.cpp
+            src/ui/IllustrationRenderer.cpp
             src/ui/TerminalImageProtocol.cpp
             src/ui/SettingsUI.cpp
             src/ui/UserStatUI.cpp

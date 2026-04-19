@@ -21,7 +21,7 @@
 #pragma GCC diagnostic pop
 #endif
 
-#include "ui/CoverArtRenderer.h"
+#include "ui/IllustrationRenderer.h"
 #include "ui/TerminalImageProtocol.h"
 
 #include <ftxui/dom/elements.hpp>
@@ -72,7 +72,7 @@ struct CachedCover {
     std::string protocolPayload;
 
     /// Downsampled RGBA pixels for the half-block fallback renderer.
-    /// Dimensions: kCoverArtCellW × (kCoverArtCellH * 2) × 4 bytes.
+    /// Dimensions: kIllustrationCellW × (kIllustrationCellH * 2) × 4 bytes.
     std::vector<uint8_t> blockRgba;
 };
 
@@ -153,13 +153,13 @@ const CachedCover &loadCoverFromFolder(const std::string &folderPath) {
     if (TerminalImageProtocol::isSupported()) {
         entry.protocolPayload = TerminalImageProtocol::buildKittyPayload(
             native, kNativeImagePx, kNativeImagePx,
-            kCoverArtCellW, kCoverArtCellH);
+            kIllustrationCellW, kIllustrationCellH);
     }
 
     // Step 3 — downsample to block-art dimensions for the fallback renderer.
     // Each terminal row covers 2 vertical pixel rows (half-block characters).
-    const int bW = kCoverArtCellW;
-    const int bH = kCoverArtCellH * 2;
+    const int bW = kIllustrationCellW;
+    const int bH = kIllustrationCellH * 2;
     entry.blockRgba.resize(static_cast<std::size_t>(bW * bH * kBytesPerPixel));
     nnResize(native.data(), kNativeImagePx, kNativeImagePx,
              entry.blockRgba.data(), bW, bH);
@@ -222,7 +222,7 @@ private:
 // Public API
 // ---------------------------------------------------------------------------
 
-ftxui::Element renderCoverArt(const std::string &folderPath) {
+ftxui::Element renderIllustration(const std::string &folderPath) {
     using namespace ftxui;
 
     if (!folderPath.empty()) {
@@ -232,20 +232,20 @@ ftxui::Element renderCoverArt(const std::string &folderPath) {
             // ── Native protocol path ────────────────────────────────────────
             if (!cover.protocolPayload.empty()) {
                 return std::make_shared<ImageProtocolNode>(
-                    cover.protocolPayload, kCoverArtCellW, kCoverArtCellH);
+                    cover.protocolPayload, kIllustrationCellW, kIllustrationCellH);
             }
 
             // ── Half-block fallback ─────────────────────────────────────────
             // Each terminal row encodes two pixel rows: foreground = top pixel,
             // background = bottom pixel, using U+2580 UPPER HALF BLOCK (▀).
-            const int pixW = kCoverArtCellW;
-            const int pixH = kCoverArtCellH * 2;
+            const int pixW = kIllustrationCellW;
+            const int pixH = kIllustrationCellH * 2;
             Elements rows;
-            rows.reserve(static_cast<std::size_t>(kCoverArtCellH));
-            for (int row = 0; row < kCoverArtCellH; ++row) {
+            rows.reserve(static_cast<std::size_t>(kIllustrationCellH));
+            for (int row = 0; row < kIllustrationCellH; ++row) {
                 Elements cells;
-                cells.reserve(static_cast<std::size_t>(kCoverArtCellW));
-                for (int col = 0; col < kCoverArtCellW; ++col) {
+                cells.reserve(static_cast<std::size_t>(kIllustrationCellW));
+                for (int col = 0; col < kIllustrationCellW; ++col) {
                     const int topBase = ((row * 2)     * pixW + col) * kBytesPerPixel;
                     const int botBase = ((row * 2 + 1) * pixW + col) * kBytesPerPixel;
                     const Color topColor = Color::RGB(
@@ -269,8 +269,8 @@ ftxui::Element renderCoverArt(const std::string &folderPath) {
     return (text("?") | dim | color(kDimColor) | center)
            | borderRounded
            | color(kDimColor)
-           | size(WIDTH,  EQUAL, kCoverArtCellW)
-           | size(HEIGHT, EQUAL, kCoverArtCellH);
+           | size(WIDTH,  EQUAL, kIllustrationCellW)
+           | size(HEIGHT, EQUAL, kIllustrationCellH);
 }
 
 } // namespace ui

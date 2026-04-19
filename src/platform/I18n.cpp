@@ -110,3 +110,34 @@ std::string I18n::operator()(const std::string &key) const {
 const std::string &I18n::locale() const {
     return currentLocale;
 }
+
+std::vector<std::string> I18n::listAvailableLocales() {
+    AppDirs::init();
+
+    // Collect candidate directories (dev first, then production).
+    std::vector<std::string> dirs;
+    const std::string devDir = devI18nDirIfPresent();
+    if (!devDir.empty()) dirs.push_back(devDir);
+    dirs.push_back(AppDirs::localeDir());
+
+    std::vector<std::string> locales;
+    for (const std::string &dir : dirs) {
+        std::error_code ec;
+        if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec)) continue;
+        for (const auto &entry : fs::directory_iterator(dir, ec)) {
+            if (ec) break;
+            if (!entry.is_regular_file(ec)) { ec.clear(); continue; }
+            const auto &p = entry.path();
+            if (p.extension() == ".json") {
+                locales.push_back(p.stem().string());
+            }
+        }
+    }
+
+    // Sort and deduplicate.
+    std::sort(locales.begin(), locales.end());
+    locales.erase(std::unique(locales.begin(), locales.end()), locales.end());
+
+    if (locales.empty()) locales.push_back("en_US");
+    return locales;
+}
