@@ -1,5 +1,6 @@
 #include "ui/ChartListUI.h"
 
+#include "ui/ContextMenuOverlay.h"
 #include "ui/IllustrationRenderer.h"
 
 #include "platform/AppDirs.h"
@@ -197,12 +198,14 @@ namespace ui {
             std::string label;
             ftxui::Color color = ftxui::Color::Default;
             bool rainbow       = false;
+            std::vector<ftxui::Color> letterColors; // per-letter colors (overrides rainbow/color when non-empty)
         };
 
         struct AchievementVisual {
             std::string label;
             ftxui::Color color = ftxui::Color::Default;
             bool rainbow       = false;
+            std::vector<ftxui::Color> letterColors; // per-letter colors (overrides rainbow/color when non-empty)
         };
 
         struct SelectedChartSnapshot {
@@ -345,7 +348,10 @@ namespace ui {
 
         GradeVisual gradeFromAccuracy(float accPercent);
         AchievementVisual achievementFromStats(const ChartPlayStats &stats);
-        ftxui::Element colorizedToken(const std::string &token, const ftxui::Color &baseColor, bool rainbow);
+        ftxui::Element colorizedToken(const std::string &token, const ftxui::Color &baseColor, bool rainbow,
+                                      const std::vector<ftxui::Color> &letterColors = {});
+        ftxui::Element blockArtWord(const std::string &word, const ftxui::Color &baseColor, bool rainbow,
+                                    const std::vector<ftxui::Color> &letterColors = {});
         struct LeaderboardView;
         LeaderboardView buildLeaderboard(const std::vector<std::string> &records,
                                          const std::string &chartId,
@@ -442,12 +448,18 @@ namespace ui {
                         const GradeVisual grade = gradeFromAccuracy(acc);
                         const AchievementVisual ach = achievementFromStats(entry.stats);
 
+                        // Fixed-alignment format: "{grade} | {ach_padded_to_4_chars}"
+                        // The '|' is always exactly 4 chars from the right edge.
+                        const int achLen = static_cast<int>(ach.label.size());
+                        const int padLen = std::max(0, 4 - achLen);
+
                         Elements rightParts;
-                        rightParts.push_back(colorizedToken(grade.label, grade.color, grade.rainbow));
-                        if (!ach.label.empty()) {
-                            rightParts.push_back(text(" | ") | color(toColor(palette.textMuted)));
-                            rightParts.push_back(colorizedToken(ach.label, ach.color, ach.rainbow));
+                        rightParts.push_back(colorizedToken(grade.label, grade.color, grade.rainbow, grade.letterColors));
+                        rightParts.push_back(text(" | ") | color(toColor(palette.textMuted)));
+                        if (padLen > 0) {
+                            rightParts.push_back(text(std::string(static_cast<std::size_t>(padLen), ' ')));
                         }
+                        rightParts.push_back(colorizedToken(ach.label, ach.color, ach.rainbow, ach.letterColors));
                         rightInfo = hbox(std::move(rightParts));
                     }
                 }
@@ -467,7 +479,8 @@ namespace ui {
                 if (i == selectedIndex) {
                     row = row | bold |
                           color(highContrastOn(palette.accentPrimary)) |
-                          bgcolor(toColor(palette.accentPrimary));
+                          bgcolor(toColor(palette.accentPrimary)) |
+                          focus;
                 } else {
                     row = row | color(toColor(palette.textPrimary));
                 }
@@ -947,10 +960,18 @@ namespace ui {
         }
 
         AchievementVisual achievementFromStats(const ChartPlayStats &stats) {
-            if (stats.hasULT) return {"ULT", ftxui::Color::White, true};
+            if (stats.hasULT) {
+                // ULT per-letter colors: U=dark red, L=gold, T=silver
+                return {"ULT", ftxui::Color::Default, false, {
+                    ftxui::Color::RGB(139, 0, 0),     // U: dark red
+                    ftxui::Color::RGB(255, 215, 0),   // L: gold
+                    ftxui::Color::RGB(192, 192, 192),  // T: silver
+                }};
+            }
             if (stats.hasAP) return {"AP", ftxui::Color::RGB(255, 215, 0), false};
             if (stats.hasFC) return {"FC", ftxui::Color::RGB(192, 192, 192), false};
-            return {};
+            // CL: lowest priority — any chart that has at least one play record
+            return {"CL", ftxui::Color::White, false};
         }
 
         const std::array<ftxui::Color, 7> kRainbow = {
@@ -977,24 +998,48 @@ namespace ui {
             {'+', {"  ██╗  ", "██████╗", "╚═██╔═╝", "  ╚═╝  ", "       ", "       "}},
         };
 
-        ftxui::Element colorizedToken(const std::string &token, const ftxui::Color &baseColor, const bool rainbow) {
+        ftxui::Element colorizedToken(const std::string &token, const ftxui::Color &baseColor, const bool rainbow,
+                                      const std::vector<ftxui::Color> &letterColors) {
             using namespace ftxui;
-            if (!rainbow) return text(token) | bold | color(baseColor);
+
+            if (letterColors.empty() && !rainbow) return text(token) | bold | color(baseColor);
 
             Elements chars;
             std::size_t colorIndex = 0;
-            for (char ch: token){
-                if (ch == ' '){
+
+            // Iterate UTF-8 codepoints to avoid splitting multi-byte sequences.
+            for (std::size_t i = 0; i < token.size(); ) {
+                const auto byte = static_cast<unsigned char>(token[i]);
+                // Decode one UTF-8 codepoint to determine its byte length.
+                std::size_t len;
+                if      ((byte & 0x80) == 0x00) len = 1;          // 0xxxxxxx
+                else if ((byte & 0xE0) == 0xC0) len = 2;          // 110xxxxx
+                else if ((byte & 0xF0) == 0xE0) len = 3;          // 1110xxxx
+                else if ((byte & 0xF8) == 0xF0) len = 4;          // 11110xxx
+                else { ++i; continue; } // skip invalid / continuation bytes
+
+                std::string cp = token.substr(i, len);
+                i += len;
+
+                if (cp == " ") {
                     chars.push_back(text(" "));
                     continue;
                 }
-                chars.push_back(text(std::string(1, ch)) | bold | color(kRainbow[colorIndex % kRainbow.size()]));
+
+                ftxui::Color c = baseColor;
+                if (!letterColors.empty() && colorIndex < letterColors.size()) {
+                    c = letterColors[colorIndex];
+                } else if (rainbow) {
+                    c = kRainbow[colorIndex % kRainbow.size()];
+                }
+                chars.push_back(text(cp) | bold | color(c));
                 ++colorIndex;
             }
             return hbox(std::move(chars));
         }
 
-        ftxui::Element blockArtWord(const std::string &word, const ftxui::Color &baseColor, const bool rainbow) {
+        ftxui::Element blockArtWord(const std::string &word, const ftxui::Color &baseColor, const bool rainbow,
+                                    const std::vector<ftxui::Color> &letterColors) {
             using namespace ftxui;
             std::string core     = word;
             bool superscriptPlus = false;
@@ -1003,34 +1048,54 @@ namespace ui {
                 core.pop_back();
             }
 
-            std::array<std::string, 6> lines = {"", "", "", "", "", ""};
+            // Render each letter as an independent column with its own colour.
+            // This avoids splitting multi-byte UTF-8 glyph strings character-by-character.
+            std::array<Elements, 6> lineElems;
+
+            std::size_t letterIdx = 0;
             for (char ch: core){
                 const char up = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
                 const auto it = kBlockGlyph.find(up);
-                if (it == kBlockGlyph.end()) continue;
-                for (std::size_t i = 0; i < lines.size(); ++i){
-                    lines[i] += it->second[i] + std::string(" ");
+                if (it == kBlockGlyph.end()){ ++letterIdx; continue; }
+
+                // Choose colour for this letter.
+                Color c = baseColor;
+                if (!letterColors.empty() && letterIdx < letterColors.size()){
+                    c = letterColors[letterIdx];
+                } else if (rainbow){
+                    c = kRainbow[letterIdx % kRainbow.size()];
                 }
+
+                for (std::size_t row = 0; row < 6; ++row){
+                    lineElems[row].push_back(text(it->second[row] + " ") | bold | color(c));
+                }
+                ++letterIdx;
             }
+
             if (superscriptPlus){
                 const auto plusIt = kBlockGlyph.find('+');
                 if (plusIt != kBlockGlyph.end()){
-                    for (std::size_t i = 0; i < lines.size(); ++i){
-                        if (i < 4){
-                            lines[i] += plusIt->second[i];
+                    Color c = baseColor;
+                    if (rainbow){
+                        c = kRainbow[letterIdx % kRainbow.size()];
+                    }
+                    for (std::size_t row = 0; row < 6; ++row){
+                        if (row < 4){
+                            lineElems[row].push_back(text(plusIt->second[row]) | bold | color(c));
                         }
                     }
                 }
             }
 
-            return vbox({
-                            colorizedToken(lines[0], baseColor, rainbow),
-                            colorizedToken(lines[1], baseColor, rainbow),
-                            colorizedToken(lines[2], baseColor, rainbow),
-                            colorizedToken(lines[3], baseColor, rainbow),
-                            colorizedToken(lines[4], baseColor, rainbow),
-                            colorizedToken(lines[5], baseColor, rainbow),
-                        });
+            Elements vLines;
+            for (std::size_t row = 0; row < 6; ++row){
+                if (!lineElems[row].empty()){
+                    vLines.push_back(hbox(std::move(lineElems[row])));
+                } else {
+                    vLines.push_back(text(""));
+                }
+            }
+            return vbox(std::move(vLines));
         }
 
         ftxui::Element renderMetaPanel(const ThemePalette &palette,
@@ -1092,16 +1157,19 @@ namespace ui {
 
             Element artBlock = text("");
             if (state.hasPlayRecord) {
-                Elements lines;
-                lines.push_back(blockArtWord(state.currentGrade.label,
-                                             state.currentGrade.color,
-                                             state.currentGrade.rainbow));
+                Element gradeArt = blockArtWord(state.currentGrade.label,
+                                                state.currentGrade.color,
+                                                state.currentGrade.rainbow,
+                                                state.currentGrade.letterColors);
                 if (!state.currentAchievement.label.empty()) {
-                    lines.push_back(blockArtWord(state.currentAchievement.label,
-                                                 state.currentAchievement.color,
-                                                 state.currentAchievement.rainbow));
+                    Element achArt = blockArtWord(state.currentAchievement.label,
+                                                  state.currentAchievement.color,
+                                                  state.currentAchievement.rainbow,
+                                                  state.currentAchievement.letterColors);
+                    artBlock = hbox({gradeArt, text("  "), achArt});
+                } else {
+                    artBlock = gradeArt;
                 }
-                artBlock = vbox(std::move(lines));
             }
 
             Element scorePanel = vbox({
@@ -1295,11 +1363,11 @@ namespace ui {
                                              const bool showStartConfirm,
                                              const std::string &pendingStartName) {
             if (!showStartConfirm) {
-                return ftxui::dbox({base, MessageOverlay::render(palette)});
+                return ftxui::dbox({base, MessageOverlay::render(palette), ContextMenuOverlay::render(palette)});
             }
 
             ftxui::Element overlay = renderStartConfirmOverlay(palette, tr, pendingStartName);
-            return ftxui::dbox({base, overlay, MessageOverlay::render(palette)});
+            return ftxui::dbox({base, overlay, MessageOverlay::render(palette), ContextMenuOverlay::render(palette)});
         }
 
         struct ChartListLoadStartContext {
@@ -1586,6 +1654,20 @@ namespace ui {
             if (it == state->chartList.items().end()) return;
 
             const auto &entry = it->second;
+
+            // Validate chart file before routing; show an error popup instead of switching UI.
+            {
+                std::error_code ec;
+                if (entry.chartFilePath.empty() ||
+                    !std::filesystem::exists(entry.chartFilePath, ec) ||
+                    !std::filesystem::is_regular_file(entry.chartFilePath, ec)) {
+                    MessageOverlay::push(MessageLevel::Error,
+                        I18n::instance().get("popup.error.chart_cannot_load") +
+                        ": " + entry.chartFilePath);
+                    return;
+                }
+            }
+
             GameplayRouteParams gp;
             gp.chartFilePath = entry.chartFilePath;
             gp.musicFilePath = entry.musicFilePath;
@@ -1645,6 +1727,11 @@ namespace ui {
 
         auto app = CatchEvent(root, [state, trFn, requestExitFn, requestStartGameFn, container](const Event &event) mutable {
             if (MessageOverlay::handleEvent(event)) {
+                return true;
+            }
+
+            // Right-click context menu (copy/paste support)
+            if (ContextMenuOverlay::handleEvent(event)) {
                 return true;
             }
 

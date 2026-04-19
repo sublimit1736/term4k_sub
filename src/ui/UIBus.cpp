@@ -3,6 +3,7 @@
 #include "platform/AppDirs.h"
 #include "platform/RuntimeConfig.h"
 #include "account/RecordStore.h"
+#include "account/UserStore.h"
 #include "platform/I18n.h"
 #include "ui/ChartListUI.h"
 #include "ui/GameplaySettlementUI.h"
@@ -34,6 +35,7 @@ void prepareCommon() {
 void prepareDataDirs() {
     AppDirs::init();
     RecordStore::setDataDir(AppDirs::dataDir());
+    UserStore::setDataDir(AppDirs::dataDir());
 }
 
 ftxui::Component buildSceneComponent(const UIScene scene,

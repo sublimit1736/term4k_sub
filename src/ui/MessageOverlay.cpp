@@ -4,6 +4,7 @@
 #include "platform/RuntimeConfig.h"
 #include "ui/UIColors.h"
 
+#include <atomic>
 #include <chrono>
 #include <deque>
 #include <mutex>
@@ -27,6 +28,12 @@ std::deque<MessageItem> &queue() {
 std::mutex &queueMutex() {
     static std::mutex m;
     return m;
+}
+
+// True while a mouse button is being held (possible text selection in progress).
+std::atomic<bool> &mouseHeld() {
+    static std::atomic<bool> h{false};
+    return h;
 }
 
 ftxui::Color levelColor(const MessageLevel level) {
@@ -70,8 +77,29 @@ bool MessageOverlay::hasPending() {
     return !queue().empty();
 }
 
-// Messages are auto-dismissed after 3 s; no key-press required.
-bool MessageOverlay::handleEvent(const ftxui::Event &) {
+// Tracks mouse button presses to detect possible text selection.
+bool MessageOverlay::handleEvent(const ftxui::Event &event) {
+    if (event.is_mouse()) {
+        // FTXUI v6 provides mouse() as a non-const member (no const overload).
+        // The underlying Event object is always non-const; CatchEvent passes it as
+        // const& only as a convention.  The cast is safe and read-only here.
+        auto &mouse = const_cast<ftxui::Event &>(event).mouse();
+        if (mouse.button == ftxui::Mouse::Left) {
+            if (mouse.motion == ftxui::Mouse::Pressed) {
+                mouseHeld().store(true, std::memory_order_relaxed);
+            } else if (mouse.motion == ftxui::Mouse::Released) {
+                if (mouseHeld().load(std::memory_order_relaxed)) {
+                    mouseHeld().store(false, std::memory_order_relaxed);
+                    // Reset dismiss timer for the front message — user may have just
+                    // finished selecting text, so give them 3 more seconds to read it.
+                    std::scoped_lock lock(queueMutex());
+                    if (!queue().empty()) {
+                        queue().front().shownAt = std::chrono::steady_clock::now();
+                    }
+                }
+            }
+        }
+    }
     return false;
 }
 
@@ -79,17 +107,20 @@ ftxui::Element MessageOverlay::render(const ThemePalette &palette) {
     using namespace ftxui;
 
     // Auto-dismiss expired messages (older than 3 s).
+    // While mouse is held, skip dismissal so the user can select/read the text.
     {
         std::scoped_lock lock(queueMutex());
-        const auto now = std::chrono::steady_clock::now();
-        while (!queue().empty()) {
-            const auto elapsed =
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    now - queue().front().shownAt).count();
-            if (elapsed >= kAutoDismissMs)
-                queue().pop_front();
-            else
-                break;
+        if (!mouseHeld().load(std::memory_order_relaxed)) {
+            const auto now = std::chrono::steady_clock::now();
+            while (!queue().empty()) {
+                const auto elapsed =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now - queue().front().shownAt).count();
+                if (elapsed >= kAutoDismissMs)
+                    queue().pop_front();
+                else
+                    break;
+            }
         }
         if (queue().empty()) return text("");
     }
@@ -105,8 +136,13 @@ ftxui::Element MessageOverlay::render(const ThemePalette &palette) {
     const std::string label = I18n::instance().get(levelI18nKey(current.level));
     const std::string fullText = icon + " " + label + ": " + current.text;
 
-    const Element panel =
+    // Inner text with explicit background to prevent underlying layers showing through.
+    const Element innerText =
         paragraph(fullText) | bold | color(levelColor(current.level)) |
+        bgcolor(toColor(palette.surfacePanel));
+
+    const Element panel =
+        innerText |
         borderRounded |
         color(toColor(palette.accentPrimary)) |
         bgcolor(toColor(palette.surfacePanel)) |
