@@ -1,5 +1,6 @@
 #include "AudioPlayer.h"
 #include "platform/I18n.h"
+#include "platform/RuntimeConfig.h"
 #include "utils/ErrorNotifier.h"
 #include <algorithm>
 #include <cstdint>
@@ -42,12 +43,13 @@ bool AudioPlayer::loadSong(const char* filename) {
     }
     ma_data_source_set_looping(&decoder, MA_FALSE);
 
-    config                   = ma_device_config_init(ma_device_type_playback);
-    config.playback.format   = decoder.outputFormat;
-    config.playback.channels = decoder.outputChannels;
-    config.sampleRate        = decoder.outputSampleRate;
-    config.dataCallback      = data_callback;
-    config.pUserData         = this;
+    config                        = ma_device_config_init(ma_device_type_playback);
+    config.playback.format        = decoder.outputFormat;
+    config.playback.channels      = decoder.outputChannels;
+    config.sampleRate             = decoder.outputSampleRate;
+    config.periodSizeInFrames     = RuntimeConfig::audioBufferSize;
+    config.dataCallback           = data_callback;
+    config.pUserData              = this;
 
     if (ma_device_init(nullptr, &config, &device) != MA_SUCCESS){
         ErrorNotifier::notify(I18n::instance().get("error.device_init_failed"));

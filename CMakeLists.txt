@@ -54,10 +54,14 @@ message(STATUS "term4k deps: using FetchContent stb from ${TERM4K_STB_INCLUDE_DI
 
 if (TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR)
     set(TERM4K_MINIAUDIO_IMPL "${CMAKE_BINARY_DIR}/term4k_miniaudio_impl.c")
-    file(WRITE "${TERM4K_MINIAUDIO_IMPL}" "#define MINIAUDIO_IMPLEMENTATION\n#include <miniaudio.h>\n")
+    # Include stb_vorbis.c before MINIAUDIO_IMPLEMENTATION so miniaudio enables OGG/Vorbis support.
+    file(WRITE "${TERM4K_MINIAUDIO_IMPL}"
+        "#include \"${TERM4K_STB_INCLUDE_DIR}/stb_vorbis.c\"\n"
+        "#define MINIAUDIO_IMPLEMENTATION\n#include <miniaudio.h>\n")
 
     add_library(term4k_miniaudio STATIC "${TERM4K_MINIAUDIO_IMPL}")
     target_include_directories(term4k_miniaudio PUBLIC "${TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR}")
+    target_include_directories(term4k_miniaudio PRIVATE "${TERM4K_STB_INCLUDE_DIR}")
     set(TERM4K_MINIAUDIO_TARGET term4k_miniaudio)
     set(TERM4K_MINIAUDIO_INCLUDE_DIR "${TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR}")
     message(STATUS "term4k deps: using system miniaudio from ${TERM4K_SYSTEM_MINIAUDIO_INCLUDE_DIR}")
@@ -66,11 +70,23 @@ else ()
             miniaudio
             GIT_REPOSITORY https://github.com/mackron/miniaudio.git
             GIT_TAG 0.11.22
+            EXCLUDE_FROM_ALL  # Prevent the upstream miniaudio target from being built
     )
     FetchContent_MakeAvailable(miniaudio)
-    set(TERM4K_MINIAUDIO_TARGET miniaudio)
     set(TERM4K_MINIAUDIO_INCLUDE_DIR "${miniaudio_SOURCE_DIR}")
-    message(STATUS "term4k deps: using FetchContent miniaudio")
+
+    # Create our own implementation that includes stb_vorbis.c before MINIAUDIO_IMPLEMENTATION
+    # so miniaudio activates its built-in OGG/Vorbis decoder (requires STB_VORBIS_INCLUDE_STB_VORBIS_H).
+    set(TERM4K_MINIAUDIO_IMPL "${CMAKE_BINARY_DIR}/term4k_miniaudio_impl.c")
+    file(WRITE "${TERM4K_MINIAUDIO_IMPL}"
+        "#include \"${TERM4K_STB_INCLUDE_DIR}/stb_vorbis.c\"\n"
+        "#define MINIAUDIO_IMPLEMENTATION\n"
+        "#include \"miniaudio.h\"\n")
+    add_library(term4k_miniaudio STATIC "${TERM4K_MINIAUDIO_IMPL}")
+    target_include_directories(term4k_miniaudio PUBLIC "${TERM4K_MINIAUDIO_INCLUDE_DIR}")
+    target_include_directories(term4k_miniaudio PRIVATE "${TERM4K_STB_INCLUDE_DIR}")
+    set(TERM4K_MINIAUDIO_TARGET term4k_miniaudio)
+    message(STATUS "term4k deps: using FetchContent miniaudio with OGG/Vorbis support")
 endif ()
 
 set(TERM4K_CORE_SOURCES
