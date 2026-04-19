@@ -1,6 +1,5 @@
 #include "ui/ChartListUI.h"
 
-#include "ui/ContextMenuOverlay.h"
 #include "ui/IllustrationRenderer.h"
 
 #include "platform/AppDirs.h"
@@ -1363,11 +1362,11 @@ namespace ui {
                                              const bool showStartConfirm,
                                              const std::string &pendingStartName) {
             if (!showStartConfirm) {
-                return ftxui::dbox({base, MessageOverlay::render(palette), ContextMenuOverlay::render(palette)});
+                return ftxui::dbox({base, MessageOverlay::render(palette)});
             }
 
             ftxui::Element overlay = renderStartConfirmOverlay(palette, tr, pendingStartName);
-            return ftxui::dbox({base, overlay, MessageOverlay::render(palette), ContextMenuOverlay::render(palette)});
+            return ftxui::dbox({base, overlay, MessageOverlay::render(palette)});
         }
 
         struct ChartListLoadStartContext {
@@ -1727,11 +1726,6 @@ namespace ui {
 
         auto app = CatchEvent(root, [state, trFn, requestExitFn, requestStartGameFn, container](const Event &event) mutable {
             if (MessageOverlay::handleEvent(event)) {
-                return true;
-            }
-
-            // Right-click context menu (copy/paste support)
-            if (ContextMenuOverlay::handleEvent(event)) {
                 return true;
             }
 

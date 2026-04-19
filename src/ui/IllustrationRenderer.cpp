@@ -83,20 +83,46 @@ std::mutex g_coverCacheMutex;
 // File discovery
 // ---------------------------------------------------------------------------
 
-std::optional<std::filesystem::path> findCoverImageFile(const std::string &folderPath) {
+/// All candidate filenames tried in order.  stb_image will skip files that
+/// it cannot decode (e.g., WebP without a plugin), so the list deliberately
+/// covers common extensions used by rhythm-game chart packages.
+static constexpr const char *kCoverCandidates[] = {
+    "cover.jpg",   "cover.jpeg",  "cover.png",   "cover.bmp",
+    "cover.JPG",   "cover.JPEG",  "cover.PNG",   "cover.BMP",
+    "cover.webp",  "cover.WEBP",
+    "jacket.jpg",  "jacket.jpeg", "jacket.png",
+    "illustration.jpg", "illustration.jpeg", "illustration.png",
+    "thumbnail.jpg", "thumbnail.png",
+    "bg.jpg",      "bg.png",
+    "art.jpg",     "art.png",
+};
+
+/// Returns the raw RGBA pixels for the first candidate file that both exists
+/// on disk and can be decoded by stb_image.  Also returns the actual image
+/// dimensions via \p outW / \p outH.  Returns an empty vector on failure.
+std::vector<uint8_t> loadFirstDecodableImage(const std::string &folderPath,
+                                             int &outW, int &outH) {
     namespace fs = std::filesystem;
-    static constexpr const char *kCandidates[] = {
-        "cover.jpg",  "cover.jpeg",  "cover.png",  "cover.bmp",
-        "cover.JPG",  "cover.JPEG",  "cover.PNG",  "cover.BMP",
-        "cover.webp", "cover.WEBP",
-    };
     std::error_code ec;
-    for (const char *name : kCandidates) {
-        fs::path p = fs::path(folderPath) / name;
-        if (fs::exists(p, ec) && fs::is_regular_file(p, ec)) return p;
-        ec.clear();
+    for (const char *name : kCoverCandidates) {
+        const fs::path p = fs::path(folderPath) / name;
+        if (!fs::exists(p, ec) || !fs::is_regular_file(p, ec)) {
+            ec.clear();
+            continue;
+        }
+        int srcW = 0, srcH = 0, ch = 0;
+        stbi_uc *raw = stbi_load(p.string().c_str(), &srcW, &srcH, &ch, kBytesPerPixel);
+        if (!raw || srcW <= 0 || srcH <= 0) {
+            if (raw) stbi_image_free(raw);
+            continue; // try the next candidate
+        }
+        std::vector<uint8_t> pixels(raw, raw + srcW * srcH * kBytesPerPixel);
+        stbi_image_free(raw);
+        outW = srcW;
+        outH = srcH;
+        return pixels;
     }
-    return std::nullopt;
+    return {};
 }
 
 // ---------------------------------------------------------------------------
@@ -130,24 +156,17 @@ const CachedCover &loadCoverFromFolder(const std::string &folderPath) {
 
     CachedCover &entry = g_coverCache[folderPath];
 
-    const auto maybeFile = findCoverImageFile(folderPath);
-    if (!maybeFile) {
+    // Try every candidate filename; skip silently if a file can't be decoded.
+    int srcW = 0, srcH = 0;
+    const std::vector<uint8_t> rawPixels = loadFirstDecodableImage(folderPath, srcW, srcH);
+    if (rawPixels.empty()) {
         entry.status = CoverStatus::NoFile;
-        return entry;
-    }
-
-    // Decode the image to RGBA.
-    int srcW = 0, srcH = 0, ch = 0;
-    stbi_uc *raw = stbi_load(maybeFile->string().c_str(), &srcW, &srcH, &ch, kBytesPerPixel);
-    if (!raw || srcW <= 0 || srcH <= 0) {
-        entry.status = CoverStatus::LoadFailed;
         return entry;
     }
 
     // Step 1 — scale to the fixed native pixel size (180 × 180).
     std::vector<uint8_t> native(static_cast<std::size_t>(kNativeImagePx * kNativeImagePx * kBytesPerPixel));
-    nnResize(raw, srcW, srcH, native.data(), kNativeImagePx, kNativeImagePx);
-    stbi_image_free(raw);
+    nnResize(rawPixels.data(), srcW, srcH, native.data(), kNativeImagePx, kNativeImagePx);
 
     // Step 2 — build the terminal image protocol payload (if supported).
     if (TerminalImageProtocol::isSupported()) {
