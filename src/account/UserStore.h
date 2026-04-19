@@ -24,6 +24,9 @@ public:
     // New format returns UID directly; old format falls back to 0 for compatibility.
     static bool tryGetUIDByUsername(const std::string &username, uint32_t &uid);
 
+    // Returns true when the account database file can be opened for reading.
+    static bool isAccountDBAccessible();
+
 private:
     // Account database file path (overridable via setDataDir).
     static std::string accountList;

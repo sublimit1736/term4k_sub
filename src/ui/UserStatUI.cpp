@@ -2,6 +2,7 @@
 #include "platform/AppDirs.h"
 #include "platform/RuntimeConfig.h"
 #include "account/RecordStore.h"
+#include "account/UserStore.h"
 #include "scenes/AdminStatScene.h"
 #include "scenes/UserStatScene.h"
 #include "account/UserContext.h"
@@ -120,6 +121,28 @@ namespace ui {
             }
             else if (!state->isGuest){
                 state->userStats.refresh(AppDirs::chartsDir());
+
+                // E7: check if record DB is accessible.
+                if (state->current.has_value()) {
+                    const std::string uid = std::to_string(state->current->getUID());
+                    try {
+                        const auto allRecs = RecordStore::readAllRecordByUID(uid);
+                        const std::size_t verifiedCount = state->userStats.records().order.size();
+
+                        if (!allRecs.empty() && verifiedCount == 0) {
+                            // E7: records exist on disk but none verified — DB read error.
+                            MessageOverlay::push(MessageLevel::Error,
+                                I18n::instance().get("popup.error.record_db_error"));
+                        } else if (allRecs.size() > verifiedCount) {
+                            // E8: some records were dropped due to tampering.
+                            MessageOverlay::push(MessageLevel::Warning,
+                                I18n::instance().get("popup.warning.record_tampered"));
+                        }
+                    } catch (...) {
+                        MessageOverlay::push(MessageLevel::Error,
+                            I18n::instance().get("popup.error.record_db_error"));
+                    }
+                }
             }
             state->historyScrollOffset = 0;
             ++state->historyDataRevision;
@@ -336,8 +359,15 @@ namespace ui {
                     if (state->userStats.login(state->username, state->password)){
                         state->authStatus.clear();
                         refreshSession();
+                        MessageOverlay::push(MessageLevel::Info,
+                            I18n::instance().get("popup.info.login_succeeded"));
                     }
                     else{
+                        // E9: check if login failure is due to account DB being inaccessible.
+                        if (!UserStore::isAccountDBAccessible()) {
+                            MessageOverlay::push(MessageLevel::Error,
+                                I18n::instance().get("popup.error.account_db_inaccessible"));
+                        }
                         state->authStatus = tr("ui.user_info.auth_login_failed");
                         state->username.clear();
                         state->password.clear();
@@ -352,8 +382,15 @@ namespace ui {
                         state->username.clear();
                         state->password.clear();
                         state->authFocus = 0;
+                        MessageOverlay::push(MessageLevel::Info,
+                            I18n::instance().get("popup.info.register_succeeded"));
                     }
                     else{
+                        // E9: check if register failure is due to account DB being inaccessible.
+                        if (!UserStore::isAccountDBAccessible()) {
+                            MessageOverlay::push(MessageLevel::Error,
+                                I18n::instance().get("popup.error.account_db_inaccessible"));
+                        }
                         state->authStatus = err.empty() ? tr("ui.login.result.register_failed") : err;
                     }
                 }

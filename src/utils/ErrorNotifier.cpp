@@ -58,3 +58,7 @@ void ErrorNotifier::notifyUnknown(const std::string &context) {
 void ErrorNotifier::setSink(Sink sink) {
     globalSink() = sink ? std::move(sink) : makeDefaultSink();
 }
+
+ErrorNotifier::Sink ErrorNotifier::getSink() {
+    return globalSink();
+}

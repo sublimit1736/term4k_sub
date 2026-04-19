@@ -162,6 +162,7 @@ uint32_t RuntimeConfig::chartPreloadMs               = 2000;
 ChartEndTimingMode RuntimeConfig::chartEndTimingMode = ChartEndTimingMode::AfterChartEnd;
 std::vector<uint8_t> RuntimeConfig::keyBindings      = {'D', 'F', 'H', 'J', 0, 0, 0, 0, 0, 0};
 std::string RuntimeConfig::configDirOverride;
+bool RuntimeConfig::lastLoadFailed                   = false;
 
 void RuntimeConfig::resetToDefaults() {
     theme  = normalizeTheme(kDefaultTheme, kDefaultTheme);
@@ -179,6 +180,7 @@ void RuntimeConfig::resetToDefaults() {
     chartPreloadMs       = 2000;
     chartEndTimingMode   = ChartEndTimingMode::AfterChartEnd;
     keyBindings          = {'D', 'F', 'H', 'J', 0, 0, 0, 0, 0, 0};
+    lastLoadFailed       = false;
 }
 
 std::string RuntimeConfig::settingsFilePathForUser(const std::string &username) {
@@ -199,7 +201,10 @@ bool RuntimeConfig::loadForUser(const std::string &username) {
     JsonUtils json;
     const std::string path = settingsFilePathForUser(username);
     if (path.empty()) return false;
-    if (!JsonUtils::loadFlatObjectFromFile(path, json)) return false;
+    if (!JsonUtils::loadFlatObjectFromFile(path, json)) {
+        lastLoadFailed = true;
+        return false;
+    }
 
     // loadForUser resets to defaults first so missing keys naturally fall back.
     theme  = normalizeTheme(json.get("appearance.theme", theme), theme);
@@ -227,6 +232,7 @@ bool RuntimeConfig::loadForUser(const std::string &username) {
                                                  chartEndTimingMode);
     keyBindings = parseKeyBindings(json.get("gameplay.keyBindings", keyBindingsToString(keyBindings)), keyBindings);
 
+    lastLoadFailed = false;
     return true;
 }
 

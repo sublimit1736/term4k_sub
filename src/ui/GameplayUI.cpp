@@ -7,8 +7,11 @@
 #include "audio/AudioPlayer.h"
 #include "gameplay/GameplayChartParser.h"
 #include "platform/I18n.h"
+#include "ui/MessageOverlay.h"
 #include "ui/ThemeAdapter.h"
 #include "ui/UIColors.h"
+#include "account/UserContext.h"
+#include "utils/ErrorNotifier.h"
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/event.hpp>
@@ -543,35 +546,58 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
     state->palette = ThemeAdapter::resolveFromRuntime();
     state->params  = params;
 
-    // Load chart data for note-field rendering
-    const bool chartOk =
-        GameplayChartParser::parseChart(params.chartFilePath, params.keyCount, state->chartData);
-    const bool sessionOk =
-        state->gameplay.openChart(params.chartFilePath, params.keyCount);
+    // Load chart data for note-field rendering.
+    // Intercept ErrorNotifier messages during parsing to detect out-of-range notes (W1).
+    bool hadOutOfRangeNotes = false;
+    {
+        auto prevSink = ErrorNotifier::getSink();
+        ErrorNotifier::setSink([&hadOutOfRangeNotes, &prevSink](ErrorNotifier::Level level, const std::string &msg) {
+            // Both zh_CN ("轨道编号超出范围") and en_US ("track out of range") messages share "range" / "范围".
+            // The i18n keys are "error.tap_track_out_of_range" and "error.hold_track_out_of_range",
+            // whose translated values always contain either "out of range" or "超出范围".
+            const bool isRangeMsg =
+                msg.find("out of range") != std::string::npos ||
+                msg.find("\xe8\xb6\x85\xe5\x87\xba\xe8\x8c\x83\xe5\x9b\xb4") != std::string::npos; // "超出范围" in UTF-8
+            if (isRangeMsg) hadOutOfRangeNotes = true;
+            if (prevSink) prevSink(level, msg);
+        });
 
-    if (!chartOk || !sessionOk) {
-        // Fallback: render error and allow escape back
-        auto errRoot = Renderer([state, tr] {
-            return vbox({
-                text(tr("ui.gameplay.load_failed")) |
-                    color(Color::RedLight) | bold | center,
-                text(state->params.chartFilePath) |
-                    color(toColor(state->palette.textMuted)) | center,
-                text(tr("ui.gameplay.press_esc")) |
-                    color(toColor(state->palette.textMuted)) | center,
-            }) |
-            bgcolor(toColor(state->palette.surfaceBg)) | flex;
-        });
-        return CatchEvent(errRoot, [state, onRoute = std::move(onRoute)](const Event &ev) {
-            if (ev == Event::Escape || ev == Event::Character('q')) {
-                if (!state->routed) {
-                    state->routed = true;
-                    onRoute(UIScene::ChartList);
+        const bool chartOk_ =
+            GameplayChartParser::parseChart(params.chartFilePath, params.keyCount, state->chartData);
+        const bool sessionOk_ =
+            state->gameplay.openChart(params.chartFilePath, params.keyCount);
+
+        ErrorNotifier::setSink(prevSink);
+
+        if (!chartOk_ || !sessionOk_) {
+            MessageOverlay::push(MessageLevel::Error, tr("popup.error.chart_invalid_content"));
+            // Fallback: render error and allow escape back
+            auto errRoot = Renderer([state, tr] {
+                return vbox({
+                    text(tr("ui.gameplay.load_failed")) |
+                        color(Color::RedLight) | bold | center,
+                    text(state->params.chartFilePath) |
+                        color(toColor(state->palette.textMuted)) | center,
+                    text(tr("ui.gameplay.press_esc")) |
+                        color(toColor(state->palette.textMuted)) | center,
+                }) |
+                bgcolor(toColor(state->palette.surfaceBg)) | flex;
+            });
+            return CatchEvent(errRoot, [state, onRoute = std::move(onRoute)](const Event &ev) {
+                if (ev == Event::Escape || ev == Event::Character('q')) {
+                    if (!state->routed) {
+                        state->routed = true;
+                        onRoute(UIScene::ChartList);
+                    }
+                    return true;
                 }
-                return true;
-            }
-            return false;
-        });
+                return false;
+            });
+        }
+    }
+
+    if (hadOutOfRangeNotes) {
+        MessageOverlay::push(MessageLevel::Warning, tr("popup.warning.chart_notes_out_of_range"));
     }
 
     // Initialise lane pressed vector
@@ -584,6 +610,8 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
         state->gameplay.setChartClockDrivenByAudio(true);
         state->audio.playSong();
         state->audioStarted = true;
+    } else {
+        MessageOverlay::push(MessageLevel::Error, tr("popup.error.audio_load_failed"));
     }
 
     // Estimate total duration from chart end time (plus a small tail)
@@ -733,6 +761,18 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
                             state->gameplay,
                             state->params.chartID,
                             state->params.songName);
+
+                        // Push result popup
+                        if (sp.saveSucceeded) {
+                            MessageOverlay::push(MessageLevel::Info,
+                                I18n::instance().get("popup.info.record_saved"));
+                        } else if (!UserContext::hasLoggedInUser() || UserContext::isGuestUser()) {
+                            MessageOverlay::push(MessageLevel::Error,
+                                I18n::instance().get("popup.error.record_save_no_login"));
+                        } else {
+                            MessageOverlay::push(MessageLevel::Error,
+                                I18n::instance().get("popup.error.record_save_failed"));
+                        }
 
                         UIBus::pendingSettlement = sp;
                         onRoute(UIScene::GameplaySettlement);

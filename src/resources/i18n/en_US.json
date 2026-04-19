@@ -220,5 +220,21 @@
   "ui.settlement.difficulty": "Diff:",
   "ui.settlement.record_saved": "Record saved",
   "ui.settlement.record_save_failed": "Record not saved",
-  "ui.settlement.hint": "Enter / Esc: back to chart list"
+  "ui.settlement.hint": "Enter / Esc: back to chart list",
+  "popup.error.chart_no_audio": "Chart metadata found but audio file is missing",
+  "popup.error.chart_no_file": "Chart metadata found but chart file is missing",
+  "popup.error.audio_load_failed": "Audio file could not be loaded, playing without audio",
+  "popup.error.chart_invalid_content": "Chart file contains unrecognizable content",
+  "popup.error.record_save_no_login": "Not logged in, play record cannot be saved",
+  "popup.error.record_save_failed": "Failed to save play record",
+  "popup.error.settings_load_failed": "Settings file could not be read, using defaults",
+  "popup.error.record_db_error": "Play record database read error",
+  "popup.error.account_db_inaccessible": "Account database is inaccessible, login/register may not work",
+  "popup.warning.chart_notes_out_of_range": "Some notes have out-of-range lane numbers and will be skipped",
+  "popup.warning.chart_no_meta": "Found a chart folder with no metadata file, skipped",
+  "popup.warning.record_tampered": "Tampered play records detected, some records were ignored",
+  "popup.info.login_succeeded": "Login succeeded",
+  "popup.info.register_succeeded": "Registration succeeded, please log in",
+  "popup.info.record_saved": "Play record saved",
+  "popup.info.settings_saved": "Settings applied and saved"
 }

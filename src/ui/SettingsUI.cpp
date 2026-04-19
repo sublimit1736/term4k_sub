@@ -97,6 +97,12 @@ ftxui::Component SettingsUI::component(
     }
     state->status = tr("ui.settings.action.idle");
 
+    // E6: warn once if the settings file failed to load on login.
+    if (RuntimeConfig::lastLoadFailed) {
+        MessageOverlay::push(MessageLevel::Error, tr("popup.error.settings_load_failed"));
+        RuntimeConfig::lastLoadFailed = false;
+    }
+
     const std::array<std::string, 2> locales = {"zh_CN", "en_US"};
     const std::array<uint32_t, 8> bufferOptions = {64, 128, 256, 512, 1024, 2048, 4096, 8192};
 
@@ -158,6 +164,7 @@ ftxui::Component SettingsUI::component(
             I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
             state->palette = ThemeAdapter::resolveFromRuntime();
             state->status = tr("ui.settings.action.saved");
+            MessageOverlay::push(MessageLevel::Info, tr("popup.info.settings_saved"));
             return true;
         }
         state->status = tr("ui.settings.action.save_failed");

@@ -29,6 +29,10 @@ public:
     static ChartEndTimingMode chartEndTimingMode;
     static std::vector<uint8_t> keyBindings;
 
+    // Set to true when the last loadForUser() call failed to read the file.
+    // Reset to false on a successful load or when resetToDefaults() is called.
+    static bool lastLoadFailed;
+
     static void resetToDefaults();
 
     static bool loadForUser(const std::string &username);

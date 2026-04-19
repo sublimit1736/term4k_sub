@@ -220,5 +220,21 @@
   "ui.settlement.difficulty": "难度：",
   "ui.settlement.record_saved": "记录已保存",
   "ui.settlement.record_save_failed": "记录未能保存",
-  "ui.settlement.hint": "Enter / Esc：返回选曲列表"
+  "ui.settlement.hint": "Enter / Esc：返回选曲列表",
+  "popup.error.chart_no_audio": "找到谱面元数据，但缺少音频文件",
+  "popup.error.chart_no_file": "找到谱面元数据，但缺少谱面文件",
+  "popup.error.audio_load_failed": "音频文件无法加载，将无音频进行游玩",
+  "popup.error.chart_invalid_content": "谱面文件包含无法识别的内容",
+  "popup.error.record_save_no_login": "用户未登录，游玩成绩无法保存",
+  "popup.error.record_save_failed": "游玩成绩保存失败",
+  "popup.error.settings_load_failed": "设置文件读取失败，已恢复默认设置",
+  "popup.error.record_db_error": "游玩记录数据库读取出错",
+  "popup.error.account_db_inaccessible": "账户数据库无法读取，登录/注册功能可能受影响",
+  "popup.warning.chart_notes_out_of_range": "谱面中部分音符的轨道编号超出范围，这些音符将被跳过",
+  "popup.warning.chart_no_meta": "发现一个没有元数据文件的谱面文件夹，已跳过",
+  "popup.warning.record_tampered": "检测到游玩记录被篡改，部分记录已被忽略",
+  "popup.info.login_succeeded": "登录成功",
+  "popup.info.register_succeeded": "注册成功，请登录",
+  "popup.info.record_saved": "游玩成绩已保存",
+  "popup.info.settings_saved": "设置已应用并保存"
 }

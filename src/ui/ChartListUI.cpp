@@ -123,6 +123,7 @@ namespace ui {
             std::atomic<bool> loadFailed{false};
             std::string loadError;
             bool loadCompleted = false;
+            bool failuresPosted = false;
             std::atomic<bool> keepRunning{true};
         };
 
@@ -255,6 +256,52 @@ namespace ui {
             appliedSearch = searchQuery;
             selectedIndex = 0;
             session.loadCompleted = true;
+        }
+
+        // Posts detection-failure popups once after load completes.
+        // Called from the render path when loadCompleted first becomes true.
+        void postDetectionFailurePopups(ChartListLoadSession &session,
+                                        const ChartListScene &chartList) {
+            if (!session.loadCompleted || session.failuresPosted) return;
+            session.failuresPosted = true;
+
+            const auto &failures = chartList.failures();
+            if (failures.empty()) return;
+
+            std::size_t missingAudio   = 0;
+            std::size_t missingChart   = 0;
+            std::size_t missingMeta    = 0;
+            std::size_t otherIssues    = 0;
+
+            for (const auto &f : failures) {
+                switch (f.issue) {
+                    case ChartDetectionIssue::MissingMusic:   ++missingAudio;  break;
+                    case ChartDetectionIssue::MissingChart:   ++missingChart;  break;
+                    case ChartDetectionIssue::MissingMeta:    ++missingMeta;   break;
+                    default:                                  ++otherIssues;   break;
+                }
+            }
+
+            auto &i18n = I18n::instance();
+            if (missingAudio > 0) {
+                MessageOverlay::push(MessageLevel::Error,
+                    i18n.get("popup.error.chart_no_audio") +
+                    " (" + std::to_string(missingAudio) + ")");
+            }
+            if (missingChart > 0) {
+                MessageOverlay::push(MessageLevel::Error,
+                    i18n.get("popup.error.chart_no_file") +
+                    " (" + std::to_string(missingChart) + ")");
+            }
+            if (missingMeta > 0) {
+                MessageOverlay::push(MessageLevel::Warning,
+                    i18n.get("popup.warning.chart_no_meta") +
+                    " (" + std::to_string(missingMeta) + ")");
+            }
+            if (otherIssues > 0) {
+                std::string msg = std::to_string(otherIssues) + " chart folder(s) with load issues";
+                MessageOverlay::push(MessageLevel::Warning, msg);
+            }
         }
 
         std::vector<std::string> collectVisibleChartIds(ChartListLoadSession &session,
@@ -713,6 +760,7 @@ namespace ui {
                                    uiState.searchQuery,
                                    uiState.appliedSearch,
                                    uiState.selectedIndex);
+            postDetectionFailurePopups(session, chartList);
 
             std::string loadFailureMessage;
             if (!session.loadCompleted && session.loadFailed.load()) {

@@ -26,4 +26,7 @@ public:
 
     // Allows future UI/log backends to replace stderr output centrally.
     static void setSink(Sink sink);
+
+    // Returns the currently installed sink.
+    static Sink getSink();
 };
