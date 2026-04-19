@@ -550,15 +550,17 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
     // Intercept ErrorNotifier messages during parsing to detect out-of-range notes (W1).
     bool hadOutOfRangeNotes = false;
     {
+        // Capture prevSink by value so it remains valid if the lambda outlives this scope.
         auto prevSink = ErrorNotifier::getSink();
-        ErrorNotifier::setSink([&hadOutOfRangeNotes, &prevSink](ErrorNotifier::Level level, const std::string &msg) {
-            // Both zh_CN ("轨道编号超出范围") and en_US ("track out of range") messages share "range" / "范围".
-            // The i18n keys are "error.tap_track_out_of_range" and "error.hold_track_out_of_range",
-            // whose translated values always contain either "out of range" or "超出范围".
-            const bool isRangeMsg =
-                msg.find("out of range") != std::string::npos ||
-                msg.find("\xe8\xb6\x85\xe5\x87\xba\xe8\x8c\x83\xe5\x9b\xb4") != std::string::npos; // "超出范围" in UTF-8
-            if (isRangeMsg) hadOutOfRangeNotes = true;
+        // Match against the translated out-of-range error strings directly to stay locale-independent.
+        const std::string tapRangeMsg  = I18n::instance().get("error.tap_track_out_of_range");
+        const std::string holdRangeMsg = I18n::instance().get("error.hold_track_out_of_range");
+        ErrorNotifier::setSink([&hadOutOfRangeNotes, prevSink, tapRangeMsg, holdRangeMsg]
+                               (ErrorNotifier::Level level, const std::string &msg) {
+            if (msg.find(tapRangeMsg)  != std::string::npos ||
+                msg.find(holdRangeMsg) != std::string::npos) {
+                hadOutOfRangeNotes = true;
+            }
             if (prevSink) prevSink(level, msg);
         });
 

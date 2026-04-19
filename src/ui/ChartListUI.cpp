@@ -299,8 +299,9 @@ namespace ui {
                     " (" + std::to_string(missingMeta) + ")");
             }
             if (otherIssues > 0) {
-                std::string msg = std::to_string(otherIssues) + " chart folder(s) with load issues";
-                MessageOverlay::push(MessageLevel::Warning, msg);
+                MessageOverlay::push(MessageLevel::Warning,
+                    i18n.get("popup.warning.chart_other_issues") +
+                    " (" + std::to_string(otherIssues) + ")");
             }
         }
 

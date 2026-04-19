@@ -232,6 +232,7 @@
   "popup.error.account_db_inaccessible": "Account database is inaccessible, login/register may not work",
   "popup.warning.chart_notes_out_of_range": "Some notes have out-of-range lane numbers and will be skipped",
   "popup.warning.chart_no_meta": "Found a chart folder with no metadata file, skipped",
+  "popup.warning.chart_other_issues": "Some chart folders have other load issues",
   "popup.warning.record_tampered": "Tampered play records detected, some records were ignored",
   "popup.info.login_succeeded": "Login succeeded",
   "popup.info.register_succeeded": "Registration succeeded, please log in",

@@ -188,5 +188,7 @@ bool UserStore::tryGetUIDByUsername(const std::string &username, uint32_t &uid) 
 
 bool UserStore::isAccountDBAccessible() {
     std::ifstream test(accountList);
-    return test.is_open();
+    const bool ok = test.is_open();
+    test.close();
+    return ok;
 }

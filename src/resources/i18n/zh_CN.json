@@ -232,6 +232,7 @@
   "popup.error.account_db_inaccessible": "账户数据库无法读取，登录/注册功能可能受影响",
   "popup.warning.chart_notes_out_of_range": "谱面中部分音符的轨道编号超出范围，这些音符将被跳过",
   "popup.warning.chart_no_meta": "发现一个没有元数据文件的谱面文件夹，已跳过",
+  "popup.warning.chart_other_issues": "部分谱面文件夹存在其他加载问题",
   "popup.warning.record_tampered": "检测到游玩记录被篡改，部分记录已被忽略",
   "popup.info.login_succeeded": "登录成功",
   "popup.info.register_succeeded": "注册成功，请登录",

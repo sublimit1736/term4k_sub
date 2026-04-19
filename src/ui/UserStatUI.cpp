@@ -134,8 +134,8 @@ namespace ui {
                             MessageOverlay::push(MessageLevel::Error,
                                 I18n::instance().get("popup.error.record_db_error"));
                         } else if (allRecs.size() > verifiedCount) {
-                            // E8: some records were dropped due to tampering.
-                            MessageOverlay::push(MessageLevel::Warning,
+                            // E8: some records were dropped due to tampering (error, not warning).
+                            MessageOverlay::push(MessageLevel::Error,
                                 I18n::instance().get("popup.warning.record_tampered"));
                         }
                     } catch (...) {
