@@ -124,50 +124,23 @@ namespace {
     // The chain verification (slowHash per record) is expensive.  Cache the
     // result keyed by a generation counter that increments on every write or
     // setDataDir call so that repeated reads within the same session are O(1).
+    //
+    // Thread-safety contract:
+    //  - g_cacheMutex protects g_dbGeneration, g_cachedGeneration, g_cachedVerified.
+    //  - The mutex is held only briefly (generation check / cache update); the
+    //    expensive slowHash verification runs outside the lock.
+    //  - If a write occurs while verification is in flight, the generation at
+    //    the time of the file read is compared against the current generation
+    //    before updating the cache.  A mismatch means the result is discarded;
+    //    the next caller will re-read and re-verify with the latest data.
     std::mutex g_cacheMutex;
-    uint64_t   g_dbGeneration    = 0;        // monotonically increasing
-    uint64_t   g_cachedGeneration = UINT64_MAX; // sentinel "not yet cached"
+    uint64_t   g_dbGeneration     = 0;           // monotonically increasing
+    uint64_t   g_cachedGeneration = UINT64_MAX;  // sentinel: "not yet cached"
     std::vector<std::string> g_cachedVerified;
 
     void invalidateCache() {
         std::lock_guard<std::mutex> lk(g_cacheMutex);
         ++g_dbGeneration;
-    }
-
-    // Returns the cached verified records if still valid, otherwise runs full
-    // verification, updates the cache, and returns the result.
-    std::vector<std::string> getVerifiedRecordCached(
-            const std::vector<std::string> &recLines,
-            const std::vector<std::string> &hashLines) {
-        std::lock_guard<std::mutex> lk(g_cacheMutex);
-        if (g_cachedGeneration == g_dbGeneration) {
-            return g_cachedVerified;
-        }
-
-        // Full verification (slow path: O(N × slowHash))
-        const std::vector<std::string> result = [&]() -> std::vector<std::string> {
-            std::vector<uint8_t> prevHash = LiteDBUtils::slowHash(buildGenesisData());
-            std::vector<std::string> verified;
-            const size_t limit = std::min(recLines.size(), hashLines.size());
-            for (size_t i = 0; i < limit; ++i) {
-                const auto encrypted = LiteDBUtils::hexDecode(recLines[i]);
-                auto decrypted       = LiteDBUtils::aesDecrypt(encrypted);
-                if (decrypted.empty()) break;
-                LiteDBUtils::xorObfuscate(decrypted);
-                const auto recordHash         = LiteDBUtils::sha256(decrypted);
-                std::vector<uint8_t> combined = prevHash;
-                combined.insert(combined.end(), recordHash.begin(), recordHash.end());
-                auto expectedHash             = LiteDBUtils::slowHash(combined);
-                if (expectedHash != LiteDBUtils::hexDecode(hashLines[i])) break;
-                verified.emplace_back(decrypted.begin(), decrypted.end());
-                prevHash = std::move(expectedHash);
-            }
-            return verified;
-        }();
-
-        g_cachedVerified    = result;
-        g_cachedGeneration  = g_dbGeneration;
-        return result;
     }
 }
 
@@ -344,6 +317,7 @@ bool RecordStore::verifyChain() {
 // Reads records in time order and truncates at first verification failure,
 // returning only the continuous verified prefix.
 // Results are cached per-generation to avoid redundant O(N×slowHash) work.
+// The mutex is held only briefly; chain verification runs outside the lock.
 std::vector<std::string> RecordStore::readVerifiedRecord() {
     if (!LiteDBUtils::ensureKey()){
         ErrorNotifier::notify("RecordStore::readVerifiedRecord",
@@ -351,9 +325,48 @@ std::vector<std::string> RecordStore::readVerifiedRecord() {
         return {};
     }
 
+    // Fast path: return cached result without any file I/O.
+    uint64_t genSnapshot;
+    {
+        std::lock_guard<std::mutex> lk(g_cacheMutex);
+        genSnapshot = g_dbGeneration;
+        if (g_cachedGeneration == genSnapshot) {
+            return g_cachedVerified;
+        }
+    }
+
+    // Slow path: read files then re-verify the chain.
     const auto recLines  = readNonEmptyLines(recordList);
     const auto hashLines = readNonEmptyLines(proofList);
-    return getVerifiedRecordCached(recLines, hashLines);
+
+    std::vector<uint8_t> prevHash = LiteDBUtils::slowHash(buildGenesisData());
+    std::vector<std::string> result;
+    const size_t limit = std::min(recLines.size(), hashLines.size());
+    for (size_t i = 0; i < limit; ++i) {
+        const auto encrypted = LiteDBUtils::hexDecode(recLines[i]);
+        auto decrypted       = LiteDBUtils::aesDecrypt(encrypted);
+        if (decrypted.empty()) break;
+        LiteDBUtils::xorObfuscate(decrypted);
+        const auto recordHash         = LiteDBUtils::sha256(decrypted);
+        std::vector<uint8_t> combined = prevHash;
+        combined.insert(combined.end(), recordHash.begin(), recordHash.end());
+        auto expectedHash             = LiteDBUtils::slowHash(combined);
+        if (expectedHash != LiteDBUtils::hexDecode(hashLines[i])) break;
+        result.emplace_back(decrypted.begin(), decrypted.end());
+        prevHash = std::move(expectedHash);
+    }
+
+    // Update cache only if no write happened while we were verifying.
+    // If the generation changed, skip the update so the next caller will
+    // re-read and re-verify with the up-to-date file content.
+    {
+        std::lock_guard<std::mutex> lk(g_cacheMutex);
+        if (g_dbGeneration == genSnapshot) {
+            g_cachedVerified   = result;
+            g_cachedGeneration = genSnapshot;
+        }
+    }
+    return result;
 }
 
 // Returns the number of continuously verified records from earliest record.
