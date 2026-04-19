@@ -387,21 +387,52 @@ ftxui::Element renderTopLeftHUD(
 ftxui::Element renderTopRightHUD(
     const GameplaySnapshot &snap,
     const ThemePalette     &palette,
-    const std::function<std::string(const std::string &)> &tr)
+    const std::function<std::string(const std::string &)> &tr,
+    const bool showScore,
+    const bool showAccuracy,
+    const bool showMaxAccCeiling,
+    const bool showPbDelta,
+    const float personalBestAccuracy)
 {
     using namespace ftxui;
 
-    Element panel = vbox({
-        text(tr("ui.gameplay.score")) | color(toColor(palette.textMuted)) | bold,
-        text(formatScore(snap.getScore())) |
-            color(toColor(palette.accentPrimary)) | bold,
-        text(""),
-        hbox({
+    Elements rows;
+    if (showScore) {
+        rows.push_back(text(tr("ui.gameplay.score")) | color(toColor(palette.textMuted)) | bold);
+        rows.push_back(text(formatScore(snap.getScore())) |
+                       color(toColor(palette.accentPrimary)) | bold);
+    }
+    if (showAccuracy) {
+        if (!rows.empty()) rows.push_back(text(""));
+        rows.push_back(hbox({
             text(tr("ui.gameplay.accuracy") + " ") | color(toColor(palette.textMuted)),
             text(formatAccuracy(snap.getAccuracy())) | bold |
                 color(toColor(palette.textPrimary)),
-        }),
-    }) | borderRounded |
+        }));
+    }
+    if (showMaxAccCeiling) {
+        rows.push_back(hbox({
+            text(tr("ui.gameplay.max_acc_ceiling") + " ") | color(toColor(palette.textMuted)),
+            text(formatAccuracy(snap.getMaxAccuracyCeiling())) |
+                color(toColor(palette.textMuted)),
+        }));
+    }
+    if (showPbDelta && personalBestAccuracy > 0.0f) {
+        const double delta = snap.getAccuracy() - static_cast<double>(personalBestAccuracy);
+        std::ostringstream ds;
+        ds << std::fixed << std::setprecision(2) << (delta * 100.0);
+        const std::string sign = delta >= 0.0 ? "+" : "";
+        rows.push_back(hbox({
+            text(tr("ui.gameplay.pb_delta") + " ") | color(toColor(palette.textMuted)),
+            text(sign + ds.str() + "%") |
+                color(delta >= 0.0 ? Color::RGB(100, 220, 100) : Color::RGB(255, 100, 100)),
+        }));
+    }
+
+    if (rows.empty()) return filler();
+
+    Element panel = vbox(std::move(rows)) |
+         borderRounded |
          color(toColor(palette.accentPrimary)) |
          bgcolor(toColor(palette.surfacePanel)) |
          size(WIDTH, LESS_THAN, 30);
@@ -415,7 +446,9 @@ ftxui::Element renderBottomLeftHUD(
     const ThemePalette     &palette,
     const std::function<std::string(const std::string &)> &tr,
     const bool showAP,
-    const bool showFC)
+    const bool showFC,
+    const bool showCombo,
+    const bool showMaxCombo)
 {
     using namespace ftxui;
 
@@ -429,13 +462,17 @@ ftxui::Element renderBottomLeftHUD(
     else if (isFC && showFC)  comboColor = Color::RGB(192, 192, 192);
 
     Elements rows;
-    rows.push_back(hbox({
-        text(tr("ui.gameplay.combo") + " ") | color(toColor(palette.textMuted)),
-        text("×" + std::to_string(combo)) | color(comboColor) | bold,
-    }));
-    rows.push_back(
-        text(tr("ui.gameplay.max_combo") + " ×" + std::to_string(maxCombo)) |
-        color(toColor(palette.textMuted)));
+    if (showCombo) {
+        rows.push_back(hbox({
+            text(tr("ui.gameplay.combo") + " ") | color(toColor(palette.textMuted)),
+            text("×" + std::to_string(combo)) | color(comboColor) | bold,
+        }));
+    }
+    if (showMaxCombo) {
+        rows.push_back(
+            text(tr("ui.gameplay.max_combo") + " ×" + std::to_string(maxCombo)) |
+            color(toColor(palette.textMuted)));
+    }
 
     if (showAP && isAP) {
         rows.push_back(text(""));
@@ -446,6 +483,8 @@ ftxui::Element renderBottomLeftHUD(
         rows.push_back(text(" FC ") | bold |
                        color(Color::RGB(192, 192, 192)) | bgcolor(Color::RGB(30, 30, 30)));
     }
+
+    if (rows.empty()) return filler();
 
     Element panel = vbox(std::move(rows)) |
         borderRounded |
@@ -462,7 +501,9 @@ ftxui::Element renderBottomRightHUD(
     const ThemePalette     &palette,
     const std::function<std::string(const std::string &)> &tr,
     const uint32_t totalDurationMs,
-    const bool     showEarlyLate)
+    const bool     showEarlyLate,
+    const bool     showJudgements,
+    const bool     showProgress)
 {
     using namespace ftxui;
 
@@ -509,25 +550,31 @@ ftxui::Element renderBottomRightHUD(
             text(std::to_string(count)) | bold | color(toColor(palette.textPrimary)),
         });
     };
-    rows.push_back(judgRow("ui.gameplay.perfect", snap.getPerfectCount(), Color::RGB(255, 215, 0)));
-    rows.push_back(judgRow("ui.gameplay.great",   snap.getGreatCount(),   Color::RGB(120, 200, 255)));
-    rows.push_back(judgRow("ui.gameplay.miss",    snap.getMissCount(),    Color::RGB(255, 80, 80)));
+    if (showJudgements) {
+        rows.push_back(judgRow("ui.gameplay.perfect", snap.getPerfectCount(), Color::RGB(255, 215, 0)));
+        rows.push_back(judgRow("ui.gameplay.great",   snap.getGreatCount(),   Color::RGB(120, 200, 255)));
+        rows.push_back(judgRow("ui.gameplay.miss",    snap.getMissCount(),    Color::RGB(255, 80, 80)));
 
-    if (showEarlyLate) {
+        if (showEarlyLate) {
+            rows.push_back(hbox({
+                text(tr("ui.gameplay.early")) | color(Color::RGB(120, 200, 255)) | size(WIDTH, EQUAL, 8),
+                text(std::to_string(snap.getEarlyCount())) | bold | size(WIDTH, EQUAL, 5),
+                text(tr("ui.gameplay.late"))  | color(Color::RGB(255, 180, 80))  | size(WIDTH, EQUAL, 8),
+                text(std::to_string(snap.getLateCount())) | bold,
+            }));
+        }
+    }
+    if (showProgress) {
+        if (!rows.empty()) rows.push_back(text(""));
+        rows.push_back(text(bar) | color(toColor(palette.textMuted)));
         rows.push_back(hbox({
-            text(tr("ui.gameplay.early")) | color(Color::RGB(120, 200, 255)) | size(WIDTH, EQUAL, 8),
-            text(std::to_string(snap.getEarlyCount())) | bold | size(WIDTH, EQUAL, 5),
-            text(tr("ui.gameplay.late"))  | color(Color::RGB(255, 180, 80))  | size(WIDTH, EQUAL, 8),
-            text(std::to_string(snap.getLateCount())) | bold,
+            filler(),
+            text(formatMs(timeMs) + " / " + formatMs(totalDurationMs)) |
+                color(toColor(palette.textMuted)),
         }));
     }
-    rows.push_back(text(""));
-    rows.push_back(text(bar) | color(toColor(palette.textMuted)));
-    rows.push_back(hbox({
-        filler(),
-        text(formatMs(timeMs) + " / " + formatMs(totalDurationMs)) |
-            color(toColor(palette.textMuted)),
-    }));
+
+    if (rows.empty()) return filler();
 
     Element panel = vbox(std::move(rows)) |
         borderRounded |
@@ -554,6 +601,16 @@ struct GameplayState {
     bool    resultTriggered = false;
     bool    routed          = false;
     uint32_t totalDurationMs = 0;
+
+    // Pause menu
+    bool paused       = false;
+    int  pauseRow     = 0;  // 0=Resume, 1=Quit
+
+    // Judgment flash
+    bool showFlash    = false;
+    GameplayJudgement flashJudgement = GameplayJudgement::Perfect;
+    std::chrono::steady_clock::time_point flashStart{};
+    uint32_t lastNoteSettled = 0;  // tracks total settled notes to detect new judgements
 
     std::atomic<bool> bgRunning{false};
     std::thread       bgThread;
@@ -702,17 +759,23 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
             filler(),
         }) | flex;
 
-        // Layer 2: four corner HUDs overlaid on top
+        // Layer 2: four corner HUDs overlaid on top (conditional on RuntimeConfig flags)
         Element tlHUD = renderTopLeftHUD(
             state->params.songName, state->params.difficulty,
             state->params.keyCount, state->palette, tr);
-        Element trHUD = renderTopRightHUD(snap, state->palette, tr);
+        Element trHUD = renderTopRightHUD(
+            snap, state->palette, tr,
+            RuntimeConfig::hudShowScore, RuntimeConfig::hudShowAccuracy,
+            RuntimeConfig::hudShowMaxAccCeiling, RuntimeConfig::hudShowPbDelta,
+            state->params.personalBestAccuracy);
         Element blHUD = renderBottomLeftHUD(
             snap, state->palette, tr,
-            RuntimeConfig::showAPIndicator, RuntimeConfig::showFCIndicator);
+            RuntimeConfig::showAPIndicator, RuntimeConfig::showFCIndicator,
+            RuntimeConfig::hudShowCombo, RuntimeConfig::hudShowMaxCombo);
         Element brHUD = renderBottomRightHUD(
             snap, state->palette, tr,
-            state->totalDurationMs, RuntimeConfig::showEarlyLate);
+            state->totalDurationMs, RuntimeConfig::showEarlyLate,
+            RuntimeConfig::hudShowJudgements, RuntimeConfig::hudShowProgress);
 
         Element cornerOverlay = vbox({
             hbox({tlHUD, filler(), trHUD}),
@@ -720,13 +783,73 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
             hbox({blHUD, filler(), brHUD}),
         }) | flex;
 
-        // Layer 3: message toasts (top-right, auto-dismiss)
+        // Layer 3: message toasts
         Element toastLayer = MessageOverlay::render(state->palette);
 
-        return dbox({centeredField, cornerOverlay, toastLayer}) |
+        Element base = dbox({centeredField, cornerOverlay, toastLayer}) |
                bgcolor(toColor(state->palette.surfaceBg)) |
                color(toColor(state->palette.textPrimary)) |
                flex;
+
+        // Layer 4: judgment flash (centered, auto-expire after 800ms)
+        if (state->showFlash) {
+            const auto elapsedFlash = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - state->flashStart).count();
+            if (elapsedFlash <= 800) {
+                std::string flashLabel;
+                Color        flashColor = Color::White;
+                switch (state->flashJudgement) {
+                    case GameplayJudgement::Perfect:
+                        flashLabel = tr("ui.gameplay.flash.perfect");
+                        flashColor = Color::RGB(255, 215, 0);
+                        break;
+                    case GameplayJudgement::Great:
+                        flashLabel = tr("ui.gameplay.flash.great");
+                        flashColor = Color::RGB(120, 200, 255);
+                        break;
+                    case GameplayJudgement::Miss:
+                        flashLabel = tr("ui.gameplay.flash.miss");
+                        flashColor = Color::RGB(255, 80, 80);
+                        break;
+                }
+                Element flashEl = text(flashLabel) | bold | color(flashColor) | center;
+                Element flashOverlay = hbox({filler(), flashEl, filler()}) | vcenter | flex;
+                base = dbox({base, flashOverlay});
+            } else {
+                state->showFlash = false;
+            }
+        }
+
+        // Layer 5: pause menu overlay
+        if (state->paused) {
+            constexpr int kMenuW = 32;
+            auto menuRow = [&](const std::string &label, const bool selected) -> Element {
+                Element e = text("  " + label + "  ") | center;
+                if (selected) {
+                    e = e | bold |
+                        color(highContrastOn(state->palette.accentPrimary)) |
+                        bgcolor(toColor(state->palette.accentPrimary));
+                } else {
+                    e = e | color(toColor(state->palette.textPrimary));
+                }
+                return e;
+            };
+            Element pauseBox = vbox({
+                text(tr("ui.gameplay.pause.title")) | bold | color(toColor(state->palette.accentPrimary)) | center,
+                separator(),
+                menuRow(tr("ui.gameplay.pause.resume"), state->pauseRow == 0),
+                text(""),
+                menuRow(tr("ui.gameplay.pause.quit"), state->pauseRow == 1),
+            }) | borderRounded |
+                 color(toColor(state->palette.accentPrimary)) |
+                 bgcolor(toColor(state->palette.surfacePanel)) |
+                 size(WIDTH, EQUAL, kMenuW);
+
+            Element pauseOverlay = hbox({filler(), pauseBox, filler()}) | vcenter | flex;
+            base = dbox({base, pauseOverlay});
+        }
+
+        return base;
     });
 
     // ── Event handler ─────────────────────────────────────────────────────────
@@ -737,7 +860,7 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
 
             // ── Tick: advance game clock & check key timeouts ──────────────
             if (event == Event::Custom) {
-                if (!state->resultTriggered) {
+                if (!state->resultTriggered && !state->paused) {
                     // Advance clock via audio position
                     if (state->audioStarted) {
                         if (state->audio.isFinished()) {
@@ -769,6 +892,18 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
                             it->second < static_cast<int>(state->lanePressed.size())) {
                             state->lanePressed[static_cast<std::size_t>(it->second)] = false;
                         }
+                    }
+
+                    // Detect new judgement for flash display
+                    const GameplaySnapshot snap = state->gameplay.snapshot();
+                    const uint32_t nowSettled = snap.getPerfectCount() +
+                                                snap.getGreatCount() +
+                                                snap.getMissCount();
+                    if (nowSettled > state->lastNoteSettled && snap.hasLastJudgement()) {
+                        state->showFlash      = true;
+                        state->flashJudgement = snap.getLastJudgement();
+                        state->flashStart     = std::chrono::steady_clock::now();
+                        state->lastNoteSettled = nowSettled;
                     }
 
                     // Check result ready
@@ -820,15 +955,56 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
                 return true;
             }
 
-            // ── Escape: quit back to chart list ───────────────────────────
+            // ── Escape: toggle pause menu ─────────────────────────────────
             if (event == Event::Escape) {
-                if (!state->routed) {
-                    state->routed = true;
-                    state->bgRunning.store(false);
-                    state->audio.stopSong();
-                    onRoute(UIScene::ChartList);
+                if (state->paused) {
+                    // Escape while paused = resume
+                    state->paused = false;
+                    if (state->audioStarted) state->audio.resume();
+                } else {
+                    state->paused = true;
+                    state->pauseRow = 0;
+                    if (state->audioStarted) state->audio.pause();
                 }
                 return true;
+            }
+
+            // ── Pause menu navigation ─────────────────────────────────────
+            if (state->paused) {
+                if (event == Event::ArrowUp || event == Event::Character('k')) {
+                    state->pauseRow = (state->pauseRow + 1) % 2;
+                    return true;
+                }
+                if (event == Event::ArrowDown || event == Event::Character('j')) {
+                    state->pauseRow = (state->pauseRow + 1) % 2;
+                    return true;
+                }
+                if (event == Event::Return) {
+                    if (state->pauseRow == 0) {
+                        // Resume
+                        state->paused = false;
+                        if (state->audioStarted) state->audio.resume();
+                    } else {
+                        // Quit
+                        if (!state->routed) {
+                            state->routed = true;
+                            state->bgRunning.store(false);
+                            state->audio.stopSong();
+                            onRoute(UIScene::ChartList);
+                        }
+                    }
+                    return true;
+                }
+                if (event == Event::Character('q') || event == Event::Character('Q')) {
+                    if (!state->routed) {
+                        state->routed = true;
+                        state->bgRunning.store(false);
+                        state->audio.stopSong();
+                        onRoute(UIScene::ChartList);
+                    }
+                    return true;
+                }
+                return true;  // consume all other keys while paused
             }
 
             // ── Key press ─────────────────────────────────────────────────
