@@ -96,13 +96,14 @@ bool ContextMenuOverlay::isVisible() {
     return state().visible;
 }
 
-bool ContextMenuOverlay::handleEvent(const ftxui::Event &event,
-                                     std::function<void(const std::string &)> onPasteText) {
+bool ContextMenuOverlay::handleEvent(const ftxui::Event &event) {
     std::scoped_lock lock(stateMutex());
     auto &s = state();
 
     // Right-click: open menu at cursor.
-    // FTXUI v6 mouse() is non-const; use const_cast to access read-only data.
+    // FTXUI v6 provides mouse() as a non-const member (no const overload).
+    // The underlying Event object is always non-const; CatchEvent passes it as
+    // const& only as a convention.  The cast is safe and read-only here.
     if (event.is_mouse()) {
         auto &mouse = const_cast<ftxui::Event &>(event).mouse();
         if (mouse.button == ftxui::Mouse::Right &&
@@ -155,11 +156,13 @@ bool ContextMenuOverlay::handleEvent(const ftxui::Event &event,
     // Confirm selection with Enter.
     if (event == ftxui::Event::Return) {
         if (s.selectedItem == 0) {
+            // Copy: write to terminal clipboard via OSC 52.
             const std::string &copyText = s.messageText.empty() ? s.clipSource : s.messageText;
             if (!copyText.empty()) writeClipboard(copyText);
-        } else if (s.selectedItem == 1 && onPasteText) {
-            (void)onPasteText;
         }
+        // Item 1 = "Paste" hint — informs the user to use the terminal's native paste
+        // (e.g. Ctrl+Shift+V / middle-click).  No programmatic clipboard read is
+        // performed because OSC 52 read support varies widely across terminals.
         s.visible = false;
         return true;
     }

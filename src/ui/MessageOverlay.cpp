@@ -80,7 +80,9 @@ bool MessageOverlay::hasPending() {
 // Tracks mouse button presses to detect possible text selection.
 bool MessageOverlay::handleEvent(const ftxui::Event &event) {
     if (event.is_mouse()) {
-        // FTXUI v6 mouse() is non-const; use const_cast to access read-only data.
+        // FTXUI v6 provides mouse() as a non-const member (no const overload).
+        // The underlying Event object is always non-const; CatchEvent passes it as
+        // const& only as a convention.  The cast is safe and read-only here.
         auto &mouse = const_cast<ftxui::Event &>(event).mouse();
         if (mouse.button == ftxui::Mouse::Left) {
             if (mouse.motion == ftxui::Mouse::Pressed) {

@@ -5,7 +5,6 @@
 #include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
 
-#include <functional>
 #include <string>
 
 namespace ui {
@@ -22,9 +21,7 @@ public:
     static void setMessageText(const std::string &text);
 
     // Handle an FTXUI event.  Returns true when the event is consumed by the menu.
-    // onPasteText: called with clipboard text when the user picks "Paste".
-    static bool handleEvent(const ftxui::Event &event,
-                            std::function<void(const std::string &)> onPasteText = nullptr);
+    static bool handleEvent(const ftxui::Event &event);
 
     // Returns the overlay element (empty text element when menu is not visible).
     static ftxui::Element render(const ThemePalette &palette);

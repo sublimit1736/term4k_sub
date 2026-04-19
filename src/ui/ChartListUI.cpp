@@ -1010,11 +1010,12 @@ namespace ui {
             // Iterate UTF-8 codepoints to avoid splitting multi-byte sequences.
             for (std::size_t i = 0; i < token.size(); ) {
                 const auto byte = static_cast<unsigned char>(token[i]);
+                // Decode one UTF-8 codepoint to determine its byte length.
                 std::size_t len;
-                if      (byte < 0x80)         len = 1;
-                else if ((byte >> 5) == 0x06) len = 2;
-                else if ((byte >> 4) == 0x0E) len = 3;
-                else if ((byte >> 3) == 0x1E) len = 4;
+                if      ((byte & 0x80) == 0x00) len = 1;          // 0xxxxxxx
+                else if ((byte & 0xE0) == 0xC0) len = 2;          // 110xxxxx
+                else if ((byte & 0xF0) == 0xE0) len = 3;          // 1110xxxx
+                else if ((byte & 0xF8) == 0xF0) len = 4;          // 11110xxx
                 else { ++i; continue; } // skip invalid / continuation bytes
 
                 std::string cp = token.substr(i, len);
