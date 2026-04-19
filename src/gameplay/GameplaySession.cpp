@@ -23,10 +23,14 @@ namespace {
 bool GameplaySession::openChart(const std::string &chartFilePath, const uint16_t keyCount) {
     reset();
 
-    if (keyCount == 0) return false;
-    lanes_.resize(keyCount);
+    // When keyCount is 0 (missing from metadata), auto-detect from the chart file.
+    const uint16_t effectiveKeyCount = (keyCount == 0)
+        ? GameplayChartParser::detectKeyCount(chartFilePath)
+        : keyCount;
+    if (effectiveKeyCount == 0) return false;
+    lanes_.resize(effectiveKeyCount);
 
-    for (uint8_t lane = 0; lane < keyCount && lane < RuntimeConfig::keyBindings.size(); ++lane){
+    for (uint8_t lane = 0; lane < effectiveKeyCount && lane < RuntimeConfig::keyBindings.size(); ++lane){
         const uint8_t key = RuntimeConfig::keyBindings[lane];
         if (!keyToLane_.contains(key)){
             keyToLane_[key] = lane;
@@ -34,7 +38,7 @@ bool GameplaySession::openChart(const std::string &chartFilePath, const uint16_t
     }
 
     GameplayChartData chartData;
-    if (!GameplayChartParser::parseChart(chartFilePath, keyCount, chartData)) return false;
+    if (!GameplayChartParser::parseChart(chartFilePath, effectiveKeyCount, chartData)) return false;
 
     taps_.reserve(chartData.getTaps().size());
     for (const auto &tap: chartData.getTaps()){

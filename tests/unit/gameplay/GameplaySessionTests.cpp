@@ -260,3 +260,50 @@ TEST_CASE("GameplaySession loads adjacent holds sharing the same (lane, time) bo
     REQUIRE(gameplay.chartNoteCount() == 2);
 }
 
+TEST_CASE("GameplaySession parses chart with CRLF line endings",
+          "[services][GameplaySession]") {
+    // Regression test: chart files authored on Windows have CRLF (\r\n) line endings.
+    // The parser must strip the trailing \r so that begin/end markers are recognised.
+    RuntimeConfigGuard cfg;
+    RuntimeConfig::chartOffsetMs  = 0;
+    RuntimeConfig::chartPreloadMs = 3000;
+    RuntimeConfig::keyBindings    = {65, 83};
+
+    TempDir temp("term4k_crlf_chart");
+    const auto chartPath = temp.path() / "chart.t4k";
+    // Write file with Windows-style CRLF endings.
+    writeTextFile(chartPath,
+                  std::string("t4kcb\r\n") +
+                  tapLine(0, 1000) + "\r\n" +
+                  tapLine(1, 2000) + "\r\n" +
+                  "t4kce\r\n");
+
+    GameplaySession gameplay;
+    REQUIRE(gameplay.openChart(chartPath.string(), 2));
+    REQUIRE(gameplay.chartNoteCount() == 2);
+}
+
+TEST_CASE("GameplaySession auto-detects keyCount when passed as 0",
+          "[services][GameplaySession]") {
+    // Regression test: when meta.json does not specify keyCount the value is 0.
+    // The session must auto-detect the required key count from the chart file itself.
+    RuntimeConfigGuard cfg;
+    RuntimeConfig::chartOffsetMs  = 0;
+    RuntimeConfig::chartPreloadMs = 3000;
+    RuntimeConfig::keyBindings    = {65, 83, 68, 70, 74};
+
+    TempDir temp("term4k_autodetect_keycount");
+    const auto chartPath = temp.path() / "chart.t4k";
+    // Chart uses lanes 0-4 (requires keyCount >= 5).
+    writeTextFile(chartPath,
+                  std::string("t4kcb\n") +
+                  tapLine(0, 500) + "\n" +
+                  tapLine(4, 1000) + "\n" +
+                  "t4kce\n");
+
+    GameplaySession gameplay;
+    // keyCount=0 → auto-detect → should succeed with keyCount=5
+    REQUIRE(gameplay.openChart(chartPath.string(), 0));
+    REQUIRE(gameplay.chartNoteCount() == 2);
+}
+
