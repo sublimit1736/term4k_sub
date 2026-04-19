@@ -477,20 +477,29 @@ ftxui::Element renderBottomRightHUD(
     constexpr int kBarW = 22;
     const int     filled = pct * kBarW / 100;
     std::string   bar;
+    // FiraCode PUA progress-bar glyphs (U+EE00–U+EE05):
+    //   empty: head=U+EE00  mid=U+EE01  tail=U+EE02
+    //   full:  head=U+EE03  mid=U+EE04  tail=U+EE05
+    static const std::string kEmptyHead = "\xEE\xB8\x80"; // U+EE00
+    static const std::string kEmptyMid  = "\xEE\xB8\x81"; // U+EE01
+    static const std::string kEmptyTail = "\xEE\xB8\x82"; // U+EE02
+    static const std::string kFullHead  = "\xEE\xB8\x83"; // U+EE03
+    static const std::string kFullMid   = "\xEE\xB8\x84"; // U+EE04
+    static const std::string kFullTail  = "\xEE\xB8\x85"; // U+EE05
     if (filled == 0) {
-        bar += "╞";
-        for (int i = 0; i < kBarW; ++i) bar += "─";
-        bar += "╡";
+        bar += kEmptyHead;
+        for (int i = 0; i < kBarW; ++i) bar += kEmptyMid;
+        bar += kEmptyTail;
     } else if (filled >= kBarW) {
-        bar += "╠";
-        for (int i = 0; i < kBarW; ++i) bar += "═";
-        bar += "╣";
+        bar += kFullHead;
+        for (int i = 0; i < kBarW; ++i) bar += kFullMid;
+        bar += kFullTail;
     } else {
-        bar += "╠";
-        for (int i = 0; i < filled; ++i)        bar += "═";
-        bar += "╪";
-        for (int i = filled + 1; i < kBarW; ++i) bar += "─";
-        bar += "╡";
+        bar += kFullHead;
+        for (int i = 0; i < filled; ++i)        bar += kFullMid;
+        bar += kFullMid;  // transition cell
+        for (int i = filled + 1; i < kBarW; ++i) bar += kEmptyMid;
+        bar += kEmptyTail;
     }
 
     Elements rows;

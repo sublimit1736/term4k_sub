@@ -511,6 +511,7 @@ ftxui::Component SettingsUI::component(
         if (event == Event::Return) {
             if (state->tabIndex == 0 && state->rowIndex == 0) state->status = tr("ui.settings.desc.theme");
             if (state->tabIndex == 0 && state->rowIndex == 1) state->status = tr("ui.settings.desc.locale");
+            if (state->tabIndex == 0 && state->rowIndex == 2) state->status = tr("ui.settings.desc.toast_position");
             if (state->tabIndex == 1 && state->rowIndex == 0) state->status = tr("ui.settings.desc.music_volume");
             if (state->tabIndex == 1 && state->rowIndex == 1) state->status = tr("ui.settings.desc.hit_volume");
             if (state->tabIndex == 1 && state->rowIndex == 2) state->status = tr("ui.settings.desc.buffer_size");

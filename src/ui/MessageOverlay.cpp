@@ -1,5 +1,6 @@
 #include "ui/MessageOverlay.h"
 
+#include "platform/RuntimeConfig.h"
 #include "ui/UIColors.h"
 
 #include <chrono>
@@ -87,8 +88,14 @@ ftxui::Element MessageOverlay::render(const ThemePalette &palette) {
         bgcolor(toColor(palette.surfacePanel)) |
         size(WIDTH, LESS_THAN, 44);
 
-    // Top-right corner, no background dimming.
-    return hbox({filler(), vbox({panel, filler()})}) | flex;
+    // Position the panel according to RuntimeConfig::toastPosition.
+    const ToastPosition pos = RuntimeConfig::toastPosition;
+    const bool atRight  = (pos == ToastPosition::TopRight  || pos == ToastPosition::BottomRight);
+    const bool atBottom = (pos == ToastPosition::BottomLeft || pos == ToastPosition::BottomRight);
+
+    Element hpositioned = atRight  ? hbox({filler(), panel}) : hbox({panel, filler()});
+    Element vpositioned = atBottom ? vbox({filler(), hpositioned}) : vbox({hpositioned, filler()});
+    return vpositioned | flex;
 }
 
 } // namespace ui
