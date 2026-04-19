@@ -19,6 +19,7 @@ SettingsDraft SettingsIO::snapshotFromRuntime() {
     draft.setChartPreloadMs(RuntimeConfig::chartPreloadMs);
     draft.setChartEndTimingMode(RuntimeConfig::chartEndTimingMode);
     draft.setKeyBindings(RuntimeConfig::keyBindings);
+    draft.setToastPosition(RuntimeConfig::toastPosition);
     return draft;
 }
 
@@ -38,6 +39,7 @@ void SettingsIO::applyToRuntime(const SettingsDraft &draft) {
     RuntimeConfig::chartPreloadMs       = draft.getChartPreloadMs();
     RuntimeConfig::chartEndTimingMode   = draft.getChartEndTimingMode();
     RuntimeConfig::keyBindings          = draft.getKeyBindings();
+    RuntimeConfig::toastPosition        = draft.getToastPosition();
 }
 
 bool SettingsIO::saveDraftForUser(const SettingsDraft &draft, const std::string &username) {

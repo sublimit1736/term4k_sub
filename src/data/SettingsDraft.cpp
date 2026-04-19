@@ -44,6 +44,8 @@ void SettingsDraft::setChartDisplayOffsetMs(const int32_t value) { chartDisplayO
 void SettingsDraft::setChartPreloadMs(const uint32_t value) { chartPreloadMs_ = value; }
 void SettingsDraft::setChartEndTimingMode(const ChartEndTimingMode value) { chartEndTimingMode_ = value; }
 void SettingsDraft::setKeyBindings(const std::vector<uint8_t> &value) { keyBindings_ = value; }
+ToastPosition SettingsDraft::getToastPosition() const { return toastPosition_; }
+void SettingsDraft::setToastPosition(const ToastPosition value) { toastPosition_ = value; }
 
 bool SettingsDraft::operator==(const SettingsDraft &other) const {
     return theme_ == other.theme_ &&
@@ -58,7 +60,8 @@ bool SettingsDraft::operator==(const SettingsDraft &other) const {
            chartDisplayOffsetMs_ == other.chartDisplayOffsetMs_ &&
            chartPreloadMs_ == other.chartPreloadMs_ &&
            chartEndTimingMode_ == other.chartEndTimingMode_ &&
-           keyBindings_ == other.keyBindings_;
+           keyBindings_ == other.keyBindings_ &&
+           toastPosition_ == other.toastPosition_;
 }
 
 bool SettingsDraft::operator!=(const SettingsDraft &other) const {

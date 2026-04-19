@@ -109,6 +109,25 @@ namespace {
         return mode == ChartEndTimingMode::AfterAudioEnd ? "after_audio_end" : "after_chart_end";
     }
 
+    ToastPosition parseToastPosition(const std::string &raw, const ToastPosition fallback) {
+        const std::string value = toLower(trim(raw));
+        if (value == "top_left")     return ToastPosition::TopLeft;
+        if (value == "top_right")    return ToastPosition::TopRight;
+        if (value == "bottom_left")  return ToastPosition::BottomLeft;
+        if (value == "bottom_right") return ToastPosition::BottomRight;
+        return fallback;
+    }
+
+    std::string toastPositionToString(const ToastPosition pos) {
+        switch (pos) {
+            case ToastPosition::TopLeft:     return "top_left";
+            case ToastPosition::TopRight:    return "top_right";
+            case ToastPosition::BottomLeft:  return "bottom_left";
+            case ToastPosition::BottomRight: return "bottom_right";
+        }
+        return "top_right";
+    }
+
     std::string sanitizeUserNameForPath(std::string username) {
         for (char &ch: username){
             if (ch == '/' || ch == '\\') ch = '_';
@@ -161,6 +180,7 @@ int32_t RuntimeConfig::chartDisplayOffsetMs          = 0;
 uint32_t RuntimeConfig::chartPreloadMs               = 2000;
 ChartEndTimingMode RuntimeConfig::chartEndTimingMode = ChartEndTimingMode::AfterChartEnd;
 std::vector<uint8_t> RuntimeConfig::keyBindings      = {'D', 'F', 'H', 'J', 0, 0, 0, 0, 0, 0};
+ToastPosition RuntimeConfig::toastPosition           = ToastPosition::TopRight;
 std::string RuntimeConfig::configDirOverride;
 bool RuntimeConfig::lastLoadFailed                   = false;
 
@@ -180,6 +200,7 @@ void RuntimeConfig::resetToDefaults() {
     chartPreloadMs       = 2000;
     chartEndTimingMode   = ChartEndTimingMode::AfterChartEnd;
     keyBindings          = {'D', 'F', 'H', 'J', 0, 0, 0, 0, 0, 0};
+    toastPosition        = ToastPosition::TopRight;
     lastLoadFailed       = false;
 }
 
@@ -231,6 +252,8 @@ bool RuntimeConfig::loadForUser(const std::string &username) {
                                                           chartEndTimingModeToString(chartEndTimingMode)),
                                                  chartEndTimingMode);
     keyBindings = parseKeyBindings(json.get("gameplay.keyBindings", keyBindingsToString(keyBindings)), keyBindings);
+    toastPosition = parseToastPosition(json.get("appearance.toastPosition", toastPositionToString(toastPosition)),
+                                       toastPosition);
 
     lastLoadFailed = false;
     return true;
@@ -269,6 +292,7 @@ bool RuntimeConfig::saveForUser(const std::string &username) {
     json.set("gameplay.chartPreloadMs", std::to_string(std::clamp<uint32_t>(chartPreloadMs, 0, 60000)));
     json.set("gameplay.chartEndTimingMode", chartEndTimingModeToString(chartEndTimingMode));
     json.set("gameplay.keyBindings", keyBindings.empty() ? "68,70,72,74,0,0,0,0,0,0" : keyBindingsToString(keyBindings));
+    json.set("appearance.toastPosition", toastPositionToString(toastPosition));
 
     std::ofstream out(path, std::ios::trunc);
     if (!out.is_open()) return false;

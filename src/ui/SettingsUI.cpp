@@ -173,7 +173,7 @@ ftxui::Component SettingsUI::component(
     };
 
     auto clampRow = [state] {
-        const int maxRowsByTab[3] = {2, 3, 8};
+        const int maxRowsByTab[3] = {3, 3, 8};
         state->rowIndex = std::clamp(state->rowIndex, 0, maxRowsByTab[state->tabIndex] - 1);
     };
 
@@ -193,6 +193,19 @@ ftxui::Component SettingsUI::component(
         state->draft.setLocale(locales[static_cast<std::size_t>(index)]);
     };
 
+    const std::array<ToastPosition, 4> kToastPositions = {
+        ToastPosition::TopLeft, ToastPosition::TopRight,
+        ToastPosition::BottomLeft, ToastPosition::BottomRight
+    };
+    auto cycleToastPosition = [state, kToastPositions](const int delta) {
+        int index = 0;
+        for (std::size_t i = 0; i < kToastPositions.size(); ++i) {
+            if (state->draft.getToastPosition() == kToastPositions[i]) index = static_cast<int>(i);
+        }
+        index = (index + delta + static_cast<int>(kToastPositions.size())) % static_cast<int>(kToastPositions.size());
+        state->draft.setToastPosition(kToastPositions[static_cast<std::size_t>(index)]);
+    };
+
     auto cycleBuffer = [state, bufferOptions](const int delta) {
         int index = 0;
         for (std::size_t i = 0; i < bufferOptions.size(); ++i) {
@@ -202,10 +215,11 @@ ftxui::Component SettingsUI::component(
         state->draft.setAudioBufferSize(bufferOptions[static_cast<std::size_t>(index)]);
     };
 
-    auto modifyCurrentField = [state, cycleTheme, cycleLocale, cycleBuffer](const int delta, const bool fineAdjust) {
+    auto modifyCurrentField = [state, cycleTheme, cycleLocale, cycleBuffer, cycleToastPosition](const int delta, const bool fineAdjust) {
         if (state->tabIndex == 0) {
             if (state->rowIndex == 0) cycleTheme(delta);
             if (state->rowIndex == 1) cycleLocale(delta);
+            if (state->rowIndex == 2) cycleToastPosition(delta);
             return;
         }
 
@@ -263,6 +277,17 @@ ftxui::Component SettingsUI::component(
         // ensureTenKeySlots is called once at startup; not repeated every frame.
         const std::vector<uint8_t> &bindings = state->draft.getKeyBindings();
 
+        // Toast position label helper
+        auto toastPosLabel = [&](const ToastPosition pos) -> std::string {
+            switch (pos) {
+                case ToastPosition::TopLeft:     return tr("ui.settings.value.toast_top_left");
+                case ToastPosition::TopRight:    return tr("ui.settings.value.toast_top_right");
+                case ToastPosition::BottomLeft:  return tr("ui.settings.value.toast_bottom_left");
+                case ToastPosition::BottomRight: return tr("ui.settings.value.toast_bottom_right");
+            }
+            return "";
+        };
+
         Elements tabElements;
         for (int i = 0; i < static_cast<int>(tabs.size()); ++i) {
             Element t = text(" " + tabs[static_cast<std::size_t>(i)] + " ") | bold;
@@ -279,6 +304,7 @@ ftxui::Component SettingsUI::component(
         if (state->tabIndex == 0) {
             logicalRows.push_back(row(tr("ui.settings.field.theme"), state->draft.getTheme(), state->rowIndex == 0));
             logicalRows.push_back(row(tr("ui.settings.field.locale"), state->draft.getLocale(), state->rowIndex == 1));
+            logicalRows.push_back(row(tr("ui.settings.field.toast_position"), toastPosLabel(state->draft.getToastPosition()), state->rowIndex == 2));
         } else if (state->tabIndex == 1) {
             logicalRows.push_back(row(tr("ui.settings.field.music_volume"), std::to_string(static_cast<int>(state->draft.getMusicVolume() * 100.0f)) + "%", state->rowIndex == 0));
             logicalRows.push_back(row(tr("ui.settings.field.hit_volume"), std::to_string(static_cast<int>(state->draft.getHitSoundVolume() * 100.0f)) + "%", state->rowIndex == 1));

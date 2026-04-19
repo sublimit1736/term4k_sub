@@ -43,6 +43,8 @@ public:
 
     const std::vector<uint8_t> &getKeyBindings() const;
 
+    ToastPosition getToastPosition() const;
+
     void setTheme(const std::string &value);
 
     void setLocale(const std::string &value);
@@ -69,6 +71,8 @@ public:
 
     void setKeyBindings(const std::vector<uint8_t> &value);
 
+    void setToastPosition(ToastPosition value);
+
     bool operator==(const SettingsDraft &other) const;
 
     bool operator!=(const SettingsDraft &other) const;
@@ -89,4 +93,5 @@ private:
     uint32_t chartPreloadMs_               = 2000;
     ChartEndTimingMode chartEndTimingMode_ = ChartEndTimingMode::AfterChartEnd;
     std::vector<uint8_t> keyBindings_;
+    ToastPosition toastPosition_           = ToastPosition::TopRight;
 };
