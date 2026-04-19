@@ -51,6 +51,9 @@ namespace {
             return existing == PlayableType::HoldTail ? ConflictAction::KeepExisting : ConflictAction::KeepIncoming;
         }
 
+        // HoldHead and HoldTail conflict is handled in upsertPlayableEvent where we
+        // have access to noteIndex to distinguish same-note (zero-length hold, drop both)
+        // from different-note (adjacent holds, keep both) collisions.
         if ((existing == PlayableType::HoldHead && incoming == PlayableType::HoldTail) ||
             (existing == PlayableType::HoldTail && incoming == PlayableType::HoldHead)){
             return ConflictAction::DropBoth;
@@ -147,6 +150,18 @@ namespace {
         }
         if (action == ConflictAction::KeepIncoming){
             markDropped(existing, rawTaps, rawHolds);
+            it->second = incoming;
+            return;
+        }
+
+        // DropBoth: for HoldHead+HoldTail, only drop both when they are from the SAME note
+        // (zero-length hold, which is invalid). When they are from DIFFERENT notes (one hold
+        // ending exactly as another begins on the same lane), both notes are valid and we keep them.
+        if (existing.type != incoming.type &&
+            (existing.type == PlayableType::HoldHead || existing.type == PlayableType::HoldTail) &&
+            (incoming.type == PlayableType::HoldHead || incoming.type == PlayableType::HoldTail) &&
+            existing.noteIndex != incoming.noteIndex){
+            // Adjacent holds: keep both notes; update the map slot to the incoming event.
             it->second = incoming;
             return;
         }

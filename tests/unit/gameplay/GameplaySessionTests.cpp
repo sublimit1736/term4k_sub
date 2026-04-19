@@ -233,4 +233,30 @@ TEST_CASE("GameplaySession exposes dual clock control for audio/chart timelines"
     REQUIRE(clock.isAudioFinished());
 }
 
+TEST_CASE("GameplaySession loads adjacent holds sharing the same (lane, time) boundary",
+          "[services][GameplaySession]") {
+    // Regression test: two hold notes on the same lane where note A's tail time equals
+    // note B's head time must BOTH be loaded (previously the parser dropped both via
+    // DropBoth conflict resolution, silently losing notes from charts that use this pattern).
+    RuntimeConfigGuard cfg;
+    RuntimeConfig::chartOffsetMs  = 0;
+    RuntimeConfig::chartPreloadMs = 3000;
+    RuntimeConfig::keyBindings    = {65};
+
+    TempDir temp("term4k_adjacent_holds");
+    const auto chartPath = temp.path() / "chart.t4k";
+
+    // Hold A: lane=0, head=1000ms, tail=2000ms
+    // Hold B: lane=0, head=2000ms, tail=3000ms  (head == A's tail → shared boundary)
+    writeTextFile(chartPath,
+                  std::string("t4kcb\n") +
+                  holdLine(0, 1000, 2000) + "\n" +
+                  holdLine(0, 2000, 3000) + "\n" +
+                  "t4kce\n");
+
+    GameplaySession gameplay;
+    REQUIRE(gameplay.openChart(chartPath.string(), 1));
+    // Both hold notes must be present; note count = 2
+    REQUIRE(gameplay.chartNoteCount() == 2);
+}
 

@@ -78,7 +78,8 @@ ConflictResolution resolveConflict(const PlayableEventType existing,
     }
     if ((existing == PlayableEventType::HoldHead && incoming == PlayableEventType::HoldTail) ||
         (existing == PlayableEventType::HoldTail && incoming == PlayableEventType::HoldHead)) {
-        return {std::nullopt, "drop_hold_head_and_hold_tail"};
+        // Adjacent holds (one ending, another beginning) are valid; keep the incoming event.
+        return {incoming, "keep_adjacent_hold"};
     }
     return {existing, "keep_existing"};
 }
