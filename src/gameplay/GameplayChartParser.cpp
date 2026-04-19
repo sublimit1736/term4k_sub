@@ -51,12 +51,19 @@ namespace {
             return existing == PlayableType::HoldTail ? ConflictAction::KeepExisting : ConflictAction::KeepIncoming;
         }
 
+        // HoldHead and HoldTail conflict is handled in upsertPlayableEvent where we
+        // have access to noteIndex to distinguish same-note (zero-length hold, drop both)
+        // from different-note (adjacent holds, keep both) collisions.
         if ((existing == PlayableType::HoldHead && incoming == PlayableType::HoldTail) ||
             (existing == PlayableType::HoldTail && incoming == PlayableType::HoldHead)){
             return ConflictAction::DropBoth;
         }
 
         return ConflictAction::KeepExisting;
+    }
+
+    void stripCR(std::string &s) {
+        if (!s.empty() && s.back() == '\r') s.pop_back();
     }
 
     uint8_t hexVal(const char c) {
@@ -99,6 +106,34 @@ namespace {
 
         AppDirs::init();
         return AppDirs::chartsDir() + chartFilePath;
+    }
+
+    // Scans a resolved chart path and returns max_lane+1, or 0 if undetectable.
+    uint16_t detectKeyCountImpl(const std::string &resolvedPath) {
+        if (resolvedPath.empty()) return 0;
+        std::ifstream f(resolvedPath, std::ios::in);
+        if (!f.is_open()) return 0;
+
+        std::string marker;
+        std::getline(f, marker);
+        stripCR(marker);
+        if (marker != "t4kcb") return 0;
+
+        uint8_t maxLane = 0;
+        bool found = false;
+        std::string line;
+        while (std::getline(f, line)) {
+            stripCR(line);
+            if (line == "t4kce") break;
+            if (line.size() < 12) continue;
+            const uint8_t type = parseHexField2(line, 0);
+            if (type == tap || type == hold) {
+                const uint8_t lane = parseHexField2(line, 2);
+                if (!found || lane > maxLane) maxLane = lane;
+                found = true;
+            }
+        }
+        return found ? static_cast<uint16_t>(maxLane + 1) : 0;
     }
 
     uint64_t calculateMaxScore(const uint32_t noteCount) {
@@ -151,6 +186,18 @@ namespace {
             return;
         }
 
+        // DropBoth: for HoldHead+HoldTail, only drop both when they are from the SAME note
+        // (zero-length hold, which is invalid). When they are from DIFFERENT notes (one hold
+        // ending exactly as another begins on the same lane), both notes are valid and we keep them.
+        if (existing.type != incoming.type &&
+            (existing.type == PlayableType::HoldHead || existing.type == PlayableType::HoldTail) &&
+            (incoming.type == PlayableType::HoldHead || incoming.type == PlayableType::HoldTail) &&
+            existing.noteIndex != incoming.noteIndex){
+            // Adjacent holds: keep both notes; update the map slot to the incoming event.
+            it->second = incoming;
+            return;
+        }
+
         markDropped(existing, rawTaps, rawHolds);
         markDropped(incoming, rawTaps, rawHolds);
         events.erase(it);
@@ -162,10 +209,15 @@ bool GameplayChartParser::parseChart(const std::string &chartFilePath,
                                       GameplayChartData &outChart
     ) {
     outChart = GameplayChartData{};
-    if (keyCount == 0) return false;
 
     const std::string resolvedPath = resolveChartPath(chartFilePath);
     if (resolvedPath.empty()) return false;
+
+    // When keyCount is 0 (missing from metadata), auto-detect from the chart file.
+    const uint16_t effectiveKeyCount = (keyCount == 0)
+        ? detectKeyCountImpl(resolvedPath)
+        : keyCount;
+    if (effectiveKeyCount == 0) return false;
 
     std::ifstream chartFile(resolvedPath, std::ios::in);
     if (!chartFile.is_open()){
@@ -176,6 +228,7 @@ bool GameplayChartParser::parseChart(const std::string &chartFilePath,
 
     std::string beginMarker;
     std::getline(chartFile, beginMarker);
+    stripCR(beginMarker);
     if (beginMarker != "t4kcb"){
         ErrorNotifier::notify("GameplaySession::openChart",
                               I18n::instance().get("error.chart_invalid_format") + ": " + resolvedPath);
@@ -188,6 +241,7 @@ bool GameplayChartParser::parseChart(const std::string &chartFilePath,
 
     std::string line;
     while (std::getline(chartFile, line)){
+        stripCR(line);
         if (line == "t4kce") break;
         if (line.size() < 2) continue;
 
@@ -195,7 +249,7 @@ bool GameplayChartParser::parseChart(const std::string &chartFilePath,
         if (type == tap){
             if (line.size() < 12) continue;
             const uint8_t lane = parseHexField2(line, 2);
-            if (lane >= keyCount) continue;
+            if (lane >= effectiveKeyCount) continue;
             const uint32_t timeMs = applyChartOffset(parseHexField8(line, 4));
 
             const std::size_t idx = rawTaps.size();
@@ -205,7 +259,7 @@ bool GameplayChartParser::parseChart(const std::string &chartFilePath,
         else if (type == hold){
             if (line.size() < 20) continue;
             const uint8_t lane = parseHexField2(line, 2);
-            if (lane >= keyCount) continue;
+            if (lane >= effectiveKeyCount) continue;
 
             const uint32_t headTimeMs = applyChartOffset(parseHexField8(line, 4));
             const uint32_t tailTimeMs = applyChartOffset(parseHexField8(line, 12));
@@ -233,4 +287,8 @@ bool GameplayChartParser::parseChart(const std::string &chartFilePath,
     outChart.setNoteCount(static_cast<uint32_t>(outChart.getTaps().size() + outChart.getHolds().size()));
     outChart.setMaxScore(calculateMaxScore(outChart.getNoteCount()));
     return true;
+}
+
+uint16_t GameplayChartParser::detectKeyCount(const std::string &chartFilePath) {
+    return detectKeyCountImpl(resolveChartPath(chartFilePath));
 }

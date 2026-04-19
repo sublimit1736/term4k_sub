@@ -49,7 +49,7 @@ ftxui::Component buildSceneComponent(const UIScene scene,
     case UIScene::Settings:
         return SettingsUI::component(std::move(onRoute));
     case UIScene::UserStat:
-        return UserStatUI::component(std::move(onRoute));
+        return UserStatUI::component(screen, std::move(onRoute));
     case UIScene::Gameplay:
         return GameplayUI::component(screen, UIBus::pendingGameplay, std::move(onRoute));
     case UIScene::GameplaySettlement:

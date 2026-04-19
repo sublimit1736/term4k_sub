@@ -4,6 +4,7 @@
 #include "utils/LiteDBUtils.h"
 
 #include <fstream>
+#include <mutex>
 #include <sstream>
 
 namespace {
@@ -118,6 +119,29 @@ namespace {
     size_t uidFieldIndex(const std::string &record) {
         return isUIDFormatRecord(record) ? 0 : static_cast<size_t>(-1);
     }
+
+    // ── In-memory verified-record cache ──────────────────────────────────────
+    // The chain verification (slowHash per record) is expensive.  Cache the
+    // result keyed by a generation counter that increments on every write or
+    // setDataDir call so that repeated reads within the same session are O(1).
+    //
+    // Thread-safety contract:
+    //  - g_cacheMutex protects g_dbGeneration, g_cachedGeneration, g_cachedVerified.
+    //  - The mutex is held only briefly (generation check / cache update); the
+    //    expensive slowHash verification runs outside the lock.
+    //  - If a write occurs while verification is in flight, the generation at
+    //    the time of the file read is compared against the current generation
+    //    before updating the cache.  A mismatch means the result is discarded;
+    //    the next caller will re-read and re-verify with the latest data.
+    std::mutex g_cacheMutex;
+    uint64_t   g_dbGeneration     = 0;           // monotonically increasing
+    uint64_t   g_cachedGeneration = UINT64_MAX;  // sentinel: "not yet cached"
+    std::vector<std::string> g_cachedVerified;
+
+    void invalidateCache() {
+        std::lock_guard<std::mutex> lk(g_cacheMutex);
+        ++g_dbGeneration;
+    }
 }
 
 // Static member initialization.
@@ -131,6 +155,7 @@ void RecordStore::setDataDir(const std::string &dir) {
         recordList = "records.db";
         proofList  = "proof.db";
         LiteDBUtils::setKeyFile("key.bin");
+        invalidateCache();
         return;
     }
     std::string d = dir;
@@ -138,6 +163,7 @@ void RecordStore::setDataDir(const std::string &dir) {
     recordList = d + "records.db";
     proofList  = d + "proof.db";
     LiteDBUtils::setKeyFile(d + "key.bin");
+    invalidateCache();
 }
 
 // Reads full proof file as raw bytes.
@@ -220,6 +246,7 @@ bool RecordStore::addRecord(const std::string &serial_record) {
         proofFile << LiteDBUtils::hexEncode(newHash) << "\n";
     }
 
+    invalidateCache();
     return true;
 }
 
@@ -289,6 +316,8 @@ bool RecordStore::verifyChain() {
 
 // Reads records in time order and truncates at first verification failure,
 // returning only the continuous verified prefix.
+// Results are cached per-generation to avoid redundant O(N×slowHash) work.
+// The mutex is held only briefly; chain verification runs outside the lock.
 std::vector<std::string> RecordStore::readVerifiedRecord() {
     if (!LiteDBUtils::ensureKey()){
         ErrorNotifier::notify("RecordStore::readVerifiedRecord",
@@ -296,28 +325,46 @@ std::vector<std::string> RecordStore::readVerifiedRecord() {
         return {};
     }
 
-    // Read all record lines and hash lines.
-    auto records = readAllRecord();
-    auto hashes  = readNonEmptyLines(proofList);
+    // Fast path: return cached result without any file I/O.
+    uint64_t genSnapshot;
+    {
+        std::lock_guard<std::mutex> lk(g_cacheMutex);
+        genSnapshot = g_dbGeneration;
+        if (g_cachedGeneration == genSnapshot) {
+            return g_cachedVerified;
+        }
+    }
 
-    // Verify line-by-line from genesis hash.
+    // Slow path: read files then re-verify the chain.
+    const auto recLines  = readNonEmptyLines(recordList);
+    const auto hashLines = readNonEmptyLines(proofList);
+
     std::vector<uint8_t> prevHash = LiteDBUtils::slowHash(buildGenesisData());
-
     std::vector<std::string> result;
-    const auto limit = std::min(records.size(), hashes.size());
-    for (size_t i = 0; i < limit; ++i){
-        // Recompute expected chained hash.
-        const std::vector<uint8_t> recordBytes(records[i].begin(), records[i].end());
-        const auto recordHash           = LiteDBUtils::sha256(recordBytes);
-        std::vector<uint8_t> chainInput = prevHash;
-        chainInput.insert(chainInput.end(), recordHash.begin(), recordHash.end());
-        auto expectedHash = LiteDBUtils::slowHash(chainInput);
-
-        // Stored hash mismatch means chain break; truncate here.
-        if (expectedHash != LiteDBUtils::hexDecode(hashes[i])) break;
-
-        result.push_back(records[i]);
+    const size_t limit = std::min(recLines.size(), hashLines.size());
+    for (size_t i = 0; i < limit; ++i) {
+        const auto encrypted = LiteDBUtils::hexDecode(recLines[i]);
+        auto decrypted       = LiteDBUtils::aesDecrypt(encrypted);
+        if (decrypted.empty()) break;
+        LiteDBUtils::xorObfuscate(decrypted);
+        const auto recordHash         = LiteDBUtils::sha256(decrypted);
+        std::vector<uint8_t> combined = prevHash;
+        combined.insert(combined.end(), recordHash.begin(), recordHash.end());
+        auto expectedHash             = LiteDBUtils::slowHash(combined);
+        if (expectedHash != LiteDBUtils::hexDecode(hashLines[i])) break;
+        result.emplace_back(decrypted.begin(), decrypted.end());
         prevHash = std::move(expectedHash);
+    }
+
+    // Update cache only if no write happened while we were verifying.
+    // If the generation changed, skip the update so the next caller will
+    // re-read and re-verify with the up-to-date file content.
+    {
+        std::lock_guard<std::mutex> lk(g_cacheMutex);
+        if (g_dbGeneration == genSnapshot) {
+            g_cachedVerified   = result;
+            g_cachedGeneration = genSnapshot;
+        }
     }
     return result;
 }
@@ -462,7 +509,9 @@ bool RecordStore::addAfterVerified(const std::string &serial_record) {
     const auto insertPos = std::min(verifiedCount, plainRecords.size());
     plainRecords.insert(plainRecords.begin() + static_cast<std::ptrdiff_t>(insertPos), serial_record);
     if (!writeRecordLines(recordList, plainRecords)) return false;
-    return writeProofLines(proofList, plainRecords);
+    if (!writeProofLines(proofList, plainRecords)) return false;
+    invalidateCache();
+    return true;
 }
 
 bool RecordStore::coverAfterVerified(const std::string &serial_record) {
@@ -482,7 +531,9 @@ bool RecordStore::coverAfterVerified(const std::string &serial_record) {
         plainRecords.erase(plainRecords.begin() + static_cast<std::ptrdiff_t>(insertPos + 1));
     }
     if (!writeRecordLines(recordList, plainRecords)) return false;
-    return writeProofLines(proofList, plainRecords);
+    if (!writeProofLines(proofList, plainRecords)) return false;
+    invalidateCache();
+    return true;
 }
 
 bool RecordStore::cleanNotVerified() {
@@ -500,5 +551,7 @@ bool RecordStore::cleanNotVerified() {
         plainRecords.erase(plainRecords.begin() + static_cast<std::ptrdiff_t>(verifiedCount), plainRecords.end());
     }
     if (!writeRecordLines(recordList, plainRecords)) return false;
-    return writeProofLines(proofList, plainRecords);
+    if (!writeProofLines(proofList, plainRecords)) return false;
+    invalidateCache();
+    return true;
 }

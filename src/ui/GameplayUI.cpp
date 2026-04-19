@@ -666,27 +666,17 @@ ftxui::Component GameplayUI::component(ftxui::ScreenInteractive &screen,
 
         if (!chartOk_ || !sessionOk_) {
             MessageOverlay::push(MessageLevel::Error, tr("popup.error.chart_invalid_content"));
-            // Fallback: render error and allow escape back
-            auto errRoot = Renderer([state, tr] {
-                return vbox({
-                    text(tr("ui.gameplay.load_failed")) |
-                        color(Color::RedLight) | bold | center,
-                    text(state->params.chartFilePath) |
-                        color(toColor(state->palette.textMuted)) | center,
-                    text(tr("ui.gameplay.press_esc")) |
-                        color(toColor(state->palette.textMuted)) | center,
-                }) |
-                bgcolor(toColor(state->palette.surfaceBg)) | flex;
-            });
-            return CatchEvent(errRoot, [state, onRoute = std::move(onRoute)](const Event &ev) {
-                if (ev == Event::Escape || ev == Event::Character('q')) {
-                    if (!state->routed) {
-                        state->routed = true;
-                        onRoute(UIScene::ChartList);
-                    }
-                    return true;
+            // Route back to ChartList immediately via the next event tick.
+            // The MessageOverlay popup will be visible on the ChartList screen.
+            screen.PostEvent(Event::Custom);
+            auto errRoot = Renderer([] { return text(""); });
+            return CatchEvent(std::move(errRoot),
+                              [state, onRoute = std::move(onRoute)](const Event &) mutable {
+                if (!state->routed) {
+                    state->routed = true;
+                    onRoute(UIScene::ChartList);
                 }
-                return false;
+                return true;
             });
         }
     }

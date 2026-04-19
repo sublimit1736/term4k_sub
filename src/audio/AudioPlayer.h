@@ -53,4 +53,7 @@ private:
     bool paused      = false;
     float volume     = 1.0f;
     std::atomic<bool> finished_{false};
+    /// Cursor position in PCM frames, updated atomically by the audio callback.
+    /// Used by positionMs() to avoid querying the decoder from another thread.
+    std::atomic<uint64_t> cursorFrames_{0};
 };

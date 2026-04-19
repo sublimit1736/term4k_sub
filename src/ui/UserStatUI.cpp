@@ -14,6 +14,7 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -21,6 +22,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <thread>
 
 namespace ui {
     namespace {
@@ -73,6 +75,7 @@ namespace ui {
 
 
     ftxui::Component UserStatUI::component(
+        ftxui::ScreenInteractive &screen,
         std::function<void(UIScene)> onRoute
         ) {
         using namespace ftxui;
@@ -102,53 +105,78 @@ namespace ui {
             int historyCacheOffset = -1;
             std::size_t historyCacheRevision = static_cast<std::size_t>(-1);
             Elements historyRowsCache;
+
+            // Async refresh support
+            std::atomic<bool> isRefreshing{false};
+            std::atomic<bool> keepRunning{true};
+            std::thread refreshThread;
+
+            ~UserStatState() {
+                keepRunning.store(false, std::memory_order_relaxed);
+                if (refreshThread.joinable()) refreshThread.join();
+            }
         };
 
         auto state = std::make_shared<UserStatState>();
         state->palette = ThemeAdapter::resolveFromRuntime();
 
-        auto refreshSession = [state] {
-            state->hasUser = UserContext::hasLoggedInUser();
-            state->isAdmin = UserContext::isAdminUser();
-            state->isGuest = UserContext::isGuestUser() || !state->hasUser;
-            state->current = UserContext::currentUser();
+        // Async-safe refresh: runs all heavy I/O (chart catalog scan + record
+        // verification) on a background thread so the render loop stays fluid.
+        // The caller must ensure no previous thread is running (events are
+        // blocked while isRefreshing == true, so this is always satisfied for
+        // user-triggered refresh calls).
+        auto startRefreshAsync = [state, &screen]() {
+            if (state->refreshThread.joinable()) state->refreshThread.join();
+            state->isRefreshing.store(true, std::memory_order_relaxed);
+            state->refreshThread = std::thread([state, &screen]() {
+                state->hasUser = UserContext::hasLoggedInUser();
+                state->isAdmin = UserContext::isAdminUser();
+                state->isGuest = UserContext::isGuestUser() || !state->hasUser;
+                state->current = UserContext::currentUser();
 
-            I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
-            state->palette = ThemeAdapter::resolveFromRuntime();
+                I18n::instance().ensureLocaleLoaded(RuntimeConfig::locale);
+                state->palette = ThemeAdapter::resolveFromRuntime();
 
-            if (state->isAdmin){
-                state->adminStats.refresh(AppDirs::chartsDir());
-            }
-            else if (!state->isGuest){
-                state->userStats.refresh(AppDirs::chartsDir());
+                if (!state->keepRunning.load(std::memory_order_relaxed)) {
+                    state->isRefreshing.store(false, std::memory_order_release);
+                    screen.PostEvent(ftxui::Event::Custom);
+                    return;
+                }
 
-                // E7: check if record DB is accessible.
-                if (state->current.has_value()) {
-                    const std::string uid = std::to_string(state->current->getUID());
-                    try {
-                        const auto allRecs = RecordStore::readAllRecordByUID(uid);
-                        const std::size_t verifiedCount = state->userStats.records().order.size();
+                if (state->isAdmin) {
+                    state->adminStats.refresh(AppDirs::chartsDir());
+                } else if (!state->isGuest) {
+                    state->userStats.refresh(AppDirs::chartsDir());
 
-                        if (!allRecs.empty() && verifiedCount == 0) {
-                            // E7: records exist on disk but none verified — DB read error.
+                    if (state->current.has_value()) {
+                        const std::string uid = std::to_string(state->current->getUID());
+                        try {
+                            const auto allRecs = RecordStore::readAllRecordByUID(uid);
+                            const std::size_t verifiedCount = state->userStats.records().order.size();
+                            if (!allRecs.empty() && verifiedCount == 0) {
+                                MessageOverlay::push(MessageLevel::Error,
+                                    I18n::instance().get("popup.error.record_db_error"));
+                            } else if (allRecs.size() > verifiedCount) {
+                                MessageOverlay::push(MessageLevel::Error,
+                                    I18n::instance().get("popup.warning.record_tampered"));
+                            }
+                        } catch (...) {
                             MessageOverlay::push(MessageLevel::Error,
                                 I18n::instance().get("popup.error.record_db_error"));
-                        } else if (allRecs.size() > verifiedCount) {
-                            // E8: some records were dropped due to tampering (error, not warning).
-                            MessageOverlay::push(MessageLevel::Error,
-                                I18n::instance().get("popup.warning.record_tampered"));
                         }
-                    } catch (...) {
-                        MessageOverlay::push(MessageLevel::Error,
-                            I18n::instance().get("popup.error.record_db_error"));
                     }
                 }
-            }
-            state->historyScrollOffset = 0;
-            ++state->historyDataRevision;
-            state->historyCacheOffset = -1;
+
+                state->historyScrollOffset = 0;
+                ++state->historyDataRevision;
+                state->historyCacheOffset = -1;
+                state->isRefreshing.store(false, std::memory_order_release);
+                screen.PostEvent(ftxui::Event::Custom);
+            });
         };
-        refreshSession();
+
+        // Kick off the initial refresh asynchronously.
+        startRefreshAsync();
 
         InputOption userOpt;
         userOpt.placeholder = tr("ui.login.username");
@@ -171,6 +199,21 @@ namespace ui {
 
         auto authContainer = Container::Vertical({usernameInput, passwordInput});
         auto root = Renderer(authContainer, [state, tr, usernameInput, passwordInput] {
+            // While background refresh is running, show a loading indicator so
+            // the render thread never touches partially-written stats fields.
+            if (state->isRefreshing.load(std::memory_order_acquire)) {
+                Element loading = vbox({
+                    filler(),
+                    text(tr("ui.loading.text")) | bold
+                        | color(toColor(state->palette.accentPrimary))
+                        | center,
+                    filler(),
+                }) | bgcolor(toColor(state->palette.surfaceBg)) | flex;
+                Element composed = dbox({loading, MessageOverlay::render(state->palette)});
+                TransitionBackdrop::update(composed);
+                return composed;
+            }
+
             if (state->isGuest){
                 const std::string title = state->authMode == AuthMode::Login
                                               ? tr("ui.auth.login_title")
@@ -333,7 +376,7 @@ namespace ui {
             return composed;
         });
 
-        auto handleGuestEvent = [state, tr, usernameInput, passwordInput, refreshSession](const Event &event) {
+        auto handleGuestEvent = [state, tr, usernameInput, passwordInput, startRefreshAsync](const Event &event) {
             if (event == Event::TabReverse){
                 state->authMode = state->authMode == AuthMode::Login ? AuthMode::Register : AuthMode::Login;
                 state->authStatus.clear();
@@ -358,7 +401,7 @@ namespace ui {
                 if (state->authMode == AuthMode::Login){
                     if (state->userStats.login(state->username, state->password)){
                         state->authStatus.clear();
-                        refreshSession();
+                        startRefreshAsync();
                         MessageOverlay::push(MessageLevel::Info,
                             I18n::instance().get("popup.info.login_succeeded"));
                     }
@@ -400,11 +443,11 @@ namespace ui {
             return passwordInput->OnEvent(event);
         };
 
-        auto handleLoggedInEvent = [state, refreshSession](const Event &event) {
+        auto handleLoggedInEvent = [state, startRefreshAsync](const Event &event) {
             // Logout
             if (event == Event::Character('L')){
                 state->userStats.logout();
-                refreshSession();
+                startRefreshAsync();
                 return true;
             }
             // Logged-in user tab switching
@@ -435,6 +478,19 @@ namespace ui {
                                      onRoute = std::move(onRoute)](const Event &event) {
             if (MessageOverlay::handleEvent(event)){
                 return true;
+            }
+
+            // While the background refresh is running, only Escape/q is
+            // allowed so the user can leave; all other events are suppressed
+            // to prevent accessing partially-written stats fields.
+            if (state->isRefreshing.load(std::memory_order_acquire)) {
+                if (event == Event::Escape || event == Event::Character('q')) {
+                    state->keepRunning.store(false, std::memory_order_relaxed);
+                    if (state->refreshThread.joinable()) state->refreshThread.detach();
+                    onRoute(UIScene::StartMenu);
+                    return true;
+                }
+                return false;
             }
 
             if (event == Event::Escape || event == Event::Character('q')){
