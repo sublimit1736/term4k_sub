@@ -39,6 +39,8 @@
     "ui.loading.text": "Loading",
     "ui.common.fps_unit": "fps",
     "ui.common.error": "Error",
+    "ui.common.warning": "Warning",
+    "ui.common.info": "Info",
     "ui.error.operation_failed": "Operation failed",
     "ui.error.login_instance_unbound": "Login instance is not bound",
     "ui.error.settings_instance_unbound": "Settings instance is not bound",

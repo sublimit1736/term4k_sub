@@ -1,5 +1,6 @@
 #include "ui/MessageOverlay.h"
 
+#include "platform/I18n.h"
 #include "platform/RuntimeConfig.h"
 #include "ui/UIColors.h"
 
@@ -35,6 +36,25 @@ ftxui::Color levelColor(const MessageLevel level) {
         case MessageLevel::Error: return ftxui::Color::RGB(255, 96, 96);
     }
     return ftxui::Color::Default;
+}
+
+// NerdFont icons (Font Awesome, available in Nerd Fonts patched terminals).
+const char *levelIcon(const MessageLevel level) {
+    switch (level) {
+        case MessageLevel::Info:    return "\uF05A"; // nf-fa-info_circle
+        case MessageLevel::Warning: return "\uF071"; // nf-fa-exclamation_triangle
+        case MessageLevel::Error:   return "\uF057"; // nf-fa-times_circle
+    }
+    return "";
+}
+
+const char *levelI18nKey(const MessageLevel level) {
+    switch (level) {
+        case MessageLevel::Info:    return "ui.common.info";
+        case MessageLevel::Warning: return "ui.common.warning";
+        case MessageLevel::Error:   return "ui.common.error";
+    }
+    return "ui.common.info";
 }
 
 } // namespace
@@ -81,8 +101,12 @@ ftxui::Element MessageOverlay::render(const ThemePalette &palette) {
         current = queue().front();
     }
 
+    const std::string icon  = levelIcon(current.level);
+    const std::string label = I18n::instance().get(levelI18nKey(current.level));
+    const std::string fullText = icon + " " + label + ": " + current.text;
+
     const Element panel =
-        text(current.text) | bold | color(levelColor(current.level)) |
+        paragraph(fullText) | bold | color(levelColor(current.level)) |
         borderRounded |
         color(toColor(palette.accentPrimary)) |
         bgcolor(toColor(palette.surfacePanel)) |

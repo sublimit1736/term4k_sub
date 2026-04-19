@@ -39,6 +39,8 @@
     "ui.loading.text": "加载中",
     "ui.common.fps_unit": "帧/秒",
     "ui.common.error": "错误",
+    "ui.common.warning": "警告",
+    "ui.common.info": "消息",
     "ui.error.operation_failed": "操作失败",
     "ui.error.login_instance_unbound": "登录实例未绑定",
     "ui.error.settings_instance_unbound": "设置实例未绑定",
