@@ -1,5 +1,7 @@
 #include "ui/ChartListUI.h"
 
+#include "ui/CoverArtRenderer.h"
+
 #include "platform/AppDirs.h"
 #include "platform/RuntimeConfig.h"
 #include "account/RecordStore.h"
@@ -209,6 +211,7 @@ namespace ui {
         };
 
         struct RightPanelState {
+            std::string chartFolderPath;
             std::string nameText = "-";
             std::string artistText = "-";
             std::string charterText = "-";
@@ -338,6 +341,7 @@ namespace ui {
 
             const auto &entry = it->second;
             const auto &chart = entry.chart;
+            panelState.chartFolderPath = entry.folderPath;
             panelState.nameText = chart.getDisplayName().empty() ? selection.chartId : chart.getDisplayName();
             panelState.artistText = chart.getArtist().empty() ? "-" : chart.getArtist();
             panelState.charterText = chart.getCharter().empty() ? "-" : chart.getCharter();
@@ -991,15 +995,25 @@ namespace ui {
                 });
             };
 
-            Element metaPanel = vbox({
+            Element infoPanel = vbox({
                 infoRow("ui.chart_select.meta.name", state.nameText),
                 infoRow("ui.chart_select.meta.artist", state.artistText),
                 infoRow("ui.chart_select.meta.charter", state.charterText),
                 infoRow("ui.chart_select.meta.difficulty", state.diffText),
                 infoRow("ui.chart_select.meta.keys", state.keyText),
+            }) | flex;
+
+            constexpr int kCoverW = 12;
+            constexpr int kCoverH = 6;
+            Element coverArt = renderCoverArt(state.chartFolderPath, kCoverW, kCoverH);
+
+            Element metaPanel = hbox({
+                coverArt | size(WIDTH, EQUAL, kCoverW) | size(HEIGHT, EQUAL, kCoverH),
+                text(" "),
+                infoPanel,
             });
 
-            return window(text("  " + tr("ui.chart_select.meta.title") + " "), metaPanel) |
+            return window(text("  " + tr("ui.chart_select.meta.title") + " "), metaPanel) |
                    color(toColor(palette.accentPrimary)) |
                    bgcolor(toColor(palette.surfacePanel)) |
                    size(HEIGHT, LESS_THAN, 12);
