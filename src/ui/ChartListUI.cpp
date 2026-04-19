@@ -505,10 +505,10 @@ namespace ui {
                         bgcolor(toColor(palette.surfacePanel));
 
             Element listBox = vbox(buildChartListRows(palette, tr, ids, chartList, fileSizeCache, selectedIndex)) |
+                              frame |
                               borderRounded |
                               color(toColor(!focusSearch ? palette.accentPrimary : palette.borderNormal)) |
                               bgcolor(toColor(palette.surfacePanel)) |
-                              frame |
                               flex;
 
             return vbox({searchBox, listBox}) | size(WIDTH, EQUAL, 42);
@@ -732,7 +732,11 @@ namespace ui {
                 }
             }
 
-            if (ctx.uiState.focusSearch) return ctx.container->OnEvent(event);
+            if (ctx.uiState.focusSearch) {
+                // Suppress Enter/Return to prevent newlines being inserted into the search field.
+                if (event == ftxui::Event::Return) return true;
+                return ctx.container->OnEvent(event);
+            }
             return true;
         }
 
@@ -1528,7 +1532,8 @@ namespace ui {
             // Audio preview player for the chart selection screen.
             AudioPlayer previewPlayer;
             std::string lastPreviewChartId;  ///< Chart ID whose preview is currently loaded.
-            uint32_t previewEndMs = 0;       ///< Stop preview when position reaches this value.
+            uint32_t previewBeginMs = 0;     ///< Seek-to position when starting or looping preview.
+            uint32_t previewEndMs = 0;       ///< Loop back to previewBeginMs when position reaches this value.
 
             ~ChartListComponentState() {
                 session.keepRunning = false;
@@ -1537,20 +1542,47 @@ namespace ui {
             }
         };
 
+        /// Fade duration in milliseconds for preview fade-in and fade-out.
+        constexpr uint32_t kPreviewFadeMs = 500;
+
         /// Default preview duration (ms) when chart metadata contains no preview range.
         constexpr uint32_t kDefaultPreviewEndMs = 10000;
 
         /// Starts or updates the audio preview for the currently selected chart.
-        /// Stops any ongoing preview first.  Safe to call every render frame —
-        /// it is a no-op when the selected chart has not changed.
+        /// Handles looping: when the preview window ends, seeks back to previewBeginMs.
+        /// Applies fade-in at the start and fade-out near the loop point.
+        /// Safe to call every render frame — it is a no-op when the selection has not changed.
         void updateChartPreview(ChartListComponentState &cstate,
                                 const std::string &selectedChartId,
                                 const ChartListScene &chartList) {
-            // Auto-stop when the preview time window has elapsed.
-            if (!cstate.lastPreviewChartId.empty() &&
-                cstate.previewEndMs > 0 &&
-                cstate.previewPlayer.positionMs() >= cstate.previewEndMs) {
-                cstate.previewPlayer.stopSong();
+            // Per-frame: handle loop and fade for an already-running preview.
+            if (!cstate.lastPreviewChartId.empty() && cstate.previewEndMs > 0) {
+                const uint32_t pos = cstate.previewPlayer.positionMs();
+
+                // Loop: when we reach the end (or the decoder hit EOF), seek back to begin.
+                if (pos >= cstate.previewEndMs || cstate.previewPlayer.isFinished()) {
+                    cstate.previewPlayer.seekToMs(cstate.previewBeginMs);
+                }
+
+                // Fade volume: ramp in over the first kPreviewFadeMs, ramp out over the last.
+                const uint32_t begin = cstate.previewBeginMs;
+                const uint32_t end   = cstate.previewEndMs;
+                const float base     = RuntimeConfig::musicVolume;
+                float vol            = base;
+
+                const uint32_t currentPos = cstate.previewPlayer.positionMs();
+                if (currentPos <= begin + kPreviewFadeMs) {
+                    const float t = (kPreviewFadeMs > 0 && currentPos >= begin)
+                                        ? static_cast<float>(currentPos - begin) /
+                                          static_cast<float>(kPreviewFadeMs)
+                                        : 1.0f;
+                    vol = base * std::clamp(t, 0.0f, 1.0f);
+                } else if (end > kPreviewFadeMs && currentPos >= end - kPreviewFadeMs) {
+                    const float t = static_cast<float>(end - currentPos) /
+                                    static_cast<float>(kPreviewFadeMs);
+                    vol = base * std::clamp(t, 0.0f, 1.0f);
+                }
+                cstate.previewPlayer.setVolume(vol);
             }
 
             if (selectedChartId == cstate.lastPreviewChartId) return;
@@ -1558,6 +1590,7 @@ namespace ui {
             // Selection changed — stop the current preview and start a new one.
             cstate.previewPlayer.stopSong();
             cstate.lastPreviewChartId = selectedChartId;
+            cstate.previewBeginMs = 0;
             cstate.previewEndMs = 0;
 
             if (selectedChartId.empty()) return;
@@ -1576,8 +1609,11 @@ namespace ui {
             const uint32_t effectiveBegin = begin;
             const uint32_t effectiveEnd   = (end > begin) ? end : (begin + kDefaultPreviewEndMs);
 
-            cstate.previewEndMs = effectiveEnd;
-            cstate.previewPlayer.setVolume(RuntimeConfig::musicVolume);
+            cstate.previewBeginMs = effectiveBegin;
+            cstate.previewEndMs   = effectiveEnd;
+
+            // Start at volume 0 so the fade-in ramp can take effect on first frames.
+            cstate.previewPlayer.setVolume(0.0f);
             if (cstate.previewPlayer.loadSong(entry.musicFilePath.c_str())) {
                 if (effectiveBegin > 0) cstate.previewPlayer.seekToMs(effectiveBegin);
                 cstate.previewPlayer.playSong();

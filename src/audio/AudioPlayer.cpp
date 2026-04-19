@@ -13,6 +13,11 @@ void AudioPlayer::data_callback(ma_device* pDevice, void* pOutput, const void* /
     ma_uint64 framesRead = 0;
     const ma_result result = ma_data_source_read_pcm_frames(&svc->decoder, pOutput, frameCount, &framesRead);
 
+    // Advance the atomic cursor so positionMs() can read it without touching the decoder.
+    if (framesRead > 0) {
+        svc->cursorFrames_.fetch_add(framesRead, std::memory_order_relaxed);
+    }
+
     if (framesRead < frameCount) {
         const ma_uint32 frameSize = ma_get_bytes_per_frame(svc->decoder.outputFormat,
                                                             svc->decoder.outputChannels);
@@ -63,6 +68,7 @@ bool AudioPlayer::loadSong(const char* filename) {
     initialized = true;
     paused      = false;
     finished_.store(false, std::memory_order_relaxed);
+    cursorFrames_.store(0, std::memory_order_relaxed);
     return true;
 }
 
@@ -117,6 +123,9 @@ bool AudioPlayer::seekToMs(uint32_t ms) {
         ErrorNotifier::notify("SongPlayer::seekToMs", I18n::instance().get("error.seek_failed"));
         return false;
     }
+    // Reset atomic cursor and finished flag so positionMs() reflects the new position.
+    cursorFrames_.store(targetFrame, std::memory_order_relaxed);
+    finished_.store(false, std::memory_order_relaxed);
     return true;
 }
 
@@ -131,16 +140,15 @@ void AudioPlayer::stop() {
         initialized = false;
         paused      = false;
         finished_.store(false, std::memory_order_relaxed);
+        cursorFrames_.store(0, std::memory_order_relaxed);
     }
 }
 
 uint32_t AudioPlayer::positionMs() const {
     if (!initialized) return 0;
-    ma_uint64 cursor = 0;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-    if (ma_data_source_get_cursor_in_pcm_frames(const_cast<ma_decoder*>(&decoder), &cursor) != MA_SUCCESS) return 0;
     const ma_uint32 sampleRate = decoder.outputSampleRate;
     if (sampleRate == 0) return 0;
+    const ma_uint64 cursor = cursorFrames_.load(std::memory_order_relaxed);
     return static_cast<uint32_t>((cursor * 1000ull) / sampleRate);
 }
 
